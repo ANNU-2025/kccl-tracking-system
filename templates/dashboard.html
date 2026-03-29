@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block body %}
+<style>
+    .stat-card{cursor:pointer;transition:.15s;border:1px solid var(--border)}
+    .stat-card:hover{border-color:var(--blue);box-shadow:0 3px 18px rgba(48,151,209,.12);transform:translateY(-2px)}
+    .stat-card:active{transform:translateY(0)}
+    .dl-icon{position:absolute;bottom:10px;right:14px;font-size:13px;color:#C0C8D8;opacity:0;transition:.15s}
+    .stat-card:hover .dl-icon{opacity:.7}
+    .dl-row{background:none;border:1px solid var(--border);border-radius:5px;padding:3px 8px;cursor:pointer;color:var(--grey);font-size:11px;transition:.12s;display:inline-flex;align-items:center;gap:4px}
+    .dl-row:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+    .dash-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;flex:1;min-height:0}
+    .dash-grid .tw{display:flex;flex-direction:column;min-height:0}
+    .dash-grid .tw-bar{flex-shrink:0}
+    .dash-grid .tw-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+    .dash-grid .dealer-search{flex-shrink:0}
+    .dash-grid .tw-scroll{flex:1;min-height:0;overflow-x:auto;overflow-y:auto}
+    .dash-grid .tw-scroll table{margin-bottom:0}
+    .stat-sub{display:flex;gap:18px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+    .stat-sub div{font-size:11px}
+    @media(max-width:900px){.dash-grid{grid-template-columns:1fr}}
+</style>
+
+<script>function dl(u){window.location.href=u}</script>
+
+<div class="stats">
+    <div class="stat stat-card" onclick="dl('{{ url_for('export_instock') }}')">
+        <div class="si green"><i class="fas fa-box"></i></div>
+        <div class="sv">{{ total_in_stock }}</div>
+        <div class="sl">IN STOCK</div>
+        <div class="stat-sub">
+            <div><span style="color:var(--grey)">Fresh:</span> <strong style="color:var(--green)">{{ fresh_c }}</strong></div>
+            <div><span style="color:var(--grey)">Returned:</span> <strong style="color:#C8960A">{{ ret_c }}</strong></div>
+        </div>
+        <i class="fas fa-download dl-icon"></i>
+    </div>
+    <div class="stat stat-card" onclick="dl('{{ url_for('export_stb_status', status='Issued') }}')">
+        <div class="si blue"><i class="fas fa-share"></i></div>
+        <div class="sv">{{ issued_c }}</div>
+        <div class="sl">ISSUED</div>
+        <i class="fas fa-download dl-icon"></i>
+    </div>
+    <div class="stat stat-card" onclick="dl('{{ url_for('export_stb_status', status='Faulty') }}')">
+        <div class="si red"><i class="fas fa-triangle-exclamation"></i></div>
+        <div class="sv">{{ faulty_c }}</div>
+        <div class="sl">FAULTY</div>
+        <i class="fas fa-download dl-icon"></i>
+    </div>
+    <div class="stat stat-card" onclick="dl('{{ url_for('export_fibre') }}')">
+        <div class="si purple"><i class="fas fa-network-wired"></i></div>
+        <div class="sv">{{ fib_val }}m</div>
+        <div class="sl">FIBRE STOCK</div>
+        <i class="fas fa-download dl-icon"></i>
+    </div>
+</div>
+
+<div class="dash-grid">
+    <div class="tw">
+        <div class="tw-bar">
+            <div class="card-title"><i class="fas fa-microchip" style="color:var(--green)"></i> Material</div>
+            <button class="btn btn-green btn-sm" onclick="dl('{{ url_for('export_hardware') }}')"><i class="fas fa-download"></i> Export</button>
+        </div>
+        <div class="tw-body">
+            <input type="text" id="materialSearch" class="fi dealer-search" placeholder="Search materials...">
+            {% if material_summary %}
+            <div class="tw-scroll">
+                <table>
+                    <thead><tr><th>Item Code</th><th>In Stock</th></tr></thead>
+                    <tbody id="materialBody">
+                    {% for row in material_summary %}
+                        <tr>
+                            <td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">{{ row[0] }}</td>
+                            <td><span class="bg bg-green"><span class="bd"></span>{{ row[2] }}</span></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty" style="padding:20px 10px"><i class="fas fa-box-open"></i><h3>No Data</h3></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="tw">
+        <div class="tw-bar">
+            <div class="card-title"><i class="fas fa-flask" style="color:var(--purple)"></i> Consumable</div>
+            <button class="btn btn-purple btn-sm" onclick="dl('{{ url_for('export_consumables') }}')"><i class="fas fa-download"></i> Export</button>
+        </div>
+        <div class="tw-body">
+            <input type="text" id="consumableSearch" class="fi dealer-search" placeholder="Search consumables...">
+            {% if consumable_summary %}
+            <div class="tw-scroll">
+                <table>
+                    <thead><tr><th>Item Code</th><th>Total</th><th>Used</th><th>Balance</th></tr></thead>
+                    <tbody id="consumableBody">
+                    {% for row in consumable_summary %}
+                        {% set total = row[2]|float %}
+                        {% set bal = row[4]|float %}
+                        <tr>
+                            <td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">{{ row[0] }}</td>
+                            <td>{{ row[2] }}</td>
+                            <td>{{ row[3] }}</td>
+                            <td style="font-weight:600;color:{% if bal<=0 %}var(--red){% elif bal<=(total*0.2) %}#C8960A{% else %}var(--green){% endif %}">{{ row[4] }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty" style="padding:20px 10px"><i class="fas fa-cubes"></i><h3>No Data</h3></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="tw">
+        <div class="tw-bar">
+            <div class="card-title"><i class="fas fa-handshake" style="color:var(--red)"></i> Issued to Dealers</div>
+        </div>
+        <div class="tw-body">
+            <input type="text" id="dealerSearch" class="fi dealer-search" placeholder="Search dealers...">
+            {% if dealer_data %}
+            <div class="tw-scroll">
+                <table>
+                    <thead><tr><th>#</th><th>Dealer Name</th><th>Units</th><th></th></tr></thead>
+                    <tbody id="dealerBody">
+                    {% for row in dealer_data %}
+                        <tr>
+                            <td style="color:var(--grey)">{{ loop.index }}</td>
+                            <td style="font-weight:600">{{ row[0] }}</td>
+                            <td><span class="bg bg-yellow"><span class="bd"></span>{{ row[1] }}</span></td>
+                            <td><button class="dl-row" onclick="dl('{{ url_for('export_dealer', dealer_name=row[0]) }}')"><i class="fas fa-download"></i></button></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty" style="padding:20px 10px"><i class="fas fa-store"></i><h3>No Data</h3></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('materialSearch').addEventListener('input', function(){
+    var t = this.value.toLowerCase();
+    document.querySelectorAll('#materialBody tr').forEach(function(r){
+        r.style.display = r.cells[0].textContent.toLowerCase().indexOf(t) !== -1 ? '' : 'none';
+    });
+});
+document.getElementById('consumableSearch').addEventListener('input', function(){
+    var t = this.value.toLowerCase();
+    document.querySelectorAll('#consumableBody tr').forEach(function(r){
+        r.style.display = r.cells[0].textContent.toLowerCase().indexOf(t) !== -1 ? '' : 'none';
+    });
+});
+document.getElementById('dealerSearch').addEventListener('input', function(){
+    var t = this.value.toLowerCase();
+    document.querySelectorAll('#dealerBody tr').forEach(function(r){
+        r.style.display = r.cells[1].textContent.toLowerCase().indexOf(t) !== -1 ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

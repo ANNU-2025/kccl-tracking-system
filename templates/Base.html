@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}KCCL ServiceDesk{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #F4F6F9; --card: #FFFFFF; --primary: #1A2536; --grey: #6C757D;
+            --sidebar: #1A2536; --border: #D1D9E6; --border2: #C0C8D8;
+            --blue: #3097D1; --green: #2FA360; --red: #E74C3C; --purple: #8E44AD;
+            --blue-bg: rgba(48,151,209,.08); --green-bg: rgba(47,163,96,.08);
+            --red-bg: rgba(231,76,60,.08); --purple-bg: rgba(142,68,173,.08);
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        html,body{height:100%;overflow:hidden}
+        body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--primary)}
+        .layout{display:flex;height:100vh}
+        .sidebar{width:260px;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s}
+        .sb-brand{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px}
+        .sb-brand .icon{width:40px;height:40px;background:var(--blue);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-shrink:0}
+        .sb-brand h1{font-size:16px;font-weight:700;color:#fff;line-height:1.2}
+        .sb-brand p{font-size:10px;color:rgba(255,255,255,.5)}
+        .sb-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+        .sb-link{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:8px;color:rgba(255,255,255,.65);font-size:13px;font-weight:500;cursor:pointer;transition:.2s;border:1px solid transparent;text-decoration:none;user-select:none}
+        .sb-link:hover{background:rgba(255,255,255,.06);color:#fff}
+        .sb-link.active{background:var(--blue);color:#fff;border-color:rgba(48,151,209,.4)}
+        .sb-link i{width:18px;text-align:center;font-size:14px}
+        .sb-foot{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;flex-shrink:0}
+        .sb-foot .av{width:34px;height:34px;border-radius:8px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0}
+        .sb-foot .un{font-size:12px;font-weight:600;color:#fff}
+        .sb-foot .ur{font-size:10px;color:rgba(255,255,255,.45)}
+        .main{margin-left:260px;flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+        .topbar{height:56px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 28px;gap:14px;flex-shrink:0}
+        .topbar h2{font-size:16px;font-weight:700;color:var(--primary)}
+        .topbar .sp{flex:1}
+        .content{padding:20px 28px;flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px}
+        .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+        .card-title{font-size:14px;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:8px}
+        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px;flex-shrink:0}
+        .stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;transition:.2s;position:relative;overflow:hidden}
+        .stat:hover{border-color:var(--border2);box-shadow:0 2px 12px rgba(0,0,0,.04)}
+        .stat .si{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
+        .stat .sv{font-size:26px;font-weight:700;color:var(--primary);margin-bottom:2px}
+        .stat .sl{font-size:11px;color:var(--grey);font-weight:500}
+        .si.blue{background:var(--blue-bg);color:var(--blue)}.si.green{background:var(--green-bg);color:var(--green)}
+        .si.red{background:var(--red-bg);color:var(--red)}.si.purple{background:var(--purple-bg);color:var(--purple)}
+        .tw{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+        .tw-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0}
+        .tw-hscroll{overflow-x:auto}
+        table{width:100%;border-collapse:collapse}
+        thead{background:#F8F9FB;position:sticky;top:0;z-index:2}
+        th{padding:10px 14px;text-align:left;font-size:10px;font-weight:600;color:var(--grey);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+        td{padding:10px 14px;font-size:12px;border-bottom:1px solid var(--border);color:var(--primary);white-space:nowrap}
+        tbody tr:hover{background:#F8F9FB}
+        tbody tr:last-child td{border-bottom:none}
+        .bg{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:5px;font-size:10px;font-weight:600}
+        .bg-green{background:var(--green-bg);color:var(--green)}.bg-yellow{background:rgba(240,191,42,.1);color:#C8960A}
+        .bg-red{background:var(--red-bg);color:var(--red)}.bg-blue{background:var(--blue-bg);color:var(--blue)}
+        .bg-grey{background:#F0F2F5;color:var(--grey)}
+        .bg .bd{width:5px;height:5px;border-radius:50%;background:currentColor}
+        .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s;border:1px solid transparent;font-family:inherit;user-select:none;text-decoration:none}
+        .btn-blue{background:var(--blue);color:#fff;border-color:var(--blue)}.btn-blue:hover{background:#2886BC;box-shadow:0 2px 8px rgba(48,151,209,.25)}
+        .btn-green{background:var(--green);color:#fff;border-color:var(--green)}.btn-green:hover{background:#269050}
+        .btn-red{background:var(--red);color:#fff;border-color:var(--red)}.btn-red:hover{background:#D04040}
+        .btn-outline{background:var(--card);color:var(--primary);border-color:var(--border)}.btn-outline:hover{background:#F8F9FB;border-color:var(--border2)}
+        .btn-purple{background:var(--purple);color:#fff;border-color:var(--purple)}.btn-purple:hover{background:#7A3A96}
+        .btn-sm{padding:5px 11px;font-size:11px;border-radius:6px}
+        .fg{margin-bottom:12px}
+        .fl{display:block;font-size:11px;font-weight:600;color:var(--grey);margin-bottom:4px}
+        .fi,.fs{width:100%;padding:9px 12px;background:#fff;border:1px solid var(--border);border-radius:8px;color:var(--primary);font-size:12px;font-family:inherit;outline:none;transition:border .15s}
+        .fi:focus,.fs:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(48,151,209,.1)}
+        .fs{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%236C757D' d='M5 7L0 2h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px}
+        .fs option{background:var(--card)}
+        .fbar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end}
+        .flashes{margin-bottom:14px;flex-shrink:0}
+        .flash{padding:10px 16px;border-radius:8px;font-size:12px;font-weight:500;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+        .flash.success{background:var(--green-bg);color:var(--green);border:1px solid rgba(47,163,96,.15)}
+        .flash.error{background:var(--red-bg);color:var(--red);border:1px solid rgba(231,76,60,.15)}
+        .empty{text-align:center;padding:40px 16px;color:var(--grey)}
+        .empty i{font-size:32px;margin-bottom:10px;display:block;opacity:.35}
+        .empty h3{font-size:13px;color:var(--primary);margin-bottom:4px;font-weight:600}
+        .empty p{font-size:12px}
+        .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
+        .login-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:36px;width:100%;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+        .login-box h1{font-size:22px;text-align:center;margin-bottom:4px;font-weight:700}
+        .login-box>p{text-align:center;color:var(--grey);font-size:12px;margin-bottom:24px}
+        .result-box{background:#F8F9FB;border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:12px;display:none}
+        .result-box.show{display:block}
+        .result-row{display:flex;gap:20px;font-size:12px;flex-wrap:wrap}
+        .result-row span{color:var(--grey)}
+        .result-row strong{color:var(--primary)}
+        .mob-btn{display:none;width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--primary);align-items:center;justify-content:center;cursor:pointer;font-size:14px}
+        .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:45}
+        .tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);flex-shrink:0}
+        .tab-btn{padding:10px 20px;background:transparent;border:none;color:var(--grey);font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit;transition:.15s}
+        .tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+        .tab-btn:hover{color:var(--primary)}
+        .tab-panel{display:none}.tab-panel.active{display:block}
+        .serial-cell{font-family:Consolas,monospace;font-size:10px;color:var(--blue);max-width:200px;overflow:hidden;text-overflow:ellipsis}
+        .col-hide{display:none}
+        @media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.sb-overlay.open{display:block}.main{margin-left:0}.mob-btn{display:flex}.stats{grid-template-columns:repeat(2,1fr)}.fbar{grid-template-columns:1fr}}
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% if 'logged_user' in session %}
+    <div class="layout">
+        <div class="sb-overlay" id="sbOverlay"></div>
+        <aside class="sidebar" id="sidebar">
+            <div class="sb-brand">
+                <div class="icon"><i class="fas fa-server"></i></div>
+                <div><h1>KCCL BANGLA</h1><p>Enterprise System</p></div>
+            </div>
+            <nav class="sb-nav">
+                <a href="{{ url_for('dashboard') }}" class="sb-link {% if request.endpoint=='dashboard' %}active{% endif %}"><i class="fas fa-chart-line"></i> Dashboard</a>
+                <a href="{{ url_for('stb_manager') }}" class="sb-link {% if request.endpoint=='stb_manager' %}active{% endif %}"><i class="fas fa-tv"></i> STB Manager</a>
+                {% if session.get('user_role')=='admin' %}
+                <a href="{{ url_for('inventory') }}" class="sb-link {% if request.endpoint=='inventory' %}active{% endif %}"><i class="fas fa-boxes-stacked"></i> Inventory</a>
+                <a href="{{ url_for('fibre_manager') }}" class="sb-link {% if request.endpoint=='fibre_manager' %}active{% endif %}"><i class="fas fa-network-wired"></i> Fibre Manager</a>
+                {% endif %}
+                <a href="{{ url_for('logs') }}" class="sb-link {% if request.endpoint=='logs' %}active{% endif %}"><i class="fas fa-clock-rotate-left"></i> Activity Log</a>
+            </nav>
+            <div class="sb-foot">
+                <div class="av">{{ session.logged_user[:2]|upper }}</div>
+                <div><div class="un">{{ session.logged_user }}</div><div class="ur">{{ session.get('user_role','user')|title }}</div></div>
+            </div>
+        </aside>
+        <div class="main">
+            <header class="topbar">
+                <button class="mob-btn" id="mobBtn"><i class="fas fa-bars"></i></button>
+                <h2>{% block page_title %}{% endblock %}</h2>
+                <div class="sp"></div>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline btn-sm"><i class="fas fa-right-from-bracket"></i> Logout</a>
+            </header>
+            <div class="content">
+                <div class="flashes">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for cat, msg in messages %}
+                    <div class="flash {{ cat }}"><i class="fas fa-{% if cat=='success' %}check-circle{% else %}exclamation-circle{% endif %}"></i> {{ msg }}</div>
+                    {% endfor %}
+                    {% endwith %}
+                </div>
+                {% block body %}{% endblock %}
+            </div>
+        </div>
+    </div>
+    <script>
+    document.getElementById('mobBtn').addEventListener('click',function(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sbOverlay').classList.toggle('open')});
+    document.getElementById('sbOverlay').addEventListener('click',function(){document.getElementById('sidebar').classList.remove('open');this.classList.remove('open')});
+    </script>
+    {% else %}
+    {% block login_body %}{% endblock %}
+    {% endif %}
+</body>
+</html>

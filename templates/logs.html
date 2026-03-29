@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Activity Log{% endblock %}
+{% block page_title %}Activity Logs{% endblock %}
+{% block body %}
+<style>
+    .log-filter{flex-shrink:0}
+    .log-card{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+    .log-card .tab-bar{flex-shrink:0}
+    .log-card .tab-panel.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+    .log-card .tab-head{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
+    .log-card .tab-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:auto}
+    .log-card .tab-scroll table{margin-bottom:0}
+</style>
+
+<div class="card log-filter" style="margin-bottom:14px">
+    <div class="card-head" style="margin-bottom:10px"><div class="card-title"><i class="fas fa-filter" style="color:var(--blue)"></i> Filter Logs</div></div>
+    <div class="fbar" style="margin-bottom:0">
+        <div class="fg" style="margin-bottom:0"><label class="fl">From Date</label><input type="date" class="fi" id="fDate" value="{{ f_date }}"></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">To Date</label><input type="date" class="fi" id="tDate" value="{{ t_date }}"></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">Search</label><input type="text" class="fi" id="sTerm" placeholder="Item, dealer, invoice, serial..." value="{{ search_term }}"></div>
+        <div class="fg" style="margin-bottom:0;display:flex;align-items:end;gap:8px">
+            <button class="btn btn-blue" onclick="applyFilters()"><i class="fas fa-search"></i> Filter</button>
+            <a href="{{ url_for('logs') }}" class="btn btn-outline"><i class="fas fa-rotate-left"></i> Reset</a>
+        </div>
+    </div>
+</div>
+<script>function applyFilters(){var f=document.getElementById('fDate').value,t=document.getElementById('tDate').value,s=document.getElementById('sTerm').value;window.location.href='{{ url_for('logs') }}?from_date='+f+'&to_date='+t+'&search='+encodeURIComponent(s)}</script>
+
+<div class="log-card">
+    <div class="tab-bar" style="padding:0 16px">
+        <button class="tab-btn active" onclick="switchTab(this,'tabInv')"><i class="fas fa-boxes-stacked"></i> Inventory Logs</button>
+        <button class="tab-btn" onclick="switchTab(this,'tabStb')"><i class="fas fa-tv"></i> STB Logs</button>
+        <button class="tab-btn" onclick="switchTab(this,'tabFibre')"><i class="fas fa-network-wired"></i> Fibre Logs</button>
+    </div>
+
+    <div id="tabInv" class="tab-panel active" style="padding:0">
+        <div class="tab-head">
+            <span style="font-size:12px;color:var(--grey)">{{ combined|length }} entries</span>
+            <button class="btn btn-blue btn-sm" onclick="exportTable('invTable','Inventory_Logs')"><i class="fas fa-download"></i> Export</button>
+        </div>
+        {% if combined %}
+        <div class="tab-scroll" style="border:1px solid var(--border);border-radius:0 0 10px 10px;margin:0 16px 16px">
+            <table id="invTable">
+                <thead><tr><th>Type</th><th>Item Name</th><th>Item Code</th><th>Qty</th><th>Action</th><th class="col-hide">Serial Nos</th><th>Dealer</th><th>Invoice</th><th>Done By</th><th>Date</th></tr></thead>
+                <tbody>
+                {% for row in combined %}
+                    <tr>
+                        <td>{% if row[0]=='Material' %}<span class="bg bg-blue"><span class="bd"></span>{{ row[0] }}</span>{% else %}<span class="bg bg-green"><span class="bd"></span>{{ row[0] }}</span>{% endif %}</td>
+                        <td style="font-size:11px">{{ row[8] or '—' }}</td>
+                        <td style="font-weight:600">{{ row[1] }}</td>
+                        <td>{{ row[2] }}</td>
+                        <td>{% if row[3]=='Add New' %}<span class="bg bg-green"><span class="bd"></span>{{ row[3] }}</span>{% elif row[3]=='Issue' %}<span class="bg bg-yellow"><span class="bd"></span>{{ row[3] }}</span>{% else %}<span class="bg bg-blue"><span class="bd"></span>{{ row[3] }}</span>{% endif %}</td>
+                        <td class="col-hide">{{ row[7] or '' }}</td>
+                        <td>{{ row[4] or '—' }}</td>
+                        <td style="font-family:Consolas,monospace;font-size:11px">{{ row[5] or '—' }}</td>
+                        <td>{{ row[6] or '—' }}</td>
+                        <td>{{ row[9].strftime('%d-%b-%Y %H:%M') if row[9] else '—' }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty"><i class="fas fa-clipboard-list"></i><h3>No Inventory Logs</h3><p>No activity found for the selected period</p></div>
+        {% endif %}
+    </div>
+
+    <div id="tabStb" class="tab-panel" style="padding:0">
+        <div class="tab-head">
+            <span style="font-size:12px;color:var(--grey)">{{ stb_logs|length }} entries</span>
+            <button class="btn btn-blue btn-sm" onclick="exportTable('stbTable','STB_Logs')"><i class="fas fa-download"></i> Export</button>
+        </div>
+        {% if stb_logs %}
+        <div class="tab-scroll" style="border:1px solid var(--border);border-radius:0 0 10px 10px;margin:0 16px 16px">
+            <table id="stbTable">
+                <thead><tr><th>STB No</th><th>Action</th><th>Dealer</th><th>Done By</th><th>Date</th></tr></thead>
+                <tbody>
+                {% for row in stb_logs %}
+                    <tr>
+                        <td style="font-weight:600;font-family:Consolas,monospace">{{ row[0] }}</td>
+                        <td>{% if row[1]=='Add New' %}<span class="bg bg-green"><span class="bd"></span>{{ row[1] }}</span>{% elif row[1]=='Issue' %}<span class="bg bg-yellow"><span class="bd"></span>{{ row[1] }}</span>{% elif row[1]=='Return' %}<span class="bg bg-blue"><span class="bd"></span>{{ row[1] }}</span>{% else %}<span class="bg bg-red"><span class="bd"></span>{{ row[1] }}</span>{% endif %}</td>
+                        <td>{{ row[2] or '—' }}</td>
+                        <td>{{ row[3] or '—' }}</td>
+                        <td>{{ row[4].strftime('%d-%b-%Y %H:%M') if row[4] else '—' }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty"><i class="fas fa-tv"></i><h3>No STB Logs</h3><p>No STB activity found for the selected period</p></div>
+        {% endif %}
+    </div>
+
+    <div id="tabFibre" class="tab-panel" style="padding:0">
+        <div class="tab-head">
+            <span style="font-size:12px;color:var(--grey)">{{ fibre_logs|length }} entries</span>
+            <button class="btn btn-blue btn-sm" onclick="exportTable('fibreTable','Fibre_Logs')"><i class="fas fa-download"></i> Export</button>
+        </div>
+        {% if fibre_logs %}
+        <div class="tab-scroll" style="border:1px solid var(--border);border-radius:0 0 10px 10px;margin:0 16px 16px">
+            <table id="fibreTable">
+                <thead><tr><th>Drum ID</th><th>Action</th><th>Length (m)</th><th>Dealer</th><th>Done By</th><th>Date</th></tr></thead>
+                <tbody>
+                {% for row in fibre_logs %}
+                    <tr>
+                        <td style="font-weight:600">{{ row[0] }}</td>
+                        <td>{% if row[1]=='Add New' %}<span class="bg bg-green"><span class="bd"></span>{{ row[1] }}</span>{% elif row[1]=='Issue' %}<span class="bg bg-yellow"><span class="bd"></span>{{ row[1] }}</span>{% else %}<span class="bg bg-blue"><span class="bd"></span>{{ row[1] }}</span>{% endif %}</td>
+                        <td>{{ row[2] }}</td>
+                        <td>{{ row[3] or '—' }}</td>
+                        <td>{{ row[4] or '—' }}</td>
+                        <td>{{ row[5].strftime('%d-%b-%Y %H:%M') if row[5] else '—' }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty"><i class="fas fa-network-wired"></i><h3>No Fibre Logs</h3><p>No fibre activity found for the selected period</p></div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function switchTab(btn,id){
+    document.querySelectorAll('.log-card .tab-btn').forEach(function(t){t.classList.remove('active')});
+    document.querySelectorAll('.log-card .tab-panel').forEach(function(t){t.classList.remove('active')});
+    btn.classList.add('active');
+    document.getElementById(id).classList.add('active');
+}
+function exportTable(tableId, filename){
+    var table=document.getElementById(tableId);
+    if(!table)return;
+    var rows=table.querySelectorAll('tbody tr');
+    if(rows.length===0){alert('No data to export');return}
+    var csv=[];
+    var ths=Array.from(table.querySelectorAll('thead th'));
+    var headers=ths.map(function(h){return h.textContent.trim()});
+    csv.push(headers.join(','));
+    rows.forEach(function(row){
+        var cells=Array.from(row.querySelectorAll('td')).map(function(c){return '"'+c.textContent.trim().replace(/"/g,'""')+'"';});
+        csv.push(cells.join(','));
+    });
+    var blob=new Blob([csv.join('\n')],{type:'text/csv;charset=utf-8;'});
+    var link=document.createElement('a');
+    link.href=URL.createObjectURL(blob);
+    link.download=filename+'.csv';
+    link.click();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}STB Manager{% endblock %}
+{% block page_title %}STB Management{% endblock %}
+{% block body %}
+
+<div class="card">
+    <div class="card-head"><div class="card-title"><i class="fas fa-magnifying-glass" style="color:var(--blue)"></i> Quick Serial Search</div></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="stbSearch" class="fi" style="max-width:380px" placeholder="Scan or type STB number...">
+        <button class="btn btn-blue" onclick="searchSTB()"><i class="fas fa-search"></i> SEARCH</button>
+    </div>
+    <div class="result-box" id="stbResult">
+        <div class="result-row">
+            <div><span>Serial: </span><strong id="resSn"></strong></div>
+            <div><span>Status: </span><strong id="resStatus"></strong></div>
+            <div><span>Type: </span><strong id="resType"></strong></div>
+            <div><span>Dealer: </span><strong id="resDealer"></strong></div>
+        </div>
+    </div>
+</div>
+
+{% if session.get('user_role')=='admin' %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+    <div class="card">
+        <div class="card-head"><div class="card-title"><i class="fas fa-pen-to-square" style="color:var(--green)"></i> Manual Transaction</div></div>
+        <form method="POST">
+            <div class="fg"><label class="fl">Serial No</label><input type="text" name="stb_no" class="fi" placeholder="STB number" required></div>
+            <div class="fg"><label class="fl">Dealer Name</label><input type="text" name="dealer" class="fi" placeholder="Dealer name"></div>
+            <div class="fg"><label class="fl">Action</label><select name="action" class="fs"><option>Issue</option><option>Return</option><option>Faulty</option><option>Add New</option></select></div>
+            <button type="submit" class="btn btn-green" style="width:100%;justify-content:center"><i class="fas fa-check"></i> SUBMIT</button>
+        </form>
+    </div>
+    <div class="card">
+        <div class="card-head"><div class="card-title"><i class="fas fa-file-csv" style="color:var(--blue)"></i> Bulk Processing</div></div>
+        <form method="POST" action="{{ url_for('stb_bulk') }}" enctype="multipart/form-data">
+            <div class="fg"><label class="fl">Action</label><select name="bulk_action" class="fs"><option>Bulk Issue</option><option>Bulk Return</option><option>Bulk Faulty</option><option>Bulk Add New</option></select></div>
+            <div class="fg"><label class="fl">Dealer (For Issue)</label><input type="text" name="bulk_dealer" class="fi" placeholder="Dealer name"></div>
+            <div class="fg"><label class="fl">CSV File</label><input type="file" name="file" accept=".csv" class="fi" style="padding:6px"></div>
+            <button type="submit" class="btn btn-blue" style="width:100%;justify-content:center"><i class="fas fa-upload"></i> UPLOAD CSV</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function searchSTB(){const v=document.getElementById('stbSearch').value.trim();if(!v)return;fetch(`/stb/search?q=${encodeURIComponent(v)}`).then(r=>r.json()).then(d=>{if(d.found){document.getElementById('resSn').textContent=d.data.sn;const st=d.data.status;document.getElementById('resStatus').innerHTML=st==='In Stock'?'<span class="bg bg-green"><span class="bd"></span>'+st+'</span>':st==='Issued'?'<span class="bg bg-yellow"><span class="bd"></span>'+st+'</span>':'<span class="bg bg-red"><span class="bd"></span>'+st+'</span>';document.getElementById('resType').textContent=d.data.type;document.getElementById('resDealer').textContent=d.data.dealer;document.getElementById('stbResult').classList.add('show')}else{document.getElementById('stbResult').classList.remove('show')}})}
+document.getElementById('stbSearch').addEventListener('keydown',function(e){if(e.key==='Enter')searchSTB()});
+</script>
+{% endblock %}
