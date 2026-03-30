@@ -75,6 +75,8 @@ def _run_migrations(pool_inst):
                 if not cur.fetchone():
                     cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}")
                     print(f"✅ Added {col} to {table}")
+                else:
+                    print(f"ℹ️ {table}.{col} already exists")
             except Exception as e:
                 print(f"Migration skip {table}.{col}: {e}")
         conn.commit()
@@ -399,12 +401,15 @@ def inventory():
         form_type = request.form.get('form_type')
         inv_search_post = request.form.get('inv_search', '').strip()
         if inv_search_post and not form_type:
-            cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
-                       ml.quantity, 'Pcs', ml.dealer, ml.action,
-                       COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
-                       FROM material_logs ml
-                       WHERE ml.invoice_no=%s""", (inv_search_post,))
-            inv_results.extend(cur.fetchall())
+            try:
+                cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                           ml.quantity, 'Pcs', ml.dealer, ml.action,
+                           COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
+                           FROM material_logs ml
+                           WHERE ml.invoice_no=%s""", (inv_search_post,))
+                inv_results.extend(cur.fetchall())
+            except Exception as e:
+                print(f"Inv search material error: {e}")
             try:
                 cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
                            cl.qty, cs.unit, cl.dealer, cl.action,
@@ -413,8 +418,8 @@ def inventory():
                            LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
                            WHERE cl.invoice_no=%s""", (inv_search_post,))
                 inv_results.extend(cur.fetchall())
-            except:
-                pass
+            except Exception as e:
+                print(f"Inv search consumable error: {e}")
             inv_search = inv_search_post
         else:
             try:
@@ -479,7 +484,8 @@ def inventory():
                                     pass
 
                     serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
-                    cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
+                    # FIX: 8 %s for 8 tuple values, created_at uses NOW()
+                    cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
                     conn.commit()
                     flash('Hardware Transaction Successful!', 'success')
 
@@ -514,7 +520,8 @@ def inventory():
                         if stock_row and stock_row[0]:
                             item_name = stock_row[0]
 
-                    cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (item, item_name, batch, act, qty, dlr, inv, session['logged_user']))
+                    # FIX: 8 %s for 8 tuple values, created_at uses NOW()
+                    cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (item, item_name, batch, act, qty, dlr, inv, session['logged_user']))
                     conn.commit()
                     flash('Consumable Transaction Successful!', 'success')
             except Exception as e:
@@ -524,12 +531,15 @@ def inventory():
     if not inv_search:
         inv_search = request.args.get('inv_search', '').strip()
         if inv_search:
-            cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
-                       ml.quantity, 'Pcs', ml.dealer, ml.action,
-                       COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
-                       FROM material_logs ml
-                       WHERE ml.invoice_no=%s""", (inv_search,))
-            inv_results.extend(cur.fetchall())
+            try:
+                cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                           ml.quantity, 'Pcs', ml.dealer, ml.action,
+                           COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
+                           FROM material_logs ml
+                           WHERE ml.invoice_no=%s""", (inv_search,))
+                inv_results.extend(cur.fetchall())
+            except Exception as e:
+                print(f"GET inv search material error: {e}")
             try:
                 cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
                            cl.qty, cs.unit, cl.dealer, cl.action,
@@ -538,8 +548,8 @@ def inventory():
                            LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
                            WHERE cl.invoice_no=%s""", (inv_search,))
                 inv_results.extend(cur.fetchall())
-            except:
-                pass
+            except Exception as e:
+                print(f"GET inv search consumable error: {e}")
     cur.close()
     release_db(conn)
     return render_template('inventory.html', inv_results=inv_results, inv_search=inv_search)
@@ -567,7 +577,7 @@ def fibre_manager():
                 cur.execute("UPDATE fibre_stock SET used_length=used_length+%s,balance_length=balance_length-%s WHERE drum_id=%s", (lg_val, lg_val, did))
             elif act == 'Return':
                 cur.execute("UPDATE fibre_stock SET used_length=used_length-%s,balance_length=balance_length+%s WHERE drum_id=%s", (lg_val, lg_val, did))
-            cur.execute("INSERT INTO fibre_logs (drum_id,action,length,dealer,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,NOW())", (did, act, lg_val, dlr, session['logged_user']))
+            cur.execute("INSERT INTO fibre_logs (drum_id,action,length,dealer,done_by,created_at) VALUES (%s,%s,%s,%s,%s,NOW())", (did, act, lg_val, dlr, session['logged_user']))
             conn.commit()
             flash('Fibre Transaction Successful!', 'success')
         except Exception as e:
