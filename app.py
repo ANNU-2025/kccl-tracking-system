@@ -62,6 +62,7 @@ def _run_migrations(pool_inst):
     try:
         migrations = [
             ("material_logs", "serial_nos", "TEXT"),
+            ("material_logs", "item_name", "TEXT"),
             ("consumable_logs", "item_name", "TEXT"),
             ("consumable_stock", "item_name", "TEXT"),
         ]
@@ -77,34 +78,7 @@ def _run_migrations(pool_inst):
             except Exception as e:
                 print(f"Migration skip {table}.{col}: {e}")
         conn.commit()
-        # Backfill item_name in logs from master for existing rows
-        try:
-            cur.execute("""
-                UPDATE material_logs ml
-                SET item_name = COALESCE(ml.item_name, mm.item_name)
-                FROM material_master mm
-                WHERE ml.item_code = mm.item_code AND ml.item_name IS NULL
-            """)
-            print("✅ Backfilled material_logs.item_name")
-        except Exception as e:
-            print(f"Backfill material_logs warning: {e}")
-        try:
-            cur.execute("""
-                UPDATE consumable_logs cl
-                SET item_name = COALESCE(cl.item_name, cs.item_name)
-                FROM consumable_stock cs
-                WHERE cl.item_code = cs.item_code AND cl.item_name IS NULL
-            """)
-            print("✅ Backfilled consumable_logs.item_name")
-        except Exception as e:
-            print(f"Backfill consumable_logs warning: {e}")
-        try:
-            conn.commit()
-        except:
-            try:
-                conn.rollback()
-            except:
-                pass
+        print("✅ All migrations complete")
     except Exception as e:
         print(f"Migration error: {e}")
         try:
@@ -427,15 +401,14 @@ def inventory():
         if inv_search_post and not form_type:
             cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
                        ml.quantity, 'Pcs', ml.dealer, ml.action,
-                       COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)), ml.created_at
+                       COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
                        FROM material_logs ml
-                       LEFT JOIN material_master mm ON ml.item_code = mm.item_code
                        WHERE ml.invoice_no=%s""", (inv_search_post,))
             inv_results.extend(cur.fetchall())
             try:
                 cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
                            cl.qty, cs.unit, cl.dealer, cl.action,
-                           COALESCE(cl.item_name, cl.item_code), cl.created_at
+                           COALESCE(NULLIF(cl.item_name,''), cl.item_code), cl.created_at
                            FROM consumable_logs cl
                            LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
                            WHERE cl.invoice_no=%s""", (inv_search_post,))
@@ -553,15 +526,14 @@ def inventory():
         if inv_search:
             cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
                        ml.quantity, 'Pcs', ml.dealer, ml.action,
-                       COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)), ml.created_at
+                       COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
                        FROM material_logs ml
-                       LEFT JOIN material_master mm ON ml.item_code = mm.item_code
                        WHERE ml.invoice_no=%s""", (inv_search,))
             inv_results.extend(cur.fetchall())
             try:
                 cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
                            cl.qty, cs.unit, cl.dealer, cl.action,
-                           COALESCE(cl.item_name, cl.item_code), cl.created_at
+                           COALESCE(NULLIF(cl.item_name,''), cl.item_code), cl.created_at
                            FROM consumable_logs cl
                            LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
                            WHERE cl.invoice_no=%s""", (inv_search,))
@@ -622,9 +594,8 @@ def logs():
     combined = []
     try:
         q = """SELECT 'Material', ml.item_code, ml.quantity, ml.action, ml.dealer, ml.invoice_no, ml.done_by,
-                      COALESCE(ml.serial_nos, ''), COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)), ml.created_at
+                      COALESCE(ml.serial_nos, ''), COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
                FROM material_logs ml
-               LEFT JOIN material_master mm ON ml.item_code = mm.item_code
                WHERE DATE(ml.created_at)>=%s AND DATE(ml.created_at)<=%s"""
         p = [f_date, t_date]
         if search_term:
@@ -638,7 +609,7 @@ def logs():
 
     try:
         q = """SELECT 'Consumable', cl.item_code, cl.qty, cl.action, cl.dealer, cl.invoice_no, cl.done_by,
-                      '', COALESCE(cl.item_name, cl.item_code), cl.created_at
+                      '', COALESCE(NULLIF(cl.item_name,''), cl.item_code), cl.created_at
                FROM consumable_logs cl
                WHERE DATE(COALESCE(cl.created_at,NOW()))>=%s AND DATE(COALESCE(cl.created_at,NOW()))<=%s"""
         p = [f_date, t_date]
@@ -648,8 +619,8 @@ def logs():
         q += " ORDER BY cl.created_at DESC"
         cur.execute(q, tuple(p))
         combined.extend(cur.fetchall())
-    except:
-        pass
+    except Exception as e:
+        print(f"Consumable logs error: {e}")
 
     try:
         combined.sort(key=lambda x: safe_dt(x[9]), reverse=True)
@@ -708,14 +679,13 @@ def export_instock():
 
             try:
                 df_mat = pd.read_sql("""
-                    SELECT COALESCE(NULLIF(ml.item_name,''), COALESCE(mm.item_name, ml.item_code)) as "Item Name",
+                    SELECT COALESCE(NULLIF(ml.item_name,''), ml.item_code) as "Item Name",
                            ml.item_code as "Item Code",
                            COALESCE(ml.serial_nos, '') as "Serial Nos",
                            ml.quantity as "Quantity", 'Pcs' as "Unit",
                            ml.dealer as "Dealer", ml.invoice_no as "Invoice",
                            ml.action as "Action", ml.created_at as "Date"
                     FROM material_logs ml
-                    LEFT JOIN material_master mm ON ml.item_code = mm.item_code
                     ORDER BY ml.created_at DESC
                 """, conn)
                 if not df_mat.empty:
@@ -799,14 +769,13 @@ def export_hardware():
         return redirect(url_for('dashboard'))
     try:
         df = pd.read_sql("""
-            SELECT COALESCE(NULLIF(ml.item_name,''), COALESCE(mm.item_name, ml.item_code)) as "Item Name",
+            SELECT COALESCE(NULLIF(ml.item_name,''), ml.item_code) as "Item Name",
                    ml.item_code as "Item Code",
                    COALESCE(ml.serial_nos, '') as "Serial Nos",
                    ml.quantity as "Quantity", 'Pcs' as "Unit",
                    ml.dealer as "Dealer", ml.invoice_no as "Invoice",
                    ml.action as "Action", ml.created_at as "Date"
             FROM material_logs ml
-            LEFT JOIN material_master mm ON ml.item_code = mm.item_code
             ORDER BY ml.created_at DESC
         """, conn)
         df = fix_timezone(df)
