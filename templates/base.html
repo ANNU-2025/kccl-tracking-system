@@ -110,11 +110,11 @@
     {% if 'logged_user' in session %}
     <div class="layout">
         <div class="sb-overlay" id="sbOverlay"></div>
-        <aside class="sidebar" id="sidebar">
-            <div class="sb-brand">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="KCCL" style="width:72px;height:72px;border-radius:8px;object-fit:contain;flex-shrink:0">
-                <div><h1>KCCL BANGLA</h1><p>KCCL INVENTORY SYSTEM</p></div>
-            </div>
+        <aside class="sidebar" id="sidebar">           
+        <div class="sb-brand" style="flex-direction:column;text-align:center;padding:20px">
+             <img src="{{ url_for('static', filename='logo.png') }}" alt="KCCL" style="width:48px;height:48px;border-radius:10px;object-fit:contain;margin-bottom:10px">
+             <div><h1>KCCL BANGLA</h1><p>KCCL INVENTORY SYSTEM</p></div>
+         </div>
             <nav class="sb-nav">
                 <a href="{{ url_for('dashboard') }}" class="sb-link {% if request.endpoint=='dashboard' %}active{% endif %}"><i class="fas fa-chart-line"></i> Dashboard</a>
                 <a href="{{ url_for('stb_manager') }}" class="sb-link {% if request.endpoint=='stb_manager' %}active{% endif %}"><i class="fas fa-tv"></i> STB Manager</a>
