@@ -9,11 +9,11 @@
         <button class="tab-btn" onclick="switchTab(this,'conTab')"><i class="fas fa-flask"></i> Consumables</button>
     </div>
     <div id="matTab" class="tab-panel active" style="padding-top:16px">
-        <form method="POST">
+        <form method="POST" id="matForm">
             <input type="hidden" name="form_type" value="material">
             <div class="fbar" style="margin-bottom:0">
-                <div class="fg" style="margin-bottom:0"><label class="fl">Item Code</label><input type="text" name="m_c" class="fi" placeholder="ONU-001" required></div>
-                <div class="fg" style="margin-bottom:0"><label class="fl">Item Name</label><input type="text" name="m_n" class="fi" placeholder="Description"></div>
+                <div class="fg" style="margin-bottom:0"><label class="fl">Item Code</label><input type="text" name="m_c" id="m_c" class="fi" placeholder="ONU-001" required></div>
+                <div class="fg" style="margin-bottom:0"><label class="fl">Item Name</label><input type="text" name="m_n" id="m_n" class="fi" placeholder="Description"></div>
                 <div class="fg" style="margin-bottom:0"><label class="fl">Serial No</label><input type="text" name="m_s" class="fi" placeholder="Optional"></div>
                 <div class="fg" style="margin-bottom:0"><label class="fl">Quantity</label><input type="number" name="m_qty" class="fi" value="1" min="1"></div>
                 <div class="fg" style="margin-bottom:0"><label class="fl">Unit</label><select name="m_unit" class="fs"><option>Pcs</option><option>Box</option><option>Set</option></select></div>
@@ -25,11 +25,11 @@
         </form>
     </div>
     <div id="conTab" class="tab-panel" style="padding-top:16px">
-        <form method="POST">
+        <form method="POST" id="conForm">
             <input type="hidden" name="form_type" value="consumable">
             <div class="fbar" style="margin-bottom:0">
-                <div class="fg" style="margin-bottom:0"><label class="fl">Item Code</label><input type="text" name="c_item" class="fi" placeholder="SPLITTER-2W" required></div>
-                <div class="fg" style="margin-bottom:0"><label class="fl">Item Name</label><input type="text" name="c_name" class="fi" placeholder="Description"></div>
+                <div class="fg" style="margin-bottom:0"><label class="fl">Item Code</label><input type="text" name="c_item" id="c_item" class="fi" placeholder="SPLITTER-2W" required></div>
+                <div class="fg" style="margin-bottom:0"><label class="fl">Item Name</label><input type="text" name="c_name" id="c_name" class="fi" placeholder="Description"></div>
                 <div class="fg" style="margin-bottom:0"><label class="fl">Batch ID</label><input type="text" name="c_batch" class="fi" placeholder="Batch ref" required></div>
                 <div class="fg" style="margin-bottom:0"><label class="fl">Quantity</label><input type="number" name="c_qty" class="fi" placeholder="0" step="0.1" required></div>
                 <div class="fg" style="margin-bottom:0"><label class="fl">Unit</label><select name="c_unit" class="fs"><option>Pcs</option><option>Meter</option><option>Litre</option><option>Kg</option><option>Roll</option></select></div>
@@ -41,7 +41,24 @@
         </form>
     </div>
 </div>
-<script>function switchTab(btn,id){document.querySelectorAll('.tab-btn').forEach(function(t){t.classList.remove('active')});document.querySelectorAll('.tab-panel').forEach(function(t){t.classList.remove('active')});btn.classList.add('active');document.getElementById(id).classList.add('active')}</script>
+<script>
+function switchTab(btn,id){document.querySelectorAll('.tab-btn').forEach(function(t){t.classList.remove('active')});document.querySelectorAll('.tab-panel').forEach(function(t){t.classList.remove('active')});btn.classList.add('active');document.getElementById(id).classList.add('active')}
+
+// Item Code Memory - auto fill item name from last used
+(function(){
+    function getMap(k){try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return{}}}
+    function saveMap(k,m){try{localStorage.setItem(k,JSON.stringify(m))}catch(e){}}
+    var matMap=getMap('kccl_mat_names'), conMap=getMap('kccl_con_names');
+    var mc=document.getElementById('m_c'), mn=document.getElementById('m_n');
+    var cc=document.getElementById('c_item'), cn=document.getElementById('c_name');
+    if(mc&&mn){mc.addEventListener('change',function(){var c=this.value.trim().toUpperCase();if(c&&matMap[c])mn.value=matMap[c]})}
+    if(cc&&cn){cc.addEventListener('change',function(){var c=this.value.trim().toUpperCase();if(c&&conMap[c])cn.value=conMap[c]})}
+    var mf=document.getElementById('matForm');
+    if(mf){mf.addEventListener('submit',function(){var c=mc.value.trim().toUpperCase(),n=mn.value.trim().toUpperCase();if(c&&n){matMap[c]=n;saveMap('kccl_mat_names',matMap)}})}
+    var cf=document.getElementById('conForm');
+    if(cf){cf.addEventListener('submit',function(){var c=cc.value.trim().toUpperCase(),n=cn.value.trim().toUpperCase();if(c&&n){conMap[c]=n;saveMap('kccl_con_names',conMap)}})}
+})();
+</script>
 
 <div class="tw">
     <div class="tw-bar">
@@ -57,27 +74,29 @@
         {% if inv_results %}
         <div class="tw-hscroll">
             <table>
-                <thead><tr><th>Type</th><th>Item Code</th><th>Batch / Ref</th><th>Qty</th><th>Unit</th><th>Dealer</th><th>Date</th></tr></thead>
+                <thead><tr><th>Type</th><th>Item Code</th><th>Serial / Batch</th><th>Qty</th><th>Unit</th><th>Dealer</th><th>Action</th><th>Item Name</th><th>Date</th></tr></thead>
                 <tbody>
                 {% for row in inv_results %}
                     <tr>
                         <td>{% if row[0]=='Material' %}<span class="bg bg-blue"><span class="bd"></span>{{ row[0] }}</span>{% else %}<span class="bg bg-green"><span class="bd"></span>{{ row[0] }}</span>{% endif %}</td>
                         <td style="font-weight:600">{{ row[1] }}</td>
-                        <td style="font-family:Consolas,monospace;font-size:11px">{{ row[2] }}</td>
+                        <td style="font-family:Consolas,monospace;font-size:11px">{{ row[2] or '—' }}</td>
                         <td>{{ row[3] }}</td>
                         <td>{{ row[4] }}</td>
                         <td>{{ row[5] or '—' }}</td>
-                        <td>{{ row[6].strftime('%d-%b-%Y %H:%M') if row[6] else '—' }}</td>
+                        <td>{% if row[6]=='Add New' %}<span class="bg bg-green"><span class="bd"></span>{{ row[6] }}</span>{% elif row[6]=='Issue' %}<span class="bg bg-yellow"><span class="bd"></span>{{ row[6] }}</span>{% else %}<span class="bg bg-blue"><span class="bd"></span>{{ row[6] }}</span>{% endif %}</td>
+                        <td style="font-size:11px">{{ row[7] or '—' }}</td>
+                        <td>{{ row[8].strftime('%d-%b-%Y %H:%M') if row[8] else '—' }}</td>
                     </tr>
                 {% endfor %}
                 </tbody>
             </table>
         </div>
         {% else %}
-        <div class="empty"><i class="fas fa-file-circle-xmark"></i><h3>No Records Found</h3><p>No upload found for invoice <strong>{{ inv_search }}</strong></p></div>
+        <div class="empty"><i class="fas fa-file-circle-xmark"></i><h3>No Records Found</h3><p>No records found for invoice <strong>{{ inv_search }}</strong></p></div>
         {% endif %}
     {% else %}
-    <div class="empty"><i class="fas fa-file-invoice"></i><h3>Search for Invoices</h3><p>Enter an invoice number to see original upload details</p></div>
+    <div class="empty"><i class="fas fa-file-invoice"></i><h3>Search for Invoices</h3><p>Enter an invoice number to see all transactions</p></div>
     {% endif %}
 </div>
 {% endblock %}
