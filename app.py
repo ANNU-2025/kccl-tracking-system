@@ -64,6 +64,7 @@ def _run_migrations(pool_inst):
             ("material_logs", "serial_nos", "TEXT"),
             ("consumable_logs", "item_name", "TEXT"),
             ("consumable_stock", "item_name", "TEXT"),
+            ("material_logs", "item_name", "TEXT"),
         ]
         for table, col, dtype in migrations:
             try:
@@ -332,6 +333,7 @@ def stb_bulk():
             release_db(conn)
     return redirect(url_for('stb_manager'))
 
+
 @app.route('/item/lookup')
 def item_lookup():
     if 'logged_user' not in session:
@@ -362,6 +364,7 @@ def item_lookup():
     cur.close()
     release_db(conn)
     return jsonify(result)
+
 
 @app.route('/stb/search')
 def stb_search():
@@ -397,7 +400,7 @@ def inventory():
         if inv_search_post and not form_type:
             cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
                        ml.quantity, 'Pcs', ml.dealer, ml.action,
-                       COALESCE(mm.item_name, ml.item_code), ml.created_at
+                       COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)), ml.created_at
                        FROM material_logs ml
                        LEFT JOIN material_master mm ON ml.item_code = mm.item_code
                        WHERE ml.invoice_no=%s""", (inv_search_post,))
@@ -476,7 +479,7 @@ def inventory():
                                     pass
 
                     serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
-                    cur.execute("INSERT INTO material_logs (item_code,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())", (code, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
+                    cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
                     conn.commit()
                     flash('Hardware Transaction Successful!', 'success')
 
@@ -496,7 +499,8 @@ def inventory():
                         else:
                             cur.execute("INSERT INTO consumable_stock (item_code,item_name,batch_id,unit,total_qty,used_qty,balance_qty) VALUES (%s,%s,%s,%s,%s,0,%s)", (item, item_name, batch, unit, qty, qty))
                             if item_name:
-                                cur.execute("UPDATE consumable_stock SET item_name=%s WHERE item_code=%s AND (item_name IS NULL OR item_name='')", (item_name, item))                    elif act == 'Issue':
+                                cur.execute("UPDATE consumable_stock SET item_name=%s WHERE item_code=%s AND (item_name IS NULL OR item_name='')", (item_name, item))
+                    elif act == 'Issue':
                         cur.execute("UPDATE consumable_stock SET used_qty=used_qty+%s,balance_qty=balance_qty-%s WHERE batch_id=%s", (qty, qty, batch))
                         if item_name:
                             cur.execute("UPDATE consumable_stock SET item_name=%s WHERE batch_id=%s AND (item_name IS NULL OR item_name='')", (item_name, batch))
@@ -523,7 +527,7 @@ def inventory():
         if inv_search:
             cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
                        ml.quantity, 'Pcs', ml.dealer, ml.action,
-                       COALESCE(mm.item_name, ml.item_code), ml.created_at
+                       COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)), ml.created_at
                        FROM material_logs ml
                        LEFT JOIN material_master mm ON ml.item_code = mm.item_code
                        WHERE ml.invoice_no=%s""", (inv_search,))
@@ -592,7 +596,7 @@ def logs():
     combined = []
     try:
         q = """SELECT 'Material', ml.item_code, ml.quantity, ml.action, ml.dealer, ml.invoice_no, ml.done_by,
-                      COALESCE(ml.serial_nos, ''), COALESCE(mm.item_name, ml.item_code), ml.created_at
+                      COALESCE(ml.serial_nos, ''), COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)), ml.created_at
                FROM material_logs ml
                LEFT JOIN material_master mm ON ml.item_code = mm.item_code
                WHERE DATE(ml.created_at)>=%s AND DATE(ml.created_at)<=%s"""
@@ -678,7 +682,7 @@ def export_instock():
 
             try:
                 df_mat = pd.read_sql("""
-                    SELECT COALESCE(mm.item_name, ml.item_code) as "Item Name",
+                    SELECT COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)) as "Item Name",
                            ml.item_code as "Item Code",
                            COALESCE(ml.serial_nos, '') as "Serial Nos",
                            ml.quantity as "Quantity", 'Pcs' as "Unit",
@@ -769,7 +773,7 @@ def export_hardware():
         return redirect(url_for('dashboard'))
     try:
         df = pd.read_sql("""
-            SELECT COALESCE(mm.item_name, ml.item_code) as "Item Name",
+            SELECT COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)) as "Item Name",
                    ml.item_code as "Item Code",
                    COALESCE(ml.serial_nos, '') as "Serial Nos",
                    ml.quantity as "Quantity", 'Pcs' as "Unit",
@@ -822,7 +826,7 @@ def export_consumables():
         return redirect(url_for('login'))
     conn = get_db()
     if not conn:
-        flash('Database connection failed', 'error')
+        flash('Database failed', 'error')
         return redirect(url_for('dashboard'))
     try:
         df = pd.read_sql("""
