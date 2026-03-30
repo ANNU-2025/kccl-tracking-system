@@ -19,10 +19,10 @@
         body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--primary)}
         .layout{display:flex;height:100vh}
         .sidebar{width:260px;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s}
-        .sb-brand{padding:24px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px}
-        .sb-brand img{width:80px;height:80px;border-radius:12px;object-fit:contain;flex-shrink:0}
-        .sb-brand h1{font-size:16px;font-weight:700;color:#fff;line-height:1.2}
-        .sb-brand p{font-size:10px;color:rgba(255,255,255,.5)}
+        .sb-brand{padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:center;text-align:center}
+        .sb-brand img{width:80px;height:80px;border-radius:12px;object-fit:contain;margin-bottom:8px}
+        .sb-brand h1{font-size:15px;font-weight:700;color:#fff;line-height:1.2}
+        .sb-brand p{font-size:9px;color:rgba(255,255,255,.5)}
         .sb-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
         .sb-link{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:8px;color:rgba(255,255,255,.65);font-size:13px;font-weight:500;cursor:pointer;transition:.2s;border:1px solid transparent;text-decoration:none;user-select:none}
         .sb-link:hover{background:rgba(255,255,255,.06);color:#fff}
@@ -100,7 +100,6 @@
         .tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
         .tab-btn:hover{color:var(--primary)}
         .tab-panel{display:none}.tab-panel.active{display:block}
-        .serial-cell{font-family:Consolas,monospace;font-size:10px;color:var(--blue);max-width:200px;overflow:hidden;text-overflow:ellipsis}
         .col-hide{display:none}
         @media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.sb-overlay.open{display:block}.main{margin-left:0}.mob-btn{display:flex}.stats{grid-template-columns:repeat(2,1fr)}.fbar{grid-template-columns:1fr}}
     </style>
@@ -110,11 +109,11 @@
     {% if 'logged_user' in session %}
     <div class="layout">
         <div class="sb-overlay" id="sbOverlay"></div>
-        <aside class="sidebar" id="sidebar">           
-        <div class="sb-brand" style="flex-direction:column;text-align:center;padding:18px 20px">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="KCCL" style="width:80px;height:80px;border-radius:12px;object-fit:contain;margin-bottom:8px">
-            <div><h1 style="font-size:15px">KCCL BANGLA</h1><p style="font-size:9px">KCCL INVENTORY SYSTEM</p></div>
-        </div>
+        <aside class="sidebar" id="sidebar">
+            <div class="sb-brand">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="KCCL">
+                <div><h1>KCCL BANGLA</h1><p>KCCL INVENTORY SYSTEM</p></div>
+            </div>
             <nav class="sb-nav">
                 <a href="{{ url_for('dashboard') }}" class="sb-link {% if request.endpoint=='dashboard' %}active{% endif %}"><i class="fas fa-chart-line"></i> Dashboard</a>
                 <a href="{{ url_for('stb_manager') }}" class="sb-link {% if request.endpoint=='stb_manager' %}active{% endif %}"><i class="fas fa-tv"></i> STB Manager</a>
