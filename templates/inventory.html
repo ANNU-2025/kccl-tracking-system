@@ -51,7 +51,7 @@ function switchTab(btn,id){document.querySelectorAll('.tab-btn').forEach(functio
         if(!code){input.style.background='#fff';return}
         input.style.background='#fff3e0';
         fetch('/item/lookup?code='+encodeURIComponent(code)).then(function(r){return r.json()}).then(function(d){
-            if(d.name){input.value=d.name;input.style.background='#e8f5e9'}
+            if(d.name && !input.value){input.value=d.name;input.style.background='#e8f5e9'}
             else{input.style.background='#fff'}
         }).catch(function(){input.style.background='#fff'})
     }
