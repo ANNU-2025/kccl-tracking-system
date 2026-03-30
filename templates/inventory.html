@@ -44,22 +44,21 @@
 <script>
 function switchTab(btn,id){document.querySelectorAll('.tab-btn').forEach(function(t){t.classList.remove('active')});document.querySelectorAll('.tab-panel').forEach(function(t){t.classList.remove('active')});btn.classList.add('active');document.getElementById(id).classList.add('active')}
 
-// Item Code Memory - auto fill item name from last used
 (function(){
-    function getMap(k){try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return{}}}
-    function saveMap(k,m){try{localStorage.setItem(k,JSON.stringify(m))}catch(e){}}
-    var matMap=getMap('kccl_mat_names'), conMap=getMap('kccl_con_names');
     var mc=document.getElementById('m_c'), mn=document.getElementById('m_n');
     var cc=document.getElementById('c_item'), cn=document.getElementById('c_name');
-    if(mc&&mn){mc.addEventListener('change',function(){var c=this.value.trim().toUpperCase();if(c&&matMap[c])mn.value=matMap[c]})}
-    if(cc&&cn){cc.addEventListener('change',function(){var c=this.value.trim().toUpperCase();if(c&&conMap[c])cn.value=conMap[c]})}
-    var mf=document.getElementById('matForm');
-    if(mf){mf.addEventListener('submit',function(){var c=mc.value.trim().toUpperCase(),n=mn.value.trim().toUpperCase();if(c&&n){matMap[c]=n;saveMap('kccl_mat_names',matMap)}})}
-    var cf=document.getElementById('conForm');
-    if(cf){cf.addEventListener('submit',function(){var c=cc.value.trim().toUpperCase(),n=cn.value.trim().toUpperCase();if(c&&n){conMap[c]=n;saveMap('kccl_con_names',conMap)}})}
+    function lookup(code, input, color){
+        if(!code){input.style.background='#fff';return}
+        input.style.background='#fff3e0';
+        fetch('/item/lookup?code='+encodeURIComponent(code)).then(function(r){return r.json()}).then(function(d){
+            if(d.name){input.value=d.name;input.style.background='#e8f5e9'}
+            else{input.style.background='#fff'}
+        }).catch(function(){input.style.background='#fff'})
+    }
+    if(mc&&mn){mc.addEventListener('blur',function(){lookup(this.value.trim().toUpperCase(),mn)})}
+    if(cc&&cn){cc.addEventListener('blur',function(){lookup(this.value.trim().toUpperCase(),cn)})}
 })();
 </script>
-
 <div class="tw">
     <div class="tw-bar">
         <div class="card-title"><i class="fas fa-file-invoice" style="color:#C8960A"></i> Invoice Lookup</div>
