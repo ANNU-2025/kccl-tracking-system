@@ -426,7 +426,9 @@ def inventory():
                     cur.execute("SELECT 1 FROM material_master WHERE item_code=%s", (code,))
                     if not cur.fetchone():
                         cur.execute("INSERT INTO material_master (item_code,item_name) VALUES (%s,%s)", (code, name))
-
+                    else:
+                        if name:
+                            cur.execute("UPDATE material_master SET item_name=%s WHERE item_code=%s", (name, code))
                     serial_nos_list = []
 
                     if act == 'Add New':
@@ -493,7 +495,8 @@ def inventory():
                             flash('Batch ID exists!', 'error')
                         else:
                             cur.execute("INSERT INTO consumable_stock (item_code,item_name,batch_id,unit,total_qty,used_qty,balance_qty) VALUES (%s,%s,%s,%s,%s,0,%s)", (item, item_name, batch, unit, qty, qty))
-                    elif act == 'Issue':
+                            if item_name:
+                                cur.execute("UPDATE consumable_stock SET item_name=%s WHERE item_code=%s AND (item_name IS NULL OR item_name='')", (item_name, item))                    elif act == 'Issue':
                         cur.execute("UPDATE consumable_stock SET used_qty=used_qty+%s,balance_qty=balance_qty-%s WHERE batch_id=%s", (qty, qty, batch))
                         if item_name:
                             cur.execute("UPDATE consumable_stock SET item_name=%s WHERE batch_id=%s AND (item_name IS NULL OR item_name='')", (item_name, batch))
