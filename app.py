@@ -7,6 +7,7 @@ from io import BytesIO
 import warnings
 import os
 import threading
+import traceback
 
 warnings.filterwarnings('ignore')
 
@@ -24,7 +25,6 @@ migrate_done = False
 
 
 def init_db():
-    """Lazy DB init — only runs when first request comes"""
     global connection_pool, db_initialized, migrate_done
     if db_initialized:
         return True
@@ -35,7 +35,6 @@ def init_db():
             pool_inst = psycopg2.pool.SimpleConnectionPool(
                 1, 10, dsn=DB_URL, connect_timeout=10
             )
-            # Test the connection
             test_conn = pool_inst.getconn()
             test_cur = test_conn.cursor()
             test_cur.execute("SELECT 1")
@@ -44,19 +43,18 @@ def init_db():
             connection_pool = pool_inst
             db_initialized = True
             print("✅ Database Connected!")
-            # Run migration after confirmed connection
             if not migrate_done:
                 _run_migrations(pool_inst)
                 migrate_done = True
             return True
         except Exception as e:
             print(f"❌ DB Init Error: {e}")
+            print(traceback.format_exc())
             db_initialized = False
             return False
 
 
 def _run_migrations(pool_inst):
-    """Run ALTER TABLE migrations safely"""
     conn = pool_inst.getconn()
     if not conn:
         return
@@ -102,7 +100,6 @@ def get_db():
         return conn
     except Exception as e:
         print(f"get_db error: {e}")
-        # Reset so next request tries again
         global db_initialized
         db_initialized = False
         return None
@@ -146,24 +143,29 @@ def inject_now():
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        u = request.form.get('username')
-        p = request.form.get('password')
-        conn = get_db()
-        if not conn:
-            flash('Database connection failed!', 'error')
-            return render_template('login.html')
-        cur = conn.cursor()
-        cur.execute("SELECT username, role FROM users WHERE username=%s AND password=%s", (u, p))
-        res = cur.fetchone()
-        cur.close()
-        release_db(conn)
-        if res:
-            session['logged_user'] = res[0]
-            session['user_role'] = (res[1] or 'user').lower()
-            return redirect(url_for('dashboard'))
-        flash('Invalid Credentials!', 'error')
-    return render_template('login.html')
+    try:
+        if request.method == 'POST':
+            u = request.form.get('username')
+            p = request.form.get('password')
+            conn = get_db()
+            if not conn:
+                flash('Database connection failed!', 'error')
+                return render_template('login.html')
+            cur = conn.cursor()
+            cur.execute("SELECT username, role FROM users WHERE username=%s AND password=%s", (u, p))
+            res = cur.fetchone()
+            cur.close()
+            release_db(conn)
+            if res:
+                session['logged_user'] = res[0]
+                session['user_role'] = (res[1] or 'user').lower()
+                return redirect(url_for('dashboard'))
+            flash('Invalid Credentials!', 'error')
+        return render_template('login.html')
+    except Exception as e:
+        print("=== LOGIN ERROR ===")
+        print(traceback.format_exc())
+        return f"Error: {str(e)}", 500
 
 
 @app.route('/logout')
@@ -363,10 +365,20 @@ def inventory():
         form_type = request.form.get('form_type')
         inv_search_post = request.form.get('inv_search', '').strip()
         if inv_search_post and not form_type:
-            cur.execute("SELECT 'Material',item_code,'N/A',quantity,'Pcs',dealer,created_at FROM material_logs WHERE invoice_no=%s AND action='Add New'", (inv_search_post,))
+            cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                       ml.quantity, 'Pcs', ml.dealer, ml.action,
+                       COALESCE(mm.item_name, ml.item_code), ml.created_at
+                       FROM material_logs ml
+                       LEFT JOIN material_master mm ON ml.item_code = mm.item_code
+                       WHERE ml.invoice_no=%s""", (inv_search_post,))
             inv_results.extend(cur.fetchall())
             try:
-                cur.execute("SELECT 'Consumable',item_code,batch_id,qty,'Unit',dealer,created_at FROM consumable_logs WHERE invoice_no=%s AND action='Add New'", (inv_search_post,))
+                cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
+                           cl.qty, cs.unit, cl.dealer, cl.action,
+                           COALESCE(cl.item_name, cl.item_code), cl.created_at
+                           FROM consumable_logs cl
+                           LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
+                           WHERE cl.invoice_no=%s""", (inv_search_post,))
                 inv_results.extend(cur.fetchall())
             except:
                 pass
@@ -476,10 +488,20 @@ def inventory():
     if not inv_search:
         inv_search = request.args.get('inv_search', '').strip()
         if inv_search:
-            cur.execute("SELECT 'Material',item_code,'N/A',quantity,'Pcs',dealer,created_at FROM material_logs WHERE invoice_no=%s AND action='Add New'", (inv_search,))
+            cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                       ml.quantity, 'Pcs', ml.dealer, ml.action,
+                       COALESCE(mm.item_name, ml.item_code), ml.created_at
+                       FROM material_logs ml
+                       LEFT JOIN material_master mm ON ml.item_code = mm.item_code
+                       WHERE ml.invoice_no=%s""", (inv_search,))
             inv_results.extend(cur.fetchall())
             try:
-                cur.execute("SELECT 'Consumable',item_code,batch_id,qty,'Unit',dealer,created_at FROM consumable_logs WHERE invoice_no=%s AND action='Add New'", (inv_search,))
+                cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
+                           cl.qty, cs.unit, cl.dealer, cl.action,
+                           COALESCE(cl.item_name, cl.item_code), cl.created_at
+                           FROM consumable_logs cl
+                           LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
+                           WHERE cl.invoice_no=%s""", (inv_search,))
                 inv_results.extend(cur.fetchall())
             except:
                 pass
