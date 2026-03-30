@@ -28,12 +28,39 @@
 
 <div class="log-card">
     <div class="tab-bar" style="padding:0 16px">
-        <button class="tab-btn active" onclick="switchTab(this,'tabInv')"><i class="fas fa-boxes-stacked"></i> Inventory Logs</button>
-        <button class="tab-btn" onclick="switchTab(this,'tabStb')"><i class="fas fa-tv"></i> STB Logs</button>
+        <button class="tab-btn active" onclick="switchTab(this,'tabStb')"><i class="fas fa-tv"></i> STB Logs</button>
+        <button class="tab-btn" onclick="switchTab(this,'tabInv')"><i class="fas fa-boxes-stacked"></i> Inventory Logs</button>
         <button class="tab-btn" onclick="switchTab(this,'tabFibre')"><i class="fas fa-network-wired"></i> Fibre Logs</button>
     </div>
 
-    <div id="tabInv" class="tab-panel active" style="padding:0">
+    <div id="tabStb" class="tab-panel active" style="padding:0">
+        <div class="tab-head">
+            <span style="font-size:12px;color:var(--grey)">{{ stb_logs|length }} entries</span>
+            <button class="btn btn-blue btn-sm" onclick="exportTable('stbTable','STB_Logs')"><i class="fas fa-download"></i> Export</button>
+        </div>
+        {% if stb_logs %}
+        <div class="tab-scroll" style="border:1px solid var(--border);border-radius:0 0 10px 10px;margin:0 16px 16px">
+            <table id="stbTable">
+                <thead><tr><th>STB No</th><th>Action</th><th>Dealer</th><th>Done By</th><th>Date</th></tr></thead>
+                <tbody>
+                {% for row in stb_logs %}
+                    <tr>
+                        <td style="font-weight:600;font-family:Consolas,monospace">{{ row[0] }}</td>
+                        <td>{% if row[1]=='Add New' %}<span class="bg bg-green"><span class="bd"></span>{{ row[1] }}</span>{% elif row[1]=='Issue' %}<span class="bg bg-yellow"><span class="bd"></span>{{ row[1] }}</span>{% elif row[1]=='Return' %}<span class="bg bg-blue"><span class="bd"></span>{{ row[1] }}</span>{% else %}<span class="bg bg-red"><span class="bd"></span>{{ row[1] }}</span>{% endif %}</td>
+                        <td>{{ row[2] or '—' }}</td>
+                        <td>{{ row[3] or '—' }}</td>
+                        <td>{{ row[4].strftime('%d-%b-%Y %H:%M') if row[4] else '—' }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty"><i class="fas fa-tv"></i><h3>No STB Logs</h3><p>No STB activity found for the selected period</p></div>
+        {% endif %}
+    </div>
+
+    <div id="tabInv" class="tab-panel" style="padding:0">
         <div class="tab-head">
             <span style="font-size:12px;color:var(--grey)">{{ combined|length }} entries</span>
             <button class="btn btn-blue btn-sm" onclick="exportTable('invTable','Inventory_Logs')"><i class="fas fa-download"></i> Export</button>
@@ -62,33 +89,6 @@
         </div>
         {% else %}
         <div class="empty"><i class="fas fa-clipboard-list"></i><h3>No Inventory Logs</h3><p>No activity found for the selected period</p></div>
-        {% endif %}
-    </div>
-
-    <div id="tabStb" class="tab-panel" style="padding:0">
-        <div class="tab-head">
-            <span style="font-size:12px;color:var(--grey)">{{ stb_logs|length }} entries</span>
-            <button class="btn btn-blue btn-sm" onclick="exportTable('stbTable','STB_Logs')"><i class="fas fa-download"></i> Export</button>
-        </div>
-        {% if stb_logs %}
-        <div class="tab-scroll" style="border:1px solid var(--border);border-radius:0 0 10px 10px;margin:0 16px 16px">
-            <table id="stbTable">
-                <thead><tr><th>STB No</th><th>Action</th><th>Dealer</th><th>Done By</th><th>Date</th></tr></thead>
-                <tbody>
-                {% for row in stb_logs %}
-                    <tr>
-                        <td style="font-weight:600;font-family:Consolas,monospace">{{ row[0] }}</td>
-                        <td>{% if row[1]=='Add New' %}<span class="bg bg-green"><span class="bd"></span>{{ row[1] }}</span>{% elif row[1]=='Issue' %}<span class="bg bg-yellow"><span class="bd"></span>{{ row[1] }}</span>{% elif row[1]=='Return' %}<span class="bg bg-blue"><span class="bd"></span>{{ row[1] }}</span>{% else %}<span class="bg bg-red"><span class="bd"></span>{{ row[1] }}</span>{% endif %}</td>
-                        <td>{{ row[2] or '—' }}</td>
-                        <td>{{ row[3] or '—' }}</td>
-                        <td>{{ row[4].strftime('%d-%b-%Y %H:%M') if row[4] else '—' }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="empty"><i class="fas fa-tv"></i><h3>No STB Logs</h3><p>No STB activity found for the selected period</p></div>
         {% endif %}
     </div>
 
