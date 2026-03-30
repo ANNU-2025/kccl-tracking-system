@@ -337,6 +337,103 @@ def stb_bulk():
     return redirect(url_for('stb_manager'))
 
 
+@app.route('/inventory/bulk', methods=['POST'])
+def inventory_bulk():
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
+    file = request.files.get('bulk_file')
+    bulk_type = request.form.get('bulk_type', 'add')
+    dealer = request.form.get('bulk_dealer', '').upper()
+    if not file:
+        flash('Please select a CSV file', 'error')
+        return redirect(url_for('inventory'))
+    try:
+        df = pd.read_csv(file, dtype=str)
+        if df.empty:
+            flash('CSV file is empty', 'error')
+            return redirect(url_for('inventory'))
+        conn = get_db()
+        if not conn:
+            flash('Database connection failed', 'error')
+            return redirect(url_for('inventory'))
+        cur = conn.cursor()
+        count = 0
+        errors = 0
+        for _, row in df.iterrows():
+            try:
+                code = str(row.get('item_code', '')).strip().upper()
+                name = str(row.get('item_name', '')).strip().upper()
+                serial = str(row.get('serial_no', '')).strip().upper()
+                qty_str = str(row.get('quantity', '')).strip()
+                invoice = str(row.get('invoice_no', '')).strip().upper()
+                if not code:
+                    errors += 1
+                    continue
+                if serial:
+                    qty = 1
+                elif qty_str and qty_str not in ('', 'nan', 'None'):
+                    qty = int(qty_str)
+                else:
+                    qty = 1
+                cur.execute("SELECT 1 FROM material_master WHERE item_code=%s", (code,))
+                if not cur.fetchone():
+                    cur.execute("INSERT INTO material_master (item_code,item_name) VALUES (%s,%s)", (code, name))
+                else:
+                    if name:
+                        cur.execute("UPDATE material_master SET item_name=%s WHERE item_code=%s AND (item_name IS NULL OR item_name='')", (name, code))
+                serial_nos_list = []
+                if bulk_type == 'add':
+                    for i in range(qty):
+                        if serial and qty == 1:
+                            s = serial
+                        elif serial and qty > 1:
+                            s = f"{serial}_{i+1}"
+                        else:
+                            s = f"{code}_{datetime.now().strftime('%f')}_{i}"
+                        cur.execute("INSERT INTO material_serials (serial_no,item_code,status,created_at) VALUES (%s,%s,'In Stock',NOW())", (s, code))
+                        serial_nos_list.append(s)
+                elif bulk_type == 'issue':
+                    if serial:
+                        cur.execute("UPDATE material_serials SET status='Issued',dealer=%s,updated_at=NOW() WHERE serial_no=%s AND status='In Stock'", (dealer, serial))
+                        serial_nos_list.append(serial)
+                    else:
+                        cur.execute("SELECT serial_no FROM material_serials WHERE item_code=%s AND status='In Stock' ORDER BY created_at ASC LIMIT %s", (code, qty))
+                        for r in cur.fetchall():
+                            cur.execute("UPDATE material_serials SET status='Issued',dealer=%s,updated_at=NOW() WHERE serial_no=%s", (dealer, r[0]))
+                            serial_nos_list.append(r[0])
+                elif bulk_type == 'return':
+                    if serial:
+                        cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s AND status='Issued'", (serial,))
+                        serial_nos_list.append(serial)
+                    else:
+                        cur.execute("SELECT serial_no FROM material_serials WHERE item_code=%s AND status='Issued' ORDER BY updated_at DESC LIMIT %s", (code, qty))
+                        for r in cur.fetchall():
+                            cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s", (r[0],))
+                            serial_nos_list.append(r[0])
+                serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
+                action_label = {'add': 'Add New', 'issue': 'Issue', 'return': 'Return'}[bulk_type]
+                cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())",
+                            (code, name, action_label, qty, dealer, invoice, session['logged_user'], serial_nos_str))
+                count += 1
+            except Exception as e:
+                print(f"Bulk row error: {e}")
+                errors += 1
+        conn.commit()
+        msg = f'{count} items processed'
+        if errors:
+            msg += f', {errors} skipped'
+        flash(msg, 'success')
+    except Exception as e:
+        flash(f'Bulk Error: {str(e)}', 'error')
+    finally:
+        try:
+            cur.close()
+            release_db(conn)
+        except:
+            pass
+    return redirect(url_for('inventory'))
+
+
 @app.route('/item/lookup')
 def item_lookup():
     if 'logged_user' not in session:
@@ -484,7 +581,6 @@ def inventory():
                                     pass
 
                     serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
-                    # FIX: 8 %s for 8 tuple values, created_at uses NOW()
                     cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
                     conn.commit()
                     flash('Hardware Transaction Successful!', 'success')
@@ -520,7 +616,6 @@ def inventory():
                         if stock_row and stock_row[0]:
                             item_name = stock_row[0]
 
-                    # FIX: 8 %s for 8 tuple values, created_at uses NOW()
                     cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (item, item_name, batch, act, qty, dlr, inv, session['logged_user']))
                     conn.commit()
                     flash('Consumable Transaction Successful!', 'success')
@@ -686,7 +781,6 @@ def export_instock():
                     df_stb.to_excel(writer, sheet_name="STB Stock", index=False)
             except:
                 pass
-
             try:
                 df_mat = pd.read_sql("""
                     SELECT COALESCE(NULLIF(ml.item_name,''), ml.item_code) as "Item Name",
@@ -703,7 +797,6 @@ def export_instock():
                     df_mat.to_excel(writer, sheet_name="Hardware Log", index=False)
             except:
                 pass
-
             try:
                 df_con = pd.read_sql("""
                     SELECT cl.item_code as "Item Code",
@@ -721,7 +814,6 @@ def export_instock():
                     df_con.to_excel(writer, sheet_name="Consumable Log", index=False)
             except:
                 pass
-
     except Exception as e:
         flash(f"Export Error: {e}", "error")
         release_db(conn)
