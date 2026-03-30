@@ -7,7 +7,9 @@
     <div class="tab-bar">
         <button class="tab-btn active" onclick="switchTab(this,'matTab')"><i class="fas fa-microchip"></i> Hardware / Material</button>
         <button class="tab-btn" onclick="switchTab(this,'conTab')"><i class="fas fa-flask"></i> Consumables</button>
+        <button class="tab-btn" onclick="switchTab(this,'bulkTab')"><i class="fas fa-file-csv"></i> Bulk Upload</button>
     </div>
+
     <div id="matTab" class="tab-panel active" style="padding-top:16px">
         <form method="POST" id="matForm">
             <input type="hidden" name="form_type" value="material">
@@ -24,6 +26,7 @@
             </div>
         </form>
     </div>
+
     <div id="conTab" class="tab-panel" style="padding-top:16px">
         <form method="POST" id="conForm">
             <input type="hidden" name="form_type" value="consumable">
@@ -40,14 +43,56 @@
             </div>
         </form>
     </div>
+
+    <div id="bulkTab" class="tab-panel" style="padding-top:16px">
+        <form method="POST" action="{{ url_for('inventory_bulk') }}" enctype="multipart/form-data">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                <div class="card" style="margin-bottom:0">
+                    <div class="card-head" style="margin-bottom:10px"><div class="card-title"><i class="fas fa-cog" style="color:var(--blue)"></i> Upload Settings</div></div>
+                    <div class="fg"><label class="fl">Action Type</label>
+                        <select name="bulk_type" class="fs">
+                            <option value="add">Bulk Add New</option>
+                            <option value="issue">Bulk Issue</option>
+                            <option value="return">Bulk Return</option>
+                        </select>
+                    </div>
+                    <div class="fg"><label class="fl">Dealer (for Issue/Return)</label><input type="text" name="bulk_dealer" class="fi" placeholder="Dealer name"></div>
+                </div>
+                <div class="card" style="margin-bottom:0">
+                    <div class="card-head" style="margin-bottom:10px"><div class="card-title"><i class="fas fa-file-csv" style="color:var(--green)"></i> CSV File</div></div>
+                    <div class="fg"><label class="fl">Select File</label><input type="file" name="bulk_file" accept=".csv" class="fi" style="padding:8px" required></div>
+                    <button type="submit" class="btn btn-green" style="width:100%;justify-content:center;margin-top:4px"><i class="fas fa-upload"></i> UPLOAD & PROCESS</button>
+                </div>
+            </div>
+            <div style="background:#F8F9FB;border:1px solid var(--border);border-radius:8px;padding:14px 18px">
+                <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px"><i class="fas fa-info-circle" style="color:var(--blue)"></i> CSV Format (with headers)</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div>
+                        <div style="font-size:11px;font-weight:600;color:var(--grey);margin-bottom:4px">With Serial Numbers:</div>
+                        <pre style="font-size:11px;font-family:Consolas,monospace;background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);overflow-x:auto">item_code,item_name,serial_no,invoice_no
+EDFA,EDFA AMPLIFIER,EDFA_001,INV-001
+EDFA,EDFA 10x10,EDFA_002,INV-001
+ONU,ONU GPON,ONU_001,INV-001</pre>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;font-weight:600;color:var(--grey);margin-bottom:4px">Without Serial (auto-generated):</div>
+                        <pre style="font-size:11px;font-family:Consolas,monospace;background:#fff;padding:10px;border-radius:6px;border:1px solid var(--border);overflow-x:auto">item_code,item_name,quantity,invoice_no
+EDFA,EDFA AMPLIFIER,5,INV-001
+ONU,ONU GPON,10,INV-001</pre>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
 </div>
+
 <script>
 function switchTab(btn,id){document.querySelectorAll('.tab-btn').forEach(function(t){t.classList.remove('active')});document.querySelectorAll('.tab-panel').forEach(function(t){t.classList.remove('active')});btn.classList.add('active');document.getElementById(id).classList.add('active')}
 
 (function(){
     var mc=document.getElementById('m_c'), mn=document.getElementById('m_n');
     var cc=document.getElementById('c_item'), cn=document.getElementById('c_name');
-    function lookup(code, input, color){
+    function lookup(code, input){
         if(!code){input.style.background='#fff';return}
         input.style.background='#fff3e0';
         fetch('/item/lookup?code='+encodeURIComponent(code)).then(function(r){return r.json()}).then(function(d){
@@ -59,6 +104,7 @@ function switchTab(btn,id){document.querySelectorAll('.tab-btn').forEach(functio
     if(cc&&cn){cc.addEventListener('blur',function(){lookup(this.value.trim().toUpperCase(),cn)})}
 })();
 </script>
+
 <div class="tw">
     <div class="tw-bar">
         <div class="card-title"><i class="fas fa-file-invoice" style="color:#C8960A"></i> Invoice Lookup</div>
