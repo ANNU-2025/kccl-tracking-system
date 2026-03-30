@@ -332,6 +332,36 @@ def stb_bulk():
             release_db(conn)
     return redirect(url_for('stb_manager'))
 
+@app.route('/item/lookup')
+def item_lookup():
+    if 'logged_user' not in session:
+        return jsonify({})
+    code = request.args.get('code', '').strip().upper()
+    if not code:
+        return jsonify({})
+    conn = get_db()
+    if not conn:
+        return jsonify({})
+    cur = conn.cursor()
+    result = {}
+    try:
+        cur.execute("SELECT item_name FROM material_master WHERE item_code=%s", (code,))
+        row = cur.fetchone()
+        if row and row[0]:
+            result['name'] = row[0]
+    except:
+        pass
+    if not result:
+        try:
+            cur.execute("SELECT item_name FROM consumable_stock WHERE item_code=%s ORDER BY id DESC LIMIT 1", (code,))
+            row = cur.fetchone()
+            if row and row[0]:
+                result['name'] = row[0]
+        except:
+            pass
+    cur.close()
+    release_db(conn)
+    return jsonify(result)
 
 @app.route('/stb/search')
 def stb_search():
