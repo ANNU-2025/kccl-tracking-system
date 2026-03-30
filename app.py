@@ -64,7 +64,6 @@ def _run_migrations(pool_inst):
             ("material_logs", "serial_nos", "TEXT"),
             ("consumable_logs", "item_name", "TEXT"),
             ("consumable_stock", "item_name", "TEXT"),
-            ("material_logs", "item_name", "TEXT"),
         ]
         for table, col, dtype in migrations:
             try:
@@ -78,6 +77,34 @@ def _run_migrations(pool_inst):
             except Exception as e:
                 print(f"Migration skip {table}.{col}: {e}")
         conn.commit()
+        # Backfill item_name in logs from master for existing rows
+        try:
+            cur.execute("""
+                UPDATE material_logs ml
+                SET item_name = COALESCE(ml.item_name, mm.item_name)
+                FROM material_master mm
+                WHERE ml.item_code = mm.item_code AND ml.item_name IS NULL
+            """)
+            print("✅ Backfilled material_logs.item_name")
+        except Exception as e:
+            print(f"Backfill material_logs warning: {e}")
+        try:
+            cur.execute("""
+                UPDATE consumable_logs cl
+                SET item_name = COALESCE(cl.item_name, cs.item_name)
+                FROM consumable_stock cs
+                WHERE cl.item_code = cs.item_code AND cl.item_name IS NULL
+            """)
+            print("✅ Backfilled consumable_logs.item_name")
+        except Exception as e:
+            print(f"Backfill consumable_logs warning: {e}")
+        try:
+            conn.commit()
+        except:
+            try:
+                conn.rollback()
+            except:
+                pass
     except Exception as e:
         print(f"Migration error: {e}")
         try:
@@ -479,7 +506,7 @@ def inventory():
                                     pass
 
                     serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
-                    cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
+                    cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
                     conn.commit()
                     flash('Hardware Transaction Successful!', 'success')
 
@@ -508,14 +535,13 @@ def inventory():
                         cur.execute("UPDATE consumable_stock SET used_qty=used_qty-%s,balance_qty=balance_qty+%s WHERE batch_id=%s", (qty, qty, batch))
                         if item_name:
                             cur.execute("UPDATE consumable_stock SET item_name=%s WHERE batch_id=%s AND (item_name IS NULL OR item_name='')", (item_name, batch))
-
                     if not item_name:
                         cur.execute("SELECT item_name FROM consumable_stock WHERE batch_id=%s", (batch,))
                         stock_row = cur.fetchone()
                         if stock_row and stock_row[0]:
                             item_name = stock_row[0]
 
-                    cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (item, item_name, batch, act, qty, dlr, inv, session['logged_user']))
+                    cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (item, item_name, batch, act, qty, dlr, inv, session['logged_user']))
                     conn.commit()
                     flash('Consumable Transaction Successful!', 'success')
             except Exception as e:
@@ -569,7 +595,7 @@ def fibre_manager():
                 cur.execute("UPDATE fibre_stock SET used_length=used_length+%s,balance_length=balance_length-%s WHERE drum_id=%s", (lg_val, lg_val, did))
             elif act == 'Return':
                 cur.execute("UPDATE fibre_stock SET used_length=used_length-%s,balance_length=balance_length+%s WHERE drum_id=%s", (lg_val, lg_val, did))
-            cur.execute("INSERT INTO fibre_logs (drum_id,action,length,dealer,done_by,created_at) VALUES (%s,%s,%s,%s,%s,NOW())", (did, act, lg_val, dlr, session['logged_user']))
+            cur.execute("INSERT INTO fibre_logs (drum_id,action,length,dealer,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,NOW())", (did, act, lg_val, dlr, session['logged_user']))
             conn.commit()
             flash('Fibre Transaction Successful!', 'success')
         except Exception as e:
@@ -682,7 +708,7 @@ def export_instock():
 
             try:
                 df_mat = pd.read_sql("""
-                    SELECT COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)) as "Item Name",
+                    SELECT COALESCE(NULLIF(ml.item_name,''), COALESCE(mm.item_name, ml.item_code)) as "Item Name",
                            ml.item_code as "Item Code",
                            COALESCE(ml.serial_nos, '') as "Serial Nos",
                            ml.quantity as "Quantity", 'Pcs' as "Unit",
@@ -701,7 +727,7 @@ def export_instock():
             try:
                 df_con = pd.read_sql("""
                     SELECT cl.item_code as "Item Code",
-                           COALESCE(cl.item_name, '') as "Item Name",
+                           COALESCE(NULLIF(cl.item_name,''), cl.item_code) as "Item Name",
                            cl.batch_id as "Batch ID", cl.qty as "Quantity",
                            cs.unit as "Unit", cl.dealer as "Dealer",
                            cl.invoice_no as "Invoice", cl.action as "Action",
@@ -773,7 +799,7 @@ def export_hardware():
         return redirect(url_for('dashboard'))
     try:
         df = pd.read_sql("""
-            SELECT COALESCE(ml.item_name, COALESCE(mm.item_name, ml.item_code)) as "Item Name",
+            SELECT COALESCE(NULLIF(ml.item_name,''), COALESCE(mm.item_name, ml.item_code)) as "Item Name",
                    ml.item_code as "Item Code",
                    COALESCE(ml.serial_nos, '') as "Serial Nos",
                    ml.quantity as "Quantity", 'Pcs' as "Unit",
@@ -831,7 +857,7 @@ def export_consumables():
     try:
         df = pd.read_sql("""
             SELECT cl.item_code as "Item Code",
-                   COALESCE(cl.item_name, '') as "Item Name",
+                   COALESCE(NULLIF(cl.item_name,''), cl.item_code) as "Item Name",
                    cl.batch_id as "Batch ID", cl.qty as "Quantity",
                    cs.unit as "Unit", cl.dealer as "Dealer",
                    cl.invoice_no as "Invoice", cl.action as "Action",
