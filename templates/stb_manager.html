@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}STB Manager{% endblock %}
 {% block page_title %}STB Management{% endblock %}
+{% block head %}
+<style>
+    @media(max-width:768px){
+        [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr !important}
+    }
+</style>
+{% endblock %}
 {% block body %}
 
 <div class="card">
@@ -9,14 +16,12 @@
         <input type="text" id="stbSearch" class="fi" style="max-width:380px" placeholder="Scan or type STB number...">
         <button class="btn btn-blue" onclick="searchSTB()"><i class="fas fa-search"></i> SEARCH</button>
     </div>
-    <div class="result-box" id="stbResult">
-        <div class="result-row">
-            <div><span>Serial: </span><strong id="resSn"></strong></div>
-            <div><span>Status: </span><strong id="resStatus"></strong></div>
-            <div><span>Type: </span><strong id="resType"></strong></div>
-            <div><span>Dealer: </span><strong id="resDealer"></strong></div>
-        </div>
-    </div>
+    <div class="result-box" id="stbResult"><div class="result-row">
+        <div><span>Serial: </span><strong id="resSn"></strong></div>
+        <div><span>Status: </span><strong id="resStatus"></strong></div>
+        <div><span>Type: </span><strong id="resType"></strong></div>
+        <div><span>Dealer: </span><strong id="resDealer"></strong></div>
+    </div></div>
 </div>
 
 {% if session.get('user_role')=='admin' %}
@@ -35,7 +40,7 @@
         <form method="POST" action="{{ url_for('stb_bulk') }}" enctype="multipart/form-data">
             <div class="fg"><label class="fl">Action</label><select name="bulk_action" class="fs"><option>Bulk Issue</option><option>Bulk Return</option><option>Bulk Faulty</option><option>Bulk Add New</option></select></div>
             <div class="fg"><label class="fl">Dealer (For Issue)</label><input type="text" name="bulk_dealer" class="fi" placeholder="Dealer name"></div>
-            <div class="fg"><label class="fl">CSV File</label><input type="file" name="file" accept=".csv" class="fi" style="padding:6px"></div>
+            <div class="fg"><label class="fl">CSV File</label><input type="file" name="file" accept=".csv" class="fi" style="padding:8px"></div>
             <button type="submit" class="btn btn-blue" style="width:100%;justify-content:center"><i class="fas fa-upload"></i> UPLOAD CSV</button>
         </form>
     </div>
