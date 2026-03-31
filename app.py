@@ -196,7 +196,7 @@ def dashboard():
     try:
         cur.execute("""SELECT dealer, COUNT(*) FROM stb_stock
                    WHERE status='Issued' AND dealer IS NOT NULL AND dealer != ''
-                   GROUP BY dealer ORDER BY dealer ASC LIMIT 50""")
+                   GROUP BY dealer ORDER BY dealer ASC""")
         dealer_data = cur.fetchall()
     except: pass
     cur.close()
