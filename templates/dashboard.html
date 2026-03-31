@@ -17,12 +17,11 @@
     .dash-grid .tw-bar{flex-shrink:0}
     .dash-grid .tw-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
     .dash-grid .search-box{flex-shrink:0}
-    .dash-grid .tw-scroll{flex:1;min-height:0;max-height:150vh;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:5px;scrollbar-color:#C0C8D8;border-radius:3px}
+    .dash-grid .tw-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:5px;scrollbar-color:#C0C8D8;border-radius:3px}
     .dash-grid .tw-scroll::-webkit-scrollbar{width:5px}
     .dash-grid .tw-scroll::-webkit-scrollbar-thumb{background:#C0C8D8;border-radius:3px}
-    .dash-grid .tw-scroll{scrollbar-color:#C0C8D8}
-    @media(max-width:900px){.dash-grid;height:calc(100vh - 220px)}.dash-grid .tw-scroll{max-height:150px}}
-    @media(max-width:768px){.dash-grid{height:auto;min-height:350px}.stat-sub{gap:10px}.dl-row{padding:6px 12px;font-size:12px}.dash-grid .tw-scroll{max-height:130px}}
+    @media(max-width:900px){.dash-grid{height:calc(100vh - 220px)}}
+    @media(max-width:768px){.dash-grid{height:auto;min-height:350px;grid-template-columns:1fr}.stat-sub{gap:10px}.dl-row{padding:6px 12px;font-size:12px}}
 </style>
 {% endblock %}
 {% block body %}
@@ -86,23 +85,6 @@
         </div>
     </div>
 
-    <!-- MATERIAL STOCK (by Item Name) — fixed div nesting, no extra </div> -->
-    <div class="tw">
-        <div class="tw-bar"><div class="card-title"><i class="fas fa-box" style="color:var(--blue)"></i> Material Stock</div><button class="btn btn-blue btn-sm" onclick="dl('{{ url_for('export_hardware') }}')"><i class="fas fa-download"></i> Export</button></div>
-        <div class="tw-body">
-            <input type="text" id="instockSearch" class="fi search-box" placeholder="Search items...">
-            {% if material_summary %}
-            <div class="tw-scroll">
-                <table><thead><tr><th>Item Name</th><th>In Stock</th></tr></thead>
-                <tbody id="instockBody">{% for row in material_summary %}<tr>
-                    <td style="font-weight:600;font-size:11px">{{ row[1] }}</td>
-                    <td><span class="bg bg-green"><span class="bd"></span>{{ row[2] }}</span></td>
-                </tr>{% endfor %}</tbody></table>
-            </div>
-            {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-box-open"></i><h3>No Data</h3></div>{% endif %}
-        </div>
-    </div>
-
     <!-- DEALERS TABLE -->
     <div class="tw">
         <div class="tw-bar"><div class="card-title"><i class="fas fa-handshake" style="color:var(--red)"></i> Issued to Dealers</div></div>
@@ -127,6 +109,5 @@
 document.getElementById('materialSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#materialBody tr').forEach(function(r){r.style.display=r.cells[0].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
 document.getElementById('consumableSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#consumableBody tr').forEach(function(r){r.style.display=r.cells[0].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
 document.getElementById('dealerSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#dealerBody tr').forEach(function(r){r.style.display=r.cells[1].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
-document.getElementById('instockSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#instockBody tr').forEach(function(r){r.style.display=r.cells[0].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
 </script>
 {% endblock %}
