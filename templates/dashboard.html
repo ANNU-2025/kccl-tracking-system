@@ -32,7 +32,7 @@
     <div class="stat stat-card" onclick="dl('{{ url_for('export_instock') }}')">
         <div class="si green"><i class="fas fa-box"></i></div>
         <div class="sv">{{ total_in_stock }}</div><div class="sl">IN STOCK</div>
-        <div class="stat-sub"><div><span style="color:var(--grey)">Fresh:</span> <strong style="color:var(--green)">{{ fresh_c }}</strong></div><div><span style="color:var(--grey)">Returned:</span> <strong style="color:#C896C0A">{{ ret_c }}</strong></div></div>
+        <div class="stat-sub"><div><span style="color:var(--grey)">Fresh:</span> <strong style="color:var(--green)">{{ fresh_c }}</strong></div><div><span style="color:var(--grey)">Returned:</span> <strong style="color:#C8960A">{{ ret_c }}</strong></div></div>
         <i class="fas fa-download dl-icon"></i>
     </div>
     <div class="stat stat-card" onclick="dl('{{ url_for('export_stb_status', status='Issued') }}')">
@@ -86,18 +86,20 @@
         </div>
     </div>
 
-    <!-- IN STOCK (LCO/Dealer grouped) -->
+    <!-- MATERIAL STOCK (by Item Name) — fixed div nesting, no extra </div> -->
     <div class="tw">
-        <div class="tw-bar"><div class="card-title"><i class="fas fa-box" style="color:var(--blue)"></i> In Stock (LCO / Dealer)</div><button class="btn btn-blue btn-sm" onclick="dl('{{ url_for('export_instock') }}')"><i class="fas fa-download"></i> Export All</button></div>
+        <div class="tw-bar"><div class="card-title"><i class="fas fa-box" style="color:var(--blue)"></i> Material Stock</div><button class="btn btn-blue btn-sm" onclick="dl('{{ url_for('export_hardware') }}')"><i class="fas fa-download"></i> Export</button></div>
         <div class="tw-body">
-            <input type="text" id="instockSearch" class="fi search-box" placeholder="Search LCO / Dealer...">
-            <div class="tw-scroll" id="instockTableWrap">
-                <table><thead><tr><th>LCO / Dealer</th><th>Units</th><th></th></tr></thead>
-                <tbody id="instockBody">
-                    <tr><td colspan="3" style="text-align:center;padding:20px;color:var(--grey)"><i class="fas fa-spinner fa-spin"></i></td></tr>
-                </tbody>
+            <input type="text" id="instockSearch" class="fi search-box" placeholder="Search items...">
+            {% if material_summary %}
+            <div class="tw-scroll">
+                <table><thead><tr><th>Item Name</th><th>In Stock</th></tr></thead>
+                <tbody id="instockBody">{% for row in material_summary %}<tr>
+                    <td style="font-weight:600;font-size:11px">{{ row[1] }}</td>
+                    <td><span class="bg bg-green"><span class="bd"></span>{{ row[2] }}</span></td>
+                </tr>{% endfor %}</tbody></table>
             </div>
-            </div>
+            {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-box-open"></i><h3>No Data</h3></div>{% endif %}
         </div>
     </div>
 
@@ -125,6 +127,6 @@
 document.getElementById('materialSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#materialBody tr').forEach(function(r){r.style.display=r.cells[0].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
 document.getElementById('consumableSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#consumableBody tr').forEach(function(r){r.style.display=r.cells[0].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
 document.getElementById('dealerSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#dealerBody tr').forEach(function(r){r.style.display=r.cells[1].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
-document.getElementById('instockSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#instockBody tr').forEach(function(r){r.style.display=r.cells[1].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
+document.getElementById('instockSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#instockBody tr').forEach(function(r){r.style.display=r.cells[0].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
 </script>
 {% endblock %}
