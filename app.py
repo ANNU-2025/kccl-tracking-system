@@ -1022,6 +1022,29 @@ def export_consumables():
             flash(f"Export Error: {e}", "error"); release_db(conn)
             return redirect(url_for('dashboard'))
 
+# ==================== DASHBOARD LAZY LOAD ====================
+
+@app.route('/api/dash-stb-data')
+def dash_stb_data():
+    if 'logged_user' not in session:
+        return jsonify({'rows': []})
+    conn = get_db()
+    if not conn:
+        return jsonify({'rows': []})
+    try:
+        df = pd.read_sql("""SELECT ROW_NUMBER() OVER (ORDER BY updated_at DESC) as rn,
+               stb_no as sn, stock_type as tp,
+               TO_CHAR(updated_at, 'DD-Mon-YYYY HH:MI') as upd
+               FROM stb_stock WHERE status='In Stock'""", conn)
+        df['rn'] = range(1, len(df) + 1)
+        rows = df[['rn', 'sn', 'tp', 'upd']].values.tolist()
+        release_db(conn)
+        return jsonify({'rows': rows})
+    except Exception as e:
+        print(f"STB lazy load error: {e}")
+        try: release_db(conn)
+        except: pass
+        return jsonify({'rows': []})
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
