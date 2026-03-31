@@ -17,14 +17,12 @@
     .dash-grid .tw-bar{flex-shrink:0}
     .dash-grid .tw-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
     .dash-grid .search-box{flex-shrink:0}
-    .dash-grid .tw-scroll{flex:0 0 auto;max-height:160px;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:6px;scrollbar-color:#C0C8D8}
-    .dash-grid .tw-scroll::-webkit-scrollbar{width:6px}
-    .dash-grid .tw-scroll{scrollbar-width:6px;scrollbar-color:#C0C8D8;border-radius:3px}
+    .dash-grid .tw-scroll{flex:0 0 auto;max-height:180px;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:5px;scrollbar-color:#C0C8D8;border-radius:3px}
+    .dash-grid .tw-scroll::-webkit-scrollbar{width:5px}
     .dash-grid .tw-scroll::-webkit-scrollbar-thumb{background:#C0C8D8;border-radius:3px}
     .dash-grid .tw-scroll{scrollbar-color:#C0C8D8}
-    .dash-grid .tw-scroll::-webkit-scrollbar-thumb{background:#C0C8D8}
-    @media(max-width:900px){.dash-grid{grid-template-columns:1fr;max-height:calc(100vh - 220px)}}
-    @media(max-width:768px){.dash-grid{grid-template-columns:1fr;max-height:none;min-height:350px}.stat-sub{gap:10px}.dl-row{padding:6px 12px;font-size:12px}.dash-grid .tw-scroll{max-height:140px}}
+    @media(max-width:900px){.dash-grid{grid-template-columns:1fr;max-height:calc(100vh - 220px)}.dash-grid .tw-scroll{max-height:150px}}
+    @media(max-width:768px){.dash-grid{grid-template-columns:1fr;max-height:none;min-height:350px}.stat-sub{gap:10px}.dl-row{padding:6px 12px;font-size:12px}.dash-grid .tw-scroll{max-height:130px}}
 </style>
 {% endblock %}
 {% block body %}
@@ -34,7 +32,7 @@
     <div class="stat stat-card" onclick="dl('{{ url_for('export_instock') }}')">
         <div class="si green"><i class="fas fa-box"></i></div>
         <div class="sv">{{ total_in_stock }}</div><div class="sl">IN STOCK</div>
-        <div class="stat-sub"><div><span style="color:var(--grey)">Fresh:</span> <strong style="color:var(--green)">{{ fresh_c }}</strong></div><div><span style="color:var(--grey)">Returned:</span> <strong style="color:#C0C8C0A">{{ ret_c }}</strong></div></div>
+        <div class="stat-sub"><div><span style="color:var(--grey)">Fresh:</span> <strong style="color:var(--green)">{{ fresh_c }}</strong></div><div><span style="color:var(--grey)">Returned:</span> <strong style="color:#C8960C0A">{{ ret_c }}</strong></div></div>
         <i class="fas fa-download dl-icon"></i>
     </div>
     <div class="stat stat-card" onclick="dl('{{ url_for('export_stb_status', status='Issued') }}')">
@@ -52,6 +50,7 @@
 </div>
 
 <div class="dash-grid">
+
     <!-- ===== MATERIAL TABLE ===== -->
     <div class="tw">
         <div class="tw-bar"><div class="card-title"><i class="fas fa-microchip" style="color:var(--green)"></i> Material</div><button class="btn btn-green btn-sm" onclick="dl('{{ url_for('export_hardware') }}')"><i class="fas fa-download"></i> Export</button></div>
@@ -60,10 +59,10 @@
             {% if material_summary %}
             <div class="tw-scroll">
                 <table><thead><tr><th>Item Code</th><th>In Stock</th></tr></thead>
-                <tbody id="materialBody">{% for row in material_summary %}<tr>
+                <tbody id="materialBody">{% for row in material_summary[:8] %}<tr>
                     <td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">{{ row[0] }}</td>
                     <td><span class="bg bg-green"><span class="bd"></span>{{ row[2] }}</span></td>
-                </tr>{% endfor %}</tbody></table>
+                </tr>{% endfor %}{% if material_summary|length > 8 %}<tr id="materialMore"><td colspan="2" style="text-align:center;padding:6px 0"><button class="btn btn-outline btn-sm" onclick="loadMore('material','materialBody','{{ material_summary|length }}','item_code','In Stock')"><i class="fas fa-chevron-down"></i> Show All ({{ material_summary|length }})</button></td></tr>{% endif %}</tbody></table>
             </div>
             {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-box-open"></i><h3>No Data</h3></div>{% endif %}
         </div>
@@ -77,44 +76,28 @@
             {% if consumable_summary %}
             <div class="tw-scroll">
                 <table><thead><tr><th>Item Code</th><th>Total</th><th>Used</th><th>Balance</th></tr></thead>
-                <tbody id="consumableBody">{% for row in consumable_summary %}{% set total=row[2]|float %}{% set bal=row[4]|float %}<tr>
+                <tbody id="consumableBody">{% for row in consumable_summary[:8] %}{% set total=row[2]|float %}{% set bal=row[4]|float %}<tr>
                     <td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">{{ row[0] }}</td>
                     <td>{{ row[2] }}</td><td>{{ row[3] }}</td>
                     <td style="font-weight:600;color:{% if bal<=0 %}var(--red){% elif bal<=(total*0.2) %}#C8960A{% else %}var(--green){% endif %}">{{ row[4] }}</td>
-                </tr>{% endfor %}</tbody></table>
+                </tr>{% endfor %}{% if consumable_summary|length > 8 %}<tr id="consumableMore"><td colspan="4" style="text-align:center;padding:6px 0"><button class="btn btn-outline btn-sm" onclick="loadMore('consumable','consumableBody','{{ consumable_summary|length }}','item_code','')"><i class="fas fa-chevron-down"></i> Show All ({{ consumable_summary|length }})</button></td></tr>{% endif %}</tbody></table>
             </div>
             {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-cubes"></i><h3>No Data</h3></div>{% endif %}
         </div>
     </div>
 
-    <!-- ===== IN STOCK (STB) TABLE ===== -->
+    <!-- ===== IN STOCK TABLE (LCO grouped) ===== -->
     <div class="tw">
-        <div class="tw-bar"><div class="card-title"><i class="fas fa-box" style="color:var(--blue)"></i> In Stock (STB)</div><button class="btn btn-blue btn-sm" onclick="dl('{{ url_for('export_instock') }}')"><i class="fas fa-download"></i> Export All</button></div>
+        <div class="tw-bar"><div class="card-title"><i class="fas fa-box" style="color:var(--blue)"></i> In Stock (LCO / Dealer)</div><button class="btn btn-blue btn-sm" onclick="dl('{{ url_for('export_instock') }}')"><i class="fas fa-download"></i> Export All</button></div>
         <div class="tw-body">
-            {% set in_stb_stock = [] %}
-            {% if total_in_stock > 0 %}
-            <div class="tw-scroll">
-                <table><thead><tr><th>#</th><th>Serial No</th><th>Type</th><th>Last Update</th></tr></thead>
-                <tbody>
-                <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grey)"><i class="fas fa-spinner fa-spin"></i></td></tr>
+            <input type="text" id="instockSearch" class="fi search-box" placeholder="Search LCO / Dealer...">
+            <div class="tw-scroll" id="instockTableWrap">
+                <table><thead><tr><th>#</th><th>LCO / Dealer</th><th>Units</th></tr></thead>
+                <tbody id="instockBody">
+                    <tr><td colspan="3" style="text-align:center;padding:20px;color:var(--grey)"><i class="fas fa-spinner fa-spin"></i></td></tr>
                 </tbody>
             </div>
-            <script>
-            (function(){
-                var tbody = document.querySelector('.dash-grid .tw:last-child .tw-scroll tbody');
-                if(!tbody) return;
-                fetch('/api/dash-stb-data').then(function(r){return r.json()}).then(function(data){
-                    if(data.rows && data.rows.length > 0){
-                        tbody.innerHTML = data.rows.map(function(r){
-                            return '<tr><td style="color:var(--grey)">'+r[0]+'</td><td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">'+r[1]+'</td><td><span class="bg '+(r[2]==='Fresh'?'bg-green':'bg-yellow')+'"><span class="bd"></span>'+r[2]+'</span></td><td style="font-size:11px;color:var(--grey)">'+r[3]+'</td></tr>';
-                        }).join('');
-                    } else {
-                        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grey)">No data</td></tr>';
-                    }
-                }).catch(function(){ tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grey)">Error loading</td></tr>'; });
-            })();
-            </script>
-            {% endif %}
+            </div>
         </div>
     </div>
 
@@ -126,12 +109,12 @@
             {% if dealer_data %}
             <div class="tw-scroll">
                 <table><thead><tr><th>#</th><th>Dealer Name</th><th>Units</th><th></th></tr></thead>
-                <tbody id="dealerBody">{% for row in dealer_data %}<tr>
+                <tbody id="dealerBody">{% for row in dealer_data[:8] %}<tr>
                     <td style="color:var(--grey)">{{ loop.index }}</td>
                     <td style="font-weight:600">{{ row[0] }}</td>
                     <td><span class="bg bg-yellow"><span class="bd"></span>{{ row[1] }}</span></td>
                     <td><button class="dl-row" onclick="dl('{{ url_for('export_dealer', dealer_name=row[0]) }}')"><i class="fas fa-download"></i></button></td>
-                </tr>{% endfor %}</tbody></table>
+                </tr>{% endfor %}{% if dealer_data|length > 8 %}<tr id="dealerMore"><td colspan="4" style="text-align:center;padding:6px 0"><button class="btn btn-outline btn-sm" onclick="loadMore('dealer','dealerBody','{{ dealer_data|length }}','1')"><i class="fas fa-chevron-down"></i> Show All ({{ dealer_data|length }})</button></td></tr>{% endif %}</tbody></table>
             </div>
             {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-store"></i><h3>No Data</h3></div>{% endif %}
         </div>
@@ -139,8 +122,44 @@
 </div>
 
 <script>
+// Search functionality for all 3 tables
 document.getElementById('materialSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#materialBody tr').forEach(function(r){r.style.display=r.cells[0].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
 document.getElementById('consumableSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#consumableBody tr').forEach(function(r){r.style.display=r.cells[0].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
 document.getElementById('dealerSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#dealerBody tr').forEach(function(r){r.style.display=r.cells[1].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
+document.getElementById('instockSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#instockBody tr').forEach(function(r){r.style.display=r.cells[1].textContent.toLowerCase().indexOf(t)!==-1?'':'none'})});
+
+// Load more rows function (shows 8 more, removes the button)
+function loadMore(type, tbodyId, total, colIdx){
+    var btn = document.getElementById(type+'More');
+    if(!btn) return;
+    var shown = document.querySelectorAll('#'+tbodyId+' tr').length;
+    var remain = total - shown;
+    if(remain <= 0){btn.parentElement.remove(); return;}
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    var fetchUrl = '/api/load-more?type='+type+'&shown='+shown;
+    fetch(fetchUrl).then(function(r){return r.json()}).then(function(data){
+        if(data.html){
+            btn.parentElement.remove();
+            var tbody = document.getElementById(tbodyId);
+            tbody.insertAdjacentHTML('beforeend', data.html);
+        } else {
+            btn.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error';
+        }
+    }).catch(function(){
+        btn.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error';
+    });
+}
+
+// Lazy load In Stock table on page load
+(function(){
+    var tbody = document.getElementById('instockBody');
+    if(!tbody) return;
+    fetch('/api/load-more?type=instock&shown=0').then(function(r){return r.json()}).then(function(data){
+        if(data.html) tbody.innerHTML = data.html;
+        else tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--grey)">No data</td></tr>';
+    }).catch(function(){
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--grey)">Error</td></tr>';
+    });
+})();
 </script>
 {% endblock %}
