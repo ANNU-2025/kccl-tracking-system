@@ -47,30 +47,26 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
                 <div class="card" style="margin-bottom:0">
                     <div class="card-head" style="margin-bottom:10px"><div class="card-title"><i class="fas fa-cog" style="color:var(--blue)"></i> Upload Settings</div></div>
-                    <div class="fg">
-                        <label class="fl">Item Type</label>
+                    <div class="fg"><label class="fl">Item Type</label>
                         <select name="item_category" id="itemCategory" class="fs">
                             <option value="material">Material / Hardware</option>
                             <option value="consumable">Consumable</option>
                         </select>
                     </div>
-                    <div class="fg">
-                        <label class="fl">Action</label>
+                    <div class="fg"><label class="fl">Action</label>
                         <select name="bulk_action" class="fs">
                             <option value="add">Bulk Add New</option>
                             <option value="issue">Bulk Issue</option>
                             <option value="return">Bulk Return</option>
                         </select>
                     </div>
-                    <div class="fg">
-                        <label class="fl">Dealer (for Issue / Return)</label>
+                    <div class="fg"><label class="fl">Dealer (for Issue / Return)</label>
                         <input type="text" name="bulk_dealer" class="fi" placeholder="Dealer name">
                     </div>
                 </div>
                 <div class="card" style="margin-bottom:0">
                     <div class="card-head" style="margin-bottom:10px"><div class="card-title"><i class="fas fa-file-excel" style="color:var(--green)"></i> Excel File</div></div>
-                    <div class="fg">
-                        <label class="fl">Select File</label>
+                    <div class="fg"><label class="fl">Select File (.xlsx or .csv)</label>
                         <input type="file" name="bulk_file" accept=".csv,.xlsx" class="fi" style="padding:8px" required>
                     </div>
                     <div style="display:flex;gap:8px;margin-top:4px">
@@ -80,6 +76,34 @@
                 </div>
             </div>
         </form>
+
+        {% if bulk_failures %}
+        <div style="background:var(--red-bg);border:1px solid rgba(231,76,60,.2);border-radius:8px;padding:14px 18px;margin-top:4px">
+            <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                <i class="fas fa-triangle-exclamation"></i> {{ bulk_failures|length }} Failed Entries
+            </div>
+            <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse">
+                    <thead><tr>
+                        <th style="padding:6px 10px;text-align:left;font-size:10px;color:var(--grey);background:rgba(231,76,60,.06);border-bottom:1px solid rgba(231,76,60,.15)">Row#</th>
+                        <th style="padding:6px 10px;text-align:left;font-size:10px;color:var(--grey);background:rgba(231,76,60,.06);border-bottom:1px solid rgba(231,76,60,.15)">Item Code</th>
+                        <th style="padding:6px 10px;text-align:left;font-size:10px;color:var(--grey);background:rgba(231,76,60,.06);border-bottom:1px solid rgba(231,76,60,.15)">Item Name</th>
+                        <th style="padding:6px 10px;text-align:left;font-size:10px;color:var(--grey);background:rgba(231,76,60,.06);border-bottom:1px solid rgba(231,76,60,.15)">Error Reason</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for f in bulk_failures %}
+                    <tr>
+                        <td style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--red)">{{ f.row }}</td>
+                        <td style="padding:6px 10px;font-size:11px;font-family:Consolas,monospace">{{ f.code or '—' }}</td>
+                        <td style="padding:6px 10px;font-size:11px">{{ f.name or '—' }}</td>
+                        <td style="padding:6px 10px;font-size:11px;color:var(--red)">{{ f.error }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -91,4 +115,32 @@ function lookup(code,input){if(!code){input.style.background='#fff';return}input
 if(mc&&mn){mc.addEventListener('blur',function(){lookup(this.value.trim().toUpperCase(),mn)})}
 if(cc&&cn){cc.addEventListener('blur',function(){lookup(this.value.trim().toUpperCase(),cn)})}})();
 </script>
+
+<div class="tw">
+    <div class="tw-bar">
+        <div class="card-title"><i class="fas fa-file-invoice" style="color:#C8960A"></i> Invoice Lookup</div>
+        <div style="flex:1"></div>
+        <form method="GET" action="{{ url_for('inventory') }}" style="display:flex;gap:8px;align-items:center">
+            <input type="text" name="inv_search" class="fi" style="max-width:260px;padding:6px 10px" placeholder="Enter invoice number..." value="{{ inv_search }}">
+            <button type="submit" class="btn btn-blue btn-sm"><i class="fas fa-search"></i> Search</button>
+            {% if inv_search %}<a href="{{ url_for('inventory') }}" class="btn btn-outline btn-sm"><i class="fas fa-xmark"></i> Clear</a>{% endif %}
+        </form>
+    </div>
+    {% if inv_search %}
+        {% if inv_results %}
+        <div class="tw-hscroll"><table>
+            <thead><tr><th>Type</th><th>Item Code</th><th>Serial / Batch</th><th>Qty</th><th>Unit</th><th>Dealer</th><th>Action</th><th>Item Name</th><th>Date</th></tr></thead>
+            <tbody>{% for row in inv_results %}<tr>
+                <td>{% if row[0]=='Material' %}<span class="bg bg-blue"><span class="bd"></span>{{ row[0] }}</span>{% else %}<span class="bg bg-green"><span class="bd"></span>{{ row[0] }}</span>{% endif %}</td>
+                <td style="font-weight:600">{{ row[1] }}</td>
+                <td style="font-family:Consolas,monospace;font-size:11px">{{ row[2] or '—' }}</td>
+                <td>{{ row[3] }}</td><td>{{ row[4] }}</td><td>{{ row[5] or '—' }}</td>
+                <td>{% if row[6]=='Add New' %}<span class="bg bg-green"><span class="bd"></span>{{ row[6] }}</span>{% elif row[6]=='Issue' %}<span class="bg bg-yellow"><span class="bd"></span>{{ row[6] }}</span>{% else %}<span class="bg bg-blue"><span class="bd"></span>{{ row[6] }}</span>{% endif %}</td>
+                <td style="font-size:11px">{{ row[7] or '—' }}</td>
+                <td>{{ row[8].strftime('%d-%b-%Y %H:%M') if row[8] else '—' }}</td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="empty"><i class="fas fa-file-circle-xmark"></i><h3>No Records Found</h3><p>No records found for invoice <strong>{{ inv_search }}</strong></p></div>{% endif %}
+    {% else %}<div class="empty"><i class="fas fa-file-invoice"></i><h3>Search for Invoices</h3><p>Enter an invoice number to see all transactions</p></div>{% endif %}
+</div>
 {% endblock %}
