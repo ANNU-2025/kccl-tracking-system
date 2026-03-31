@@ -368,8 +368,6 @@ def inventory_bulk():
             flash('File is empty', 'error')
             return redirect(url_for('inventory'))
         df.columns = [str(c).strip().lower().replace(' ', '_') for c in df.columns]
-
-        # Remove completely empty rows
         df = df.dropna(how='all')
 
         conn = get_db()
@@ -381,7 +379,7 @@ def inventory_bulk():
         failed_rows = []
 
         for idx, row in df.iterrows():
-            row_num = idx + 2  # Excel row number (1-indexed + header)
+            row_num = idx + 2
             try:
                 if item_cat == 'material':
                     code = _clean(row.get('item_code', '')).upper()
@@ -451,7 +449,8 @@ def inventory_bulk():
                                 cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s", (r[0],))
                                 serial_nos_list.append(r[0])
 
-                    serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
+                    # ★ KEY FIX: if qty > 1, store blank serial_nos in log
+                    serial_nos_str = ','.join(serial_nos_list) if serial_nos_list and qty <= 1 else ''
                     action_label = {'add': 'Add New', 'issue': 'Issue', 'return': 'Return'}[bulk_action]
                     try:
                         cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())",
@@ -506,12 +505,10 @@ def inventory_bulk():
                         cur.execute("INSERT INTO consumable_logs (item_code,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())",
                                     (code, batch, action_label, qty, dealer, invoice, session['logged_user']))
 
-                # COMMIT PER ROW — this is the key fix
                 conn.commit()
                 count += 1
 
             except Exception as e:
-                # ROLLBACK to clear error state for next row
                 try:
                     conn.rollback()
                 except:
@@ -526,8 +523,7 @@ def inventory_bulk():
                     'error': err_msg
                 })
 
-        # Store failures in session for display
-        session['bulk_failures'] = failed_rows[-50:]  # max 50
+        session['bulk_failures'] = failed_rows[-50:]
 
         msg = f'{count} {item_cat.title()} items processed successfully'
         if failed_rows:
@@ -557,25 +553,25 @@ def inventory():
     inv_results = []
     inv_search = ''
 
-    # Get failures from session then clear
     bulk_failures = session.pop('bulk_failures', [])
 
     if request.method == 'POST':
         form_type = request.form.get('form_type')
         inv_search_post = request.form.get('inv_search', '').strip()
 
-        # Invoice search
         if inv_search_post and not form_type:
             inv_search = inv_search_post
             try:
-                cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                cur.execute("""SELECT 'Material', ml.item_code, 
+                           CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos,'') END,
                            ml.quantity, 'Pcs', ml.dealer, ml.action,
                            COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
                            FROM material_logs ml WHERE ml.invoice_no=%s""", (inv_search,))
                 inv_results.extend(cur.fetchall())
             except:
                 try:
-                    cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                    cur.execute("""SELECT 'Material', ml.item_code, 
+                               CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos,'') END,
                                ml.quantity, 'Pcs', ml.dealer, ml.action,
                                ml.item_code, ml.created_at
                                FROM material_logs ml WHERE ml.invoice_no=%s""", (inv_search,))
@@ -598,7 +594,6 @@ def inventory():
                     inv_results.extend(cur.fetchall())
                 except: pass
 
-        # Form submissions
         else:
             try:
                 if form_type == 'material':
@@ -648,7 +643,8 @@ def inventory():
                                 serial_nos_list.append(r[0])
                                 try: cur.execute("INSERT INTO material_stock (item_code,item_name,quantity,serial_no) VALUES (%s,%s,1,%s)", (code, name, r[0]))
                                 except: pass
-                    serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
+                    # ★ KEY FIX: blank serial_nos when qty > 1
+                    serial_nos_str = ','.join(serial_nos_list) if serial_nos_list and qty <= 1 else ''
                     try:
                         cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())",
                                     (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
@@ -701,14 +697,16 @@ def inventory():
         inv_search = request.args.get('inv_search', '').strip()
         if inv_search:
             try:
-                cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                cur.execute("""SELECT 'Material', ml.item_code, 
+                           CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos,'') END,
                            ml.quantity, 'Pcs', ml.dealer, ml.action,
                            COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
                            FROM material_logs ml WHERE ml.invoice_no=%s""", (inv_search,))
                 inv_results.extend(cur.fetchall())
             except:
                 try:
-                    cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                    cur.execute("""SELECT 'Material', ml.item_code, 
+                               CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos,'') END,
                                ml.quantity, 'Pcs', ml.dealer, ml.action,
                                ml.item_code, ml.created_at
                                FROM material_logs ml WHERE ml.invoice_no=%s""", (inv_search,))
@@ -788,7 +786,8 @@ def logs():
     combined = []
     try:
         q = """SELECT 'Material', ml.item_code, ml.quantity, ml.action, ml.dealer, ml.invoice_no, ml.done_by,
-                      COALESCE(ml.serial_nos, ''), COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
+                      CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos, '') END, 
+                      COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
                FROM material_logs ml WHERE DATE(ml.created_at)>=%s AND DATE(ml.created_at)<=%s"""
         p = [f_date, t_date]
         if search_term:
@@ -800,7 +799,8 @@ def logs():
     except:
         try:
             q = """SELECT 'Material', ml.item_code, ml.quantity, ml.action, ml.dealer, ml.invoice_no, ml.done_by,
-                          COALESCE(ml.serial_nos, ''), ml.item_code, ml.created_at
+                          CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos, '') END,
+                          ml.item_code, ml.created_at
                    FROM material_logs ml WHERE DATE(ml.created_at)>=%s AND DATE(ml.created_at)<=%s"""
             p = [f_date, t_date]
             if search_term:
@@ -880,7 +880,8 @@ def export_instock():
             except: pass
             try:
                 df = pd.read_sql("""SELECT COALESCE(NULLIF(ml.item_name,''), ml.item_code) as "Item Name",
-                       ml.item_code as "Item Code", COALESCE(ml.serial_nos,'') as "Serial Nos",
+                       ml.item_code as "Item Code", 
+                       CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos,'') END as "Serial Nos",
                        ml.quantity as "Quantity", 'Pcs' as "Unit", ml.dealer as "Dealer",
                        ml.invoice_no as "Invoice", ml.action as "Action", ml.created_at as "Date"
                        FROM material_logs ml ORDER BY ml.created_at DESC""", conn)
@@ -888,9 +889,9 @@ def export_instock():
             except:
                 try:
                     df = pd.read_sql("""SELECT ml.item_code as "Item Name", ml.item_code as "Item Code",
-                           COALESCE(ml.serial_nos,'') as "Serial Nos", ml.quantity as "Quantity",
-                           'Pcs' as "Unit", ml.dealer as "Dealer", ml.invoice_no as "Invoice",
-                           ml.action as "Action", ml.created_at as "Date"
+                           CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos,'') END as "Serial Nos",
+                           ml.quantity as "Quantity", 'Pcs' as "Unit", ml.dealer as "Dealer",
+                           ml.invoice_no as "Invoice", ml.action as "Action", ml.created_at as "Date"
                            FROM material_logs ml ORDER BY ml.created_at DESC""", conn)
                     if not df.empty: df = fix_timezone(df); df.to_excel(writer, sheet_name="Hardware Log", index=False)
                 except: pass
@@ -957,7 +958,8 @@ def export_hardware():
     if not conn: return redirect(url_for('dashboard'))
     try:
         df = pd.read_sql("""SELECT COALESCE(NULLIF(ml.item_name,''), ml.item_code) as "Item Name",
-               ml.item_code as "Item Code", COALESCE(ml.serial_nos,'') as "Serial Nos",
+               ml.item_code as "Item Code", 
+               CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos,'') END as "Serial Nos",
                ml.quantity as "Quantity", 'Pcs' as "Unit", ml.dealer as "Dealer",
                ml.invoice_no as "Invoice", ml.action as "Action", ml.created_at as "Date"
                FROM material_logs ml ORDER BY ml.created_at DESC""", conn)
@@ -966,9 +968,9 @@ def export_hardware():
     except:
         try:
             df = pd.read_sql("""SELECT ml.item_code as "Item Name", ml.item_code as "Item Code",
-                   COALESCE(ml.serial_nos,'') as "Serial Nos", ml.quantity as "Quantity",
-                   'Pcs' as "Unit", ml.dealer as "Dealer", ml.invoice_no as "Invoice",
-                   ml.action as "Action", ml.created_at as "Date"
+                   CASE WHEN ml.quantity > 1 THEN '' ELSE COALESCE(ml.serial_nos,'') END as "Serial Nos",
+                   ml.quantity as "Quantity", 'Pcs' as "Unit", ml.dealer as "Dealer",
+                   ml.invoice_no as "Invoice", ml.action as "Action", ml.created_at as "Date"
                    FROM material_logs ml ORDER BY ml.created_at DESC""", conn)
             df = fix_timezone(df); release_db(conn)
             return dl_excel(df, "Material_Transaction_Report.xlsx")
@@ -1021,7 +1023,7 @@ def export_consumables():
         except Exception as e:
             flash(f"Export Error: {e}", "error"); release_db(conn)
             return redirect(url_for('dashboard'))
-        
+
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
