@@ -16,11 +16,15 @@
     .dash-grid .tw{display:flex;flex-direction:column;min-height:0;max-height:100%;overflow:hidden}
     .dash-grid .tw-bar{flex-shrink:0}
     .dash-grid .tw-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-    .dash-grid .dealer-search{flex-shrink:0}
-    .dash-grid .tw-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch}
-    .dash-grid .tw-scroll table{margin-bottom:0}
+    .dash-grid .search-box{flex-shrink:0}
+    .dash-grid .tw-scroll{flex:0 0 auto;max-height:160px;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:6px;scrollbar-color:#C0C8D8}
+    .dash-grid .tw-scroll::-webkit-scrollbar{width:6px}
+    .dash-grid .tw-scroll{scrollbar-width:6px;scrollbar-color:#C0C8D8;border-radius:3px}
+    .dash-grid .tw-scroll::-webkit-scrollbar-thumb{background:#C0C8D8;border-radius:3px}
+    .dash-grid .tw-scroll{scrollbar-color:#C0C8D8}
+    .dash-grid .tw-scroll::-webkit-scrollbar-thumb{background:#C0C8D8}
     @media(max-width:900px){.dash-grid{grid-template-columns:1fr;max-height:calc(100vh - 220px)}}
-    @media(max-width:768px){.dash-grid{grid-template-columns:1fr;max-height:none;min-height:300px}.stat-sub{gap:10px}.dl-row{padding:6px 12px;font-size:12px}}
+    @media(max-width:768px){.dash-grid{grid-template-columns:1fr;max-height:none;min-height:350px}.stat-sub{gap:10px}.dl-row{padding:6px 12px;font-size:12px}.dash-grid .tw-scroll{max-height:140px}}
 </style>
 {% endblock %}
 {% block body %}
@@ -30,7 +34,7 @@
     <div class="stat stat-card" onclick="dl('{{ url_for('export_instock') }}')">
         <div class="si green"><i class="fas fa-box"></i></div>
         <div class="sv">{{ total_in_stock }}</div><div class="sl">IN STOCK</div>
-        <div class="stat-sub"><div><span style="color:var(--grey)">Fresh:</span> <strong style="color:var(--green)">{{ fresh_c }}</strong></div><div><span style="color:var(--grey)">Returned:</span> <strong style="color:#C8960A">{{ ret_c }}</strong></div></div>
+        <div class="stat-sub"><div><span style="color:var(--grey)">Fresh:</span> <strong style="color:var(--green)">{{ fresh_c }}</strong></div><div><span style="color:var(--grey)">Returned:</span> <strong style="color:#C0C8C0A">{{ ret_c }}</strong></div></div>
         <i class="fas fa-download dl-icon"></i>
     </div>
     <div class="stat stat-card" onclick="dl('{{ url_for('export_stb_status', status='Issued') }}')">
@@ -48,10 +52,11 @@
 </div>
 
 <div class="dash-grid">
+    <!-- ===== MATERIAL TABLE ===== -->
     <div class="tw">
         <div class="tw-bar"><div class="card-title"><i class="fas fa-microchip" style="color:var(--green)"></i> Material</div><button class="btn btn-green btn-sm" onclick="dl('{{ url_for('export_hardware') }}')"><i class="fas fa-download"></i> Export</button></div>
         <div class="tw-body">
-            <input type="text" id="materialSearch" class="fi dealer-search" placeholder="Search materials...">
+            <input type="text" id="materialSearch" class="fi search-box" placeholder="Search materials...">
             {% if material_summary %}
             <div class="tw-scroll">
                 <table><thead><tr><th>Item Code</th><th>In Stock</th></tr></thead>
@@ -63,10 +68,12 @@
             {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-box-open"></i><h3>No Data</h3></div>{% endif %}
         </div>
     </div>
+
+    <!-- ===== CONSUMABLE TABLE ===== -->
     <div class="tw">
         <div class="tw-bar"><div class="card-title"><i class="fas fa-flask" style="color:var(--purple)"></i> Consumable</div><button class="btn btn-purple btn-sm" onclick="dl('{{ url_for('export_consumables') }}')"><i class="fas fa-download"></i> Export</button></div>
         <div class="tw-body">
-            <input type="text" id="consumableSearch" class="fi dealer-search" placeholder="Search consumables...">
+            <input type="text" id="consumableSearch" class="fi search-box" placeholder="Search consumables...">
             {% if consumable_summary %}
             <div class="tw-scroll">
                 <table><thead><tr><th>Item Code</th><th>Total</th><th>Used</th><th>Balance</th></tr></thead>
@@ -79,10 +86,43 @@
             {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-cubes"></i><h3>No Data</h3></div>{% endif %}
         </div>
     </div>
+
+    <!-- ===== IN STOCK (STB) TABLE ===== -->
+    <div class="tw">
+        <div class="tw-bar"><div class="card-title"><i class="fas fa-box" style="color:var(--blue)"></i> In Stock (STB)</div><button class="btn btn-blue btn-sm" onclick="dl('{{ url_for('export_instock') }}')"><i class="fas fa-download"></i> Export All</button></div>
+        <div class="tw-body">
+            {% set in_stb_stock = [] %}
+            {% if total_in_stock > 0 %}
+            <div class="tw-scroll">
+                <table><thead><tr><th>#</th><th>Serial No</th><th>Type</th><th>Last Update</th></tr></thead>
+                <tbody>
+                <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grey)"><i class="fas fa-spinner fa-spin"></i></td></tr>
+                </tbody>
+            </div>
+            <script>
+            (function(){
+                var tbody = document.querySelector('.dash-grid .tw:last-child .tw-scroll tbody');
+                if(!tbody) return;
+                fetch('/api/dash-stb-data').then(function(r){return r.json()}).then(function(data){
+                    if(data.rows && data.rows.length > 0){
+                        tbody.innerHTML = data.rows.map(function(r){
+                            return '<tr><td style="color:var(--grey)">'+r[0]+'</td><td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">'+r[1]+'</td><td><span class="bg '+(r[2]==='Fresh'?'bg-green':'bg-yellow')+'"><span class="bd"></span>'+r[2]+'</span></td><td style="font-size:11px;color:var(--grey)">'+r[3]+'</td></tr>';
+                        }).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grey)">No data</td></tr>';
+                    }
+                }).catch(function(){ tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grey)">Error loading</td></tr>'; });
+            })();
+            </script>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ===== DEALERS TABLE ===== -->
     <div class="tw">
         <div class="tw-bar"><div class="card-title"><i class="fas fa-handshake" style="color:var(--red)"></i> Issued to Dealers</div></div>
         <div class="tw-body">
-            <input type="text" id="dealerSearch" class="fi dealer-search" placeholder="Search dealers...">
+            <input type="text" id="dealerSearch" class="fi search-box" placeholder="Search dealers...">
             {% if dealer_data %}
             <div class="tw-scroll">
                 <table><thead><tr><th>#</th><th>Dealer Name</th><th>Units</th><th></th></tr></thead>
