@@ -1045,7 +1045,70 @@ def dash_stb_data():
         try: release_db(conn)
         except: pass
         return jsonify({'rows': []})
+# ==================== LAZY LOAD MORE ====================
 
+@app.route('/api/load-more')
+def load_more():
+    if 'logged_user' not in session:
+        return jsonify({'html': '', 'count': 0})
+    item_type = request.args.get('type', '')
+    shown = int(request.args.get('shown', 0))
+    limit = 8
+    conn = get_db()
+    if not conn:
+        return jsonify({'html': '', 'count': 0})
+    try:
+        if item_type == 'material':
+            cur.execute("""
+                SELECT item_code,
+                       COALESCE(mm.item_name, ms.item_code) as item_name,
+                       SUM(CASE WHEN ms.status='In Stock' THEN 1 ELSE 0 END) as cnt
+                FROM material_serials ms
+                LEFT JOIN material_master mm ON ms.item_code = mm.item_code
+                GROUP BY ms.item_code, mm.item_name
+                ORDER BY cnt DESC
+                LIMIT %s OFFSET %s
+            """, (limit, shown))
+            rows = cur.fetchall()
+            html = rows.map(lambda r: '<tr><td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">{}</td><td><span class="bg bg-green"><span class="bd"></span>{}</span></td></tr>').join('')
+
+        elif item_type == 'consumable':
+            cur.execute("""
+                SELECT item_code,
+                       COALESCE(NULLIF(item_name,''), item_code) as item_name,
+                       SUM(total_qty) as total, SUM(used_qty) as used, SUM(balance_qty) as bal
+                FROM consumable_stock
+                GROUP BY item_code, item_name
+                ORDER BY bal DESC
+                LIMIT %s OFFSET %s
+            """, (limit, shown))
+            rows = cur.fetchall()
+            html = rows.map(lambda r: '<tr><td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">{}</td><td>{{ r[2] }}</td><td>{{ r[3] }}</td><td style="font-weight:600;color:{% if r[4]<=0 %}var(--red){% elif r[4]<=(r[2]*0.2) %}#C8960A{% else %}var(--green){% endif %}">{{ r[4] }}</td></tr>').join('')
+
+        elif item_type == 'instock':
+            cur.execute("""
+                SELECT COALESCE(NULLIF(dealer,''), 'UNASSIGNED') as dealer,
+                       COUNT(*) as cnt
+                FROM stb_stock
+                WHERE status='In Stock'
+                GROUP BY COALESCE(NULLIF(dealer,'UNASSIGNED')
+                ORDER BY cnt DESC
+                LIMIT %s OFFSET %s
+            """, (limit, shown))
+            rows = cur.fetchall()
+            html = rows.map(lambda r: '<tr><td style="color:var(--grey)">' + str(r[0]) + '</td><td style="font-weight:600">' + str(r[1]) + '</td><td><span class="bg bg-blue"><span class="bd"></span>' + str(r[1]) + '</span></td></tr>').join('')
+
+        else:
+            html = ''
+
+        release_db(conn)
+        return jsonify({'html': html, 'count': len(rows)})
+    except Exception as e:
+        print(f"Load more error ({item_type}): {e}")
+        try: release_db(conn)
+        except: pass
+        return jsonify({'html': '', 'count': 0})
+        
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
