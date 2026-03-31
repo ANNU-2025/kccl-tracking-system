@@ -10,7 +10,6 @@ import threading
 import traceback
 
 warnings.filterwarnings('ignore')
-
 os.environ['TZ'] = 'Asia/Kolkata'
 
 app = Flask(__name__)
@@ -22,6 +21,31 @@ connection_pool = None
 db_lock = threading.Lock()
 db_initialized = False
 migrate_done = False
+
+
+def _force_ensure_columns(conn):
+    """EVERY connection e call hobe — column na thakle add korbe, thakle skip"""
+    cols = [
+        ("material_logs", "serial_nos", "TEXT"),
+        ("material_logs", "item_name", "TEXT"),
+        ("consumable_logs", "item_name", "TEXT"),
+        ("consumable_stock", "item_name", "TEXT"),
+    ]
+    for table, col, dtype in cols:
+        try:
+            c = conn.cursor()
+            c.execute("SELECT 1 FROM information_schema.columns WHERE table_name=%s AND column_name=%s", (table, col))
+            if not c.fetchone():
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}")
+                conn.commit()
+                print(f"✅ Added {col} to {table}")
+            c.close()
+        except Exception as e:
+            try:
+                conn.rollback()
+            except:
+                pass
+            print(f"⚠️  Col {table}.{col}: {e}")
 
 
 def init_db():
@@ -39,57 +63,19 @@ def init_db():
             test_cur = test_conn.cursor()
             test_cur.execute("SELECT 1")
             test_cur.close()
+            # First connection e force ensure
+            _force_ensure_columns(test_conn)
             pool_inst.putconn(test_conn)
             connection_pool = pool_inst
             db_initialized = True
+            migrate_done = True
             print("✅ Database Connected!")
-            if not migrate_done:
-                _run_migrations(pool_inst)
-                migrate_done = True
             return True
         except Exception as e:
             print(f"❌ DB Init Error: {e}")
             print(traceback.format_exc())
             db_initialized = False
             return False
-
-
-def _run_migrations(pool_inst):
-    conn = pool_inst.getconn()
-    if not conn:
-        return
-    cur = conn.cursor()
-    try:
-        migrations = [
-            ("material_logs", "serial_nos", "TEXT"),
-            ("material_logs", "item_name", "TEXT"),
-            ("consumable_logs", "item_name", "TEXT"),
-            ("consumable_stock", "item_name", "TEXT"),
-        ]
-        for table, col, dtype in migrations:
-            try:
-                cur.execute(f"""
-                    SELECT column_name FROM information_schema.columns
-                    WHERE table_name='{table}' AND column_name='{col}'
-                """)
-                if not cur.fetchone():
-                    cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}")
-                    print(f"✅ Added {col} to {table}")
-                else:
-                    print(f"ℹ️ {table}.{col} already exists")
-            except Exception as e:
-                print(f"Migration skip {table}.{col}: {e}")
-        conn.commit()
-        print("✅ All migrations complete")
-    except Exception as e:
-        print(f"Migration error: {e}")
-        try:
-            conn.rollback()
-        except:
-            pass
-    finally:
-        cur.close()
-        pool_inst.putconn(conn)
 
 
 def get_db():
@@ -101,6 +87,8 @@ def get_db():
             cur = conn.cursor()
             cur.execute("SET TIME ZONE 'Asia/Kolkata'")
             cur.close()
+            # PROTITA CONNECTION E CHECK — migration fail holeo ei call hobe
+            _force_ensure_columns(conn)
         return conn
     except Exception as e:
         print(f"get_db error: {e}")
@@ -145,6 +133,8 @@ def inject_now():
     return {'now': datetime.now()}
 
 
+# ==================== LOGIN ====================
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     try:
@@ -178,6 +168,8 @@ def logout():
     return redirect(url_for('login'))
 
 
+# ==================== DASHBOARD ====================
+
 @app.route('/dashboard')
 def dashboard():
     if 'logged_user' not in session:
@@ -200,47 +192,41 @@ def dashboard():
     cur.execute("SELECT COALESCE(SUM(balance_length), 0) FROM fibre_stock")
     fib_val = cur.fetchone()[0] or 0
 
+    material_summary = []
     try:
         cur.execute("""
-            SELECT ms.item_code,
-                   COALESCE(mm.item_name, ms.item_code),
+            SELECT ms.item_code, COALESCE(mm.item_name, ms.item_code),
                    SUM(CASE WHEN ms.status='In Stock' THEN 1 ELSE 0 END)
             FROM material_serials ms
             LEFT JOIN material_master mm ON ms.item_code = mm.item_code
-            GROUP BY ms.item_code, mm.item_name
-            ORDER BY ms.item_code
+            GROUP BY ms.item_code, mm.item_name ORDER BY ms.item_code
         """)
         material_summary = cur.fetchall()
     except Exception as e:
         print(f"Material summary error: {e}")
-        material_summary = []
 
+    consumable_summary = []
     try:
         cur.execute("""
-            SELECT item_code,
-                   COALESCE(NULLIF(item_name,''), item_code),
-                   SUM(total_qty),
-                   SUM(used_qty),
-                   SUM(balance_qty)
+            SELECT item_code, COALESCE(NULLIF(item_name,''), item_code),
+                   SUM(total_qty), SUM(used_qty), SUM(balance_qty)
             FROM consumable_stock
-            GROUP BY item_code, item_name
-            ORDER BY item_code
+            GROUP BY item_code, item_name ORDER BY item_code
         """)
         consumable_summary = cur.fetchall()
     except Exception as e:
         print(f"Consumable summary error: {e}")
-        consumable_summary = []
 
+    dealer_data = []
     try:
         cur.execute("""
-            SELECT dealer, COUNT(*)
-            FROM stb_stock
+            SELECT dealer, COUNT(*) FROM stb_stock
             WHERE status='Issued' AND dealer IS NOT NULL AND dealer != ''
             GROUP BY dealer ORDER BY dealer ASC LIMIT 50
         """)
         dealer_data = cur.fetchall()
     except:
-        dealer_data = []
+        pass
 
     cur.close()
     release_db(conn)
@@ -253,6 +239,8 @@ def dashboard():
         dealer_data=dealer_data
     )
 
+
+# ==================== STB MANAGER ====================
 
 @app.route('/stb', methods=['GET', 'POST'])
 def stb_manager():
@@ -270,7 +258,7 @@ def stb_manager():
         try:
             cur.execute("SELECT 1 FROM stb_stock WHERE stb_no=%s", (sno,))
             if not cur.fetchone():
-                cur.execute("INSERT INTO stb_stock (stb_no, status, stock_type, created_at) VALUES (%s,'In Stock','Fresh',NOW())", (sno,))
+                cur.execute("INSERT INTO stb_stock (stb_no,status,stock_type,created_at) VALUES (%s,'In Stock','Fresh',NOW())", (sno,))
             if act == "Issue":
                 cur.execute("UPDATE stb_stock SET status='Issued',dealer=%s,updated_at=NOW() WHERE stb_no=%s", (dlr, sno))
             elif act == "Return":
@@ -332,107 +320,31 @@ def stb_bulk():
         except Exception as e:
             flash(f'Bulk Error: {e}', 'error')
         finally:
-            cur.close()
-            release_db(conn)
+            try:
+                cur.close()
+                release_db(conn)
+            except:
+                pass
     return redirect(url_for('stb_manager'))
 
 
-@app.route('/inventory/bulk', methods=['POST'])
-def inventory_bulk():
-    if 'logged_user' not in session:
-        return redirect(url_for('login'))
-    file = request.files.get('bulk_file')
-    bulk_type = request.form.get('bulk_type', 'add')
-    dealer = request.form.get('bulk_dealer', '').upper()
-    if not file:
-        flash('Please select a CSV file', 'error')
-        return redirect(url_for('inventory'))
-    try:
-        df = pd.read_csv(file, dtype=str)
-        if df.empty:
-            flash('CSV file is empty', 'error')
-            return redirect(url_for('inventory'))
-        conn = get_db()
-        if not conn:
-            flash('Database connection failed', 'error')
-            return redirect(url_for('inventory'))
-        cur = conn.cursor()
-        count = 0
-        errors = 0
-        for _, row in df.iterrows():
-            try:
-                code = str(row.get('item_code', '')).strip().upper()
-                name = str(row.get('item_name', '')).strip().upper()
-                serial = str(row.get('serial_no', '')).strip().upper()
-                qty_str = str(row.get('quantity', '')).strip()
-                invoice = str(row.get('invoice_no', '')).strip().upper()
-                if not code:
-                    errors += 1
-                    continue
-                if serial:
-                    qty = 1
-                elif qty_str and qty_str not in ('', 'nan', 'None'):
-                    qty = int(qty_str)
-                else:
-                    qty = 1
-                cur.execute("SELECT 1 FROM material_master WHERE item_code=%s", (code,))
-                if not cur.fetchone():
-                    cur.execute("INSERT INTO material_master (item_code,item_name) VALUES (%s,%s)", (code, name))
-                else:
-                    if name:
-                        cur.execute("UPDATE material_master SET item_name=%s WHERE item_code=%s AND (item_name IS NULL OR item_name='')", (name, code))
-                serial_nos_list = []
-                if bulk_type == 'add':
-                    for i in range(qty):
-                        if serial and qty == 1:
-                            s = serial
-                        elif serial and qty > 1:
-                            s = f"{serial}_{i+1}"
-                        else:
-                            s = f"{code}_{datetime.now().strftime('%f')}_{i}"
-                        cur.execute("INSERT INTO material_serials (serial_no,item_code,status,created_at) VALUES (%s,%s,'In Stock',NOW())", (s, code))
-                        serial_nos_list.append(s)
-                elif bulk_type == 'issue':
-                    if serial:
-                        cur.execute("UPDATE material_serials SET status='Issued',dealer=%s,updated_at=NOW() WHERE serial_no=%s AND status='In Stock'", (dealer, serial))
-                        serial_nos_list.append(serial)
-                    else:
-                        cur.execute("SELECT serial_no FROM material_serials WHERE item_code=%s AND status='In Stock' ORDER BY created_at ASC LIMIT %s", (code, qty))
-                        for r in cur.fetchall():
-                            cur.execute("UPDATE material_serials SET status='Issued',dealer=%s,updated_at=NOW() WHERE serial_no=%s", (dealer, r[0]))
-                            serial_nos_list.append(r[0])
-                elif bulk_type == 'return':
-                    if serial:
-                        cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s AND status='Issued'", (serial,))
-                        serial_nos_list.append(serial)
-                    else:
-                        cur.execute("SELECT serial_no FROM material_serials WHERE item_code=%s AND status='Issued' ORDER BY updated_at DESC LIMIT %s", (code, qty))
-                        for r in cur.fetchall():
-                            cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s", (r[0],))
-                            serial_nos_list.append(r[0])
-                serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
-                action_label = {'add': 'Add New', 'issue': 'Issue', 'return': 'Return'}[bulk_type]
-                cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())",
-                            (code, name, action_label, qty, dealer, invoice, session['logged_user'], serial_nos_str))
-                count += 1
-            except Exception as e:
-                print(f"Bulk row error: {e}")
-                errors += 1
-        conn.commit()
-        msg = f'{count} items processed'
-        if errors:
-            msg += f', {errors} skipped'
-        flash(msg, 'success')
-    except Exception as e:
-        flash(f'Bulk Error: {str(e)}', 'error')
-    finally:
-        try:
-            cur.close()
-            release_db(conn)
-        except:
-            pass
-    return redirect(url_for('inventory'))
+@app.route('/stb/search')
+def stb_search():
+    term = request.args.get('q', '')
+    conn = get_db()
+    if not conn:
+        return jsonify({'found': False})
+    cur = conn.cursor()
+    cur.execute("SELECT stb_no,status,dealer,stock_type FROM stb_stock WHERE stb_no=%s", (term,))
+    res = cur.fetchone()
+    cur.close()
+    release_db(conn)
+    if res:
+        return jsonify({'found': True, 'data': {'sn': res[0], 'status': res[1], 'dealer': res[2] or 'N/A', 'type': res[3]}})
+    return jsonify({'found': False})
 
+
+# ==================== ITEM LOOKUP ====================
 
 @app.route('/item/lookup')
 def item_lookup():
@@ -466,21 +378,110 @@ def item_lookup():
     return jsonify(result)
 
 
-@app.route('/stb/search')
-def stb_search():
-    term = request.args.get('q', '')
-    conn = get_db()
-    if not conn:
-        return jsonify({'found': False})
-    cur = conn.cursor()
-    cur.execute("SELECT stb_no,status,dealer,stock_type FROM stb_stock WHERE stb_no=%s", (term,))
-    res = cur.fetchone()
-    cur.close()
-    release_db(conn)
-    if res:
-        return jsonify({'found': True, 'data': {'sn': res[0], 'status': res[1], 'dealer': res[2] or 'N/A', 'type': res[3]}})
-    return jsonify({'found': False})
+# ==================== INVENTORY BULK ====================
 
+@app.route('/inventory/bulk', methods=['POST'])
+def inventory_bulk():
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
+    file = request.files.get('bulk_file')
+    bulk_type = request.form.get('bulk_type', 'add')
+    dealer = request.form.get('bulk_dealer', '').upper()
+    if not file:
+        flash('Please select a CSV file', 'error')
+        return redirect(url_for('inventory'))
+    try:
+        df = pd.read_csv(file, dtype=str)
+        if df.empty:
+            flash('CSV file is empty', 'error')
+            return redirect(url_for('inventory'))
+        conn = get_db()
+        if not conn:
+            flash('Database connection failed', 'error')
+            return redirect(url_for('inventory'))
+        cur = conn.cursor()
+        count = 0
+        errors = 0
+        for _, row in df.iterrows():
+            try:
+                code = str(row.get('item_code', '')).strip().upper()
+                name = str(row.get('item_name', '')).strip().upper()
+                serial = str(row.get('serial_no', '')).strip().upper()
+                qty_str = str(row.get('quantity', '')).strip()
+                invoice = str(row.get('invoice_no', '')).strip().upper()
+                if not code:
+                    errors += 1
+                    continue
+                if serial and serial not in ('', 'NAN', 'NONE'):
+                    qty = 1
+                elif qty_str and qty_str not in ('', 'NAN', 'NONE'):
+                    qty = int(float(qty_str))
+                else:
+                    qty = 1
+                cur.execute("SELECT 1 FROM material_master WHERE item_code=%s", (code,))
+                if not cur.fetchone():
+                    cur.execute("INSERT INTO material_master (item_code,item_name) VALUES (%s,%s)", (code, name))
+                elif name:
+                    cur.execute("UPDATE material_master SET item_name=%s WHERE item_code=%s AND (item_name IS NULL OR item_name='')", (name, code))
+                serial_nos_list = []
+                if bulk_type == 'add':
+                    for i in range(qty):
+                        if serial and qty == 1:
+                            s = serial
+                        elif serial and qty > 1:
+                            s = f"{serial}_{i+1}"
+                        else:
+                            s = f"{code}_{datetime.now().strftime('%f')}_{i}"
+                        cur.execute("INSERT INTO material_serials (serial_no,item_code,status,created_at) VALUES (%s,%s,'In Stock',NOW())", (s, code))
+                        serial_nos_list.append(s)
+                elif bulk_type == 'issue':
+                    if serial:
+                        cur.execute("UPDATE material_serials SET status='Issued',dealer=%s,updated_at=NOW() WHERE serial_no=%s AND status='In Stock'", (dealer, serial))
+                        serial_nos_list.append(serial)
+                    else:
+                        cur.execute("SELECT serial_no FROM material_serials WHERE item_code=%s AND status='In Stock' ORDER BY created_at ASC LIMIT %s", (code, qty))
+                        for r in cur.fetchall():
+                            cur.execute("UPDATE material_serials SET status='Issued',dealer=%s,updated_at=NOW() WHERE serial_no=%s", (dealer, r[0]))
+                            serial_nos_list.append(r[0])
+                elif bulk_type == 'return':
+                    if serial:
+                        cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s AND status='Issued'", (serial,))
+                        serial_nos_list.append(serial)
+                    else:
+                        cur.execute("SELECT serial_no FROM material_serials WHERE item_code=%s AND status='Issued' ORDER BY updated_at DESC LIMIT %s", (code, qty))
+                        for r in cur.fetchall():
+                            cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s", (r[0],))
+                            serial_nos_list.append(r[0])
+                serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
+                action_label = {'add': 'Add New', 'issue': 'Issue', 'return': 'Return'}[bulk_type]
+                # Try with item_name first
+                try:
+                    cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())",
+                                (code, name, action_label, qty, dealer, invoice, session['logged_user'], serial_nos_str))
+                except:
+                    cur.execute("INSERT INTO material_logs (item_code,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())",
+                                (code, action_label, qty, dealer, invoice, session['logged_user'], serial_nos_str))
+                count += 1
+            except Exception as e:
+                print(f"Bulk row error: {e}")
+                errors += 1
+        conn.commit()
+        msg = f'{count} items processed'
+        if errors:
+            msg += f', {errors} skipped'
+        flash(msg, 'success')
+    except Exception as e:
+        flash(f'Bulk Error: {str(e)}', 'error')
+    finally:
+        try:
+            cur.close()
+            release_db(conn)
+        except:
+            pass
+    return redirect(url_for('inventory'))
+
+
+# ==================== INVENTORY ====================
 
 @app.route('/inventory', methods=['GET', 'POST'])
 def inventory():
@@ -497,16 +498,20 @@ def inventory():
     if request.method == 'POST':
         form_type = request.form.get('form_type')
         inv_search_post = request.form.get('inv_search', '').strip()
+
         if inv_search_post and not form_type:
             try:
                 cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
                            ml.quantity, 'Pcs', ml.dealer, ml.action,
                            COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
-                           FROM material_logs ml
-                           WHERE ml.invoice_no=%s""", (inv_search_post,))
+                           FROM material_logs ml WHERE ml.invoice_no=%s""", (inv_search_post,))
                 inv_results.extend(cur.fetchall())
-            except Exception as e:
-                print(f"Inv search material error: {e}")
+            except:
+                cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                           ml.quantity, 'Pcs', ml.dealer, ml.action,
+                           ml.item_code, ml.created_at
+                           FROM material_logs ml WHERE ml.invoice_no=%s""", (inv_search_post,))
+                inv_results.extend(cur.fetchall())
             try:
                 cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
                            cl.qty, cs.unit, cl.dealer, cl.action,
@@ -515,9 +520,16 @@ def inventory():
                            LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
                            WHERE cl.invoice_no=%s""", (inv_search_post,))
                 inv_results.extend(cur.fetchall())
-            except Exception as e:
-                print(f"Inv search consumable error: {e}")
+            except:
+                cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
+                           cl.qty, cs.unit, cl.dealer, cl.action,
+                           cl.item_code, cl.created_at
+                           FROM consumable_logs cl
+                           LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
+                           WHERE cl.invoice_no=%s""", (inv_search_post,))
+                inv_results.extend(cur.fetchall())
             inv_search = inv_search_post
+
         else:
             try:
                 if form_type == 'material':
@@ -528,14 +540,14 @@ def inventory():
                     dlr = request.form.get('m_d', '').upper()
                     inv = request.form.get('m_invoice', '').upper()
                     act = request.form.get('m_act')
+
                     cur.execute("SELECT 1 FROM material_master WHERE item_code=%s", (code,))
                     if not cur.fetchone():
                         cur.execute("INSERT INTO material_master (item_code,item_name) VALUES (%s,%s)", (code, name))
-                    else:
-                        if name:
-                            cur.execute("UPDATE material_master SET item_name=%s WHERE item_code=%s", (name, code))
-                    serial_nos_list = []
+                    elif name:
+                        cur.execute("UPDATE material_master SET item_name=%s WHERE item_code=%s", (name, code))
 
+                    serial_nos_list = []
                     if act == 'Add New':
                         for i in range(qty):
                             s = serial if (serial and qty == 1) else f"{code}_{datetime.now().strftime('%f')}_{i}"
@@ -549,39 +561,37 @@ def inventory():
                         if serial:
                             cur.execute("UPDATE material_serials SET status='Issued',dealer=%s,updated_at=NOW() WHERE serial_no=%s", (dlr, serial))
                             serial_nos_list.append(serial)
-                            try:
-                                cur.execute("DELETE FROM material_stock WHERE serial_no=%s", (serial,))
-                            except:
-                                pass
+                            try: cur.execute("DELETE FROM material_stock WHERE serial_no=%s", (serial,))
+                            except: pass
                         else:
                             cur.execute("SELECT serial_no FROM material_serials WHERE item_code=%s AND status='In Stock' ORDER BY created_at ASC LIMIT %s", (code, qty))
                             for r in cur.fetchall():
                                 cur.execute("UPDATE material_serials SET status='Issued',dealer=%s,updated_at=NOW() WHERE serial_no=%s", (dlr, r[0]))
                                 serial_nos_list.append(r[0])
-                                try:
-                                    cur.execute("DELETE FROM material_stock WHERE serial_no=%s", (r[0],))
-                                except:
-                                    pass
+                                try: cur.execute("DELETE FROM material_stock WHERE serial_no=%s", (r[0],))
+                                except: pass
                     elif act == 'Return':
                         if serial:
                             cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s", (serial,))
                             serial_nos_list.append(serial)
-                            try:
-                                cur.execute("INSERT INTO material_stock (item_code,item_name,quantity,serial_no) VALUES (%s,%s,1,%s)", (code, name, serial))
-                            except:
-                                pass
+                            try: cur.execute("INSERT INTO material_stock (item_code,item_name,quantity,serial_no) VALUES (%s,%s,1,%s)", (code, name, serial))
+                            except: pass
                         else:
                             cur.execute("SELECT serial_no FROM material_serials WHERE item_code=%s AND status='Issued' ORDER BY updated_at DESC LIMIT %s", (code, qty))
                             for r in cur.fetchall():
                                 cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s", (r[0],))
                                 serial_nos_list.append(r[0])
-                                try:
-                                    cur.execute("INSERT INTO material_stock (item_code,item_name,quantity,serial_no) VALUES (%s,%s,1,%s)", (code, name, r[0]))
-                                except:
-                                    pass
+                                try: cur.execute("INSERT INTO material_stock (item_code,item_name,quantity,serial_no) VALUES (%s,%s,1,%s)", (code, name, r[0]))
+                                except: pass
 
                     serial_nos_str = ','.join(serial_nos_list) if serial_nos_list else None
-                    cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
+                    # Try with item_name, fallback without
+                    try:
+                        cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())",
+                                    (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
+                    except:
+                        cur.execute("INSERT INTO material_logs (item_code,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())",
+                                    (code, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
                     conn.commit()
                     flash('Hardware Transaction Successful!', 'success')
 
@@ -594,35 +604,43 @@ def inventory():
                     dlr = request.form.get('c_dealer', '').upper()
                     inv = request.form.get('c_invoice', '').upper()
                     act = request.form.get('c_action')
+
                     if act == 'Add New':
                         cur.execute("SELECT 1 FROM consumable_stock WHERE batch_id=%s", (batch,))
                         if cur.fetchone():
                             flash('Batch ID exists!', 'error')
                         else:
                             cur.execute("INSERT INTO consumable_stock (item_code,item_name,batch_id,unit,total_qty,used_qty,balance_qty) VALUES (%s,%s,%s,%s,%s,0,%s)", (item, item_name, batch, unit, qty, qty))
-                            if item_name:
-                                cur.execute("UPDATE consumable_stock SET item_name=%s WHERE item_code=%s AND (item_name IS NULL OR item_name='')", (item_name, item))
                     elif act == 'Issue':
                         cur.execute("UPDATE consumable_stock SET used_qty=used_qty+%s,balance_qty=balance_qty-%s WHERE batch_id=%s", (qty, qty, batch))
-                        if item_name:
-                            cur.execute("UPDATE consumable_stock SET item_name=%s WHERE batch_id=%s AND (item_name IS NULL OR item_name='')", (item_name, batch))
                     elif act == 'Return':
                         cur.execute("UPDATE consumable_stock SET used_qty=used_qty-%s,balance_qty=balance_qty+%s WHERE batch_id=%s", (qty, qty, batch))
-                        if item_name:
-                            cur.execute("UPDATE consumable_stock SET item_name=%s WHERE batch_id=%s AND (item_name IS NULL OR item_name='')", (item_name, batch))
+
+                    if item_name:
+                        cur.execute("UPDATE consumable_stock SET item_name=%s WHERE batch_id=%s AND (item_name IS NULL OR item_name='')", (item_name, batch))
                     if not item_name:
                         cur.execute("SELECT item_name FROM consumable_stock WHERE batch_id=%s", (batch,))
                         stock_row = cur.fetchone()
                         if stock_row and stock_row[0]:
                             item_name = stock_row[0]
 
-                    cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (item, item_name, batch, act, qty, dlr, inv, session['logged_user']))
+                    # Try with item_name, fallback without
+                    try:
+                        cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())",
+                                    (item, item_name, batch, act, qty, dlr, inv, session['logged_user']))
+                    except:
+                        cur.execute("INSERT INTO consumable_logs (item_code,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())",
+                                    (item, batch, act, qty, dlr, inv, session['logged_user']))
                     conn.commit()
                     flash('Consumable Transaction Successful!', 'success')
+
             except Exception as e:
                 conn.rollback()
                 flash(f'Error: {str(e)}', 'error')
+                print(f"Inventory form error: {e}")
+                print(traceback.format_exc())
 
+    # Invoice search via GET
     if not inv_search:
         inv_search = request.args.get('inv_search', '').strip()
         if inv_search:
@@ -630,11 +648,14 @@ def inventory():
                 cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
                            ml.quantity, 'Pcs', ml.dealer, ml.action,
                            COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
-                           FROM material_logs ml
-                           WHERE ml.invoice_no=%s""", (inv_search,))
+                           FROM material_logs ml WHERE ml.invoice_no=%s""", (inv_search,))
                 inv_results.extend(cur.fetchall())
-            except Exception as e:
-                print(f"GET inv search material error: {e}")
+            except:
+                cur.execute("""SELECT 'Material', ml.item_code, COALESCE(ml.serial_nos,''),
+                           ml.quantity, 'Pcs', ml.dealer, ml.action,
+                           ml.item_code, ml.created_at
+                           FROM material_logs ml WHERE ml.invoice_no=%s""", (inv_search,))
+                inv_results.extend(cur.fetchall())
             try:
                 cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
                            cl.qty, cs.unit, cl.dealer, cl.action,
@@ -643,12 +664,21 @@ def inventory():
                            LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
                            WHERE cl.invoice_no=%s""", (inv_search,))
                 inv_results.extend(cur.fetchall())
-            except Exception as e:
-                print(f"GET inv search consumable error: {e}")
+            except:
+                cur.execute("""SELECT 'Consumable', cl.item_code, cl.batch_id,
+                           cl.qty, cs.unit, cl.dealer, cl.action,
+                           cl.item_code, cl.created_at
+                           FROM consumable_logs cl
+                           LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
+                           WHERE cl.invoice_no=%s""", (inv_search,))
+                inv_results.extend(cur.fetchall())
+
     cur.close()
     release_db(conn)
     return render_template('inventory.html', inv_results=inv_results, inv_search=inv_search)
 
+
+# ==================== FIBRE ====================
 
 @app.route('/fibre', methods=['GET', 'POST'])
 def fibre_manager():
@@ -683,6 +713,8 @@ def fibre_manager():
     return render_template('fibre.html')
 
 
+# ==================== LOGS ====================
+
 @app.route('/logs')
 def logs():
     if 'logged_user' not in session:
@@ -697,6 +729,7 @@ def logs():
     search_term = request.args.get('search', '')
 
     combined = []
+    # Material logs — try with item_name, fallback without
     try:
         q = """SELECT 'Material', ml.item_code, ml.quantity, ml.action, ml.dealer, ml.invoice_no, ml.done_by,
                       COALESCE(ml.serial_nos, ''), COALESCE(NULLIF(ml.item_name,''), ml.item_code), ml.created_at
@@ -709,9 +742,23 @@ def logs():
         q += " ORDER BY ml.created_at DESC"
         cur.execute(q, tuple(p))
         combined.extend(cur.fetchall())
-    except Exception as e:
-        print(f"Material logs error: {e}")
+    except:
+        try:
+            q = """SELECT 'Material', ml.item_code, ml.quantity, ml.action, ml.dealer, ml.invoice_no, ml.done_by,
+                          COALESCE(ml.serial_nos, ''), ml.item_code, ml.created_at
+                   FROM material_logs ml
+                   WHERE DATE(ml.created_at)>=%s AND DATE(ml.created_at)<=%s"""
+            p = [f_date, t_date]
+            if search_term:
+                q += " AND (ml.item_code LIKE %s OR ml.dealer LIKE %s OR ml.invoice_no LIKE %s)"
+                p += [f"%{search_term}%"] * 3
+            q += " ORDER BY ml.created_at DESC"
+            cur.execute(q, tuple(p))
+            combined.extend(cur.fetchall())
+        except Exception as e:
+            print(f"Material logs fallback error: {e}")
 
+    # Consumable logs — try with item_name, fallback without
     try:
         q = """SELECT 'Consumable', cl.item_code, cl.qty, cl.action, cl.dealer, cl.invoice_no, cl.done_by,
                       '', COALESCE(NULLIF(cl.item_name,''), cl.item_code), cl.created_at
@@ -724,8 +771,21 @@ def logs():
         q += " ORDER BY cl.created_at DESC"
         cur.execute(q, tuple(p))
         combined.extend(cur.fetchall())
-    except Exception as e:
-        print(f"Consumable logs error: {e}")
+    except:
+        try:
+            q = """SELECT 'Consumable', cl.item_code, cl.qty, cl.action, cl.dealer, cl.invoice_no, cl.done_by,
+                          '', cl.item_code, cl.created_at
+                   FROM consumable_logs cl
+                   WHERE DATE(COALESCE(cl.created_at,NOW()))>=%s AND DATE(COALESCE(cl.created_at,NOW()))<=%s"""
+            p = [f_date, t_date]
+            if search_term:
+                q += " AND (cl.item_code LIKE %s OR cl.dealer LIKE %s OR cl.invoice_no LIKE %s)"
+                p += [f"%{search_term}%"] * 3
+            q += " ORDER BY cl.created_at DESC"
+            cur.execute(q, tuple(p))
+            combined.extend(cur.fetchall())
+        except Exception as e:
+            print(f"Consumable logs fallback error: {e}")
 
     try:
         combined.sort(key=lambda x: safe_dt(x[9]), reverse=True)
@@ -763,57 +823,67 @@ def logs():
     return render_template('logs.html', combined=combined, stb_logs=stb_logs, fibre_logs=fibre_logs, f_date=f_date, t_date=t_date, search_term=search_term)
 
 
+# ==================== EXPORTS ====================
+
 @app.route('/export/instock')
 def export_instock():
     if 'logged_user' not in session:
         return redirect(url_for('login'))
     conn = get_db()
     if not conn:
-        flash('Database connection failed', 'error')
         return redirect(url_for('dashboard'))
     output = BytesIO()
     try:
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             try:
-                df_stb = pd.read_sql("""SELECT stb_no as "Serial No", stock_type as "Type", updated_at as "Last Update" FROM stb_stock WHERE status='In Stock'""", conn)
-                if not df_stb.empty:
-                    df_stb = fix_timezone(df_stb)
-                    df_stb.to_excel(writer, sheet_name="STB Stock", index=False)
-            except:
-                pass
+                df = pd.read_sql("SELECT stb_no as \"Serial No\", stock_type as \"Type\", updated_at as \"Last Update\" FROM stb_stock WHERE status='In Stock'", conn)
+                if not df.empty:
+                    df = fix_timezone(df)
+                    df.to_excel(writer, sheet_name="STB Stock", index=False)
+            except: pass
             try:
-                df_mat = pd.read_sql("""
-                    SELECT COALESCE(NULLIF(ml.item_name,''), ml.item_code) as "Item Name",
-                           ml.item_code as "Item Code",
-                           COALESCE(ml.serial_nos, '') as "Serial Nos",
-                           ml.quantity as "Quantity", 'Pcs' as "Unit",
-                           ml.dealer as "Dealer", ml.invoice_no as "Invoice",
+                df = pd.read_sql("""SELECT COALESCE(NULLIF(ml.item_name,''), ml.item_code) as "Item Name",
+                       ml.item_code as "Item Code", COALESCE(ml.serial_nos,'') as "Serial Nos",
+                       ml.quantity as "Quantity", 'Pcs' as "Unit", ml.dealer as "Dealer",
+                       ml.invoice_no as "Invoice", ml.action as "Action", ml.created_at as "Date"
+                       FROM material_logs ml ORDER BY ml.created_at DESC""", conn)
+                if not df.empty:
+                    df = fix_timezone(df)
+                    df.to_excel(writer, sheet_name="Hardware Log", index=False)
+            except:
+                try:
+                    df = pd.read_sql("""SELECT ml.item_code as "Item Name", ml.item_code as "Item Code",
+                           COALESCE(ml.serial_nos,'') as "Serial Nos", ml.quantity as "Quantity",
+                           'Pcs' as "Unit", ml.dealer as "Dealer", ml.invoice_no as "Invoice",
                            ml.action as "Action", ml.created_at as "Date"
-                    FROM material_logs ml
-                    ORDER BY ml.created_at DESC
-                """, conn)
-                if not df_mat.empty:
-                    df_mat = fix_timezone(df_mat)
-                    df_mat.to_excel(writer, sheet_name="Hardware Log", index=False)
-            except:
-                pass
+                           FROM material_logs ml ORDER BY ml.created_at DESC""", conn)
+                    if not df.empty:
+                        df = fix_timezone(df)
+                        df.to_excel(writer, sheet_name="Hardware Log", index=False)
+                except: pass
             try:
-                df_con = pd.read_sql("""
-                    SELECT cl.item_code as "Item Code",
-                           COALESCE(NULLIF(cl.item_name,''), cl.item_code) as "Item Name",
-                           cl.batch_id as "Batch ID", cl.qty as "Quantity",
-                           cs.unit as "Unit", cl.dealer as "Dealer",
-                           cl.invoice_no as "Invoice", cl.action as "Action",
-                           cl.created_at as "Date"
-                    FROM consumable_logs cl
-                    LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
-                    ORDER BY cl.created_at DESC
-                """, conn)
-                if not df_con.empty:
-                    df_con = fix_timezone(df_con)
-                    df_con.to_excel(writer, sheet_name="Consumable Log", index=False)
+                df = pd.read_sql("""SELECT cl.item_code as "Item Code",
+                       COALESCE(NULLIF(cl.item_name,''), cl.item_code) as "Item Name",
+                       cl.batch_id as "Batch ID", cl.qty as "Quantity", cs.unit as "Unit",
+                       cl.dealer as "Dealer", cl.invoice_no as "Invoice", cl.action as "Action",
+                       cl.created_at as "Date"
+                       FROM consumable_logs cl LEFT JOIN consumable_stock cs ON cl.batch_id=cs.batch_id
+                       ORDER BY cl.created_at DESC""", conn)
+                if not df.empty:
+                    df = fix_timezone(df)
+                    df.to_excel(writer, sheet_name="Consumable Log", index=False)
             except:
-                pass
+                try:
+                    df = pd.read_sql("""SELECT cl.item_code as "Item Code", cl.item_code as "Item Name",
+                           cl.batch_id as "Batch ID", cl.qty as "Quantity", cs.unit as "Unit",
+                           cl.dealer as "Dealer", cl.invoice_no as "Invoice", cl.action as "Action",
+                           cl.created_at as "Date"
+                           FROM consumable_logs cl LEFT JOIN consumable_stock cs ON cl.batch_id=cs.batch_id
+                           ORDER BY cl.created_at DESC""", conn)
+                    if not df.empty:
+                        df = fix_timezone(df)
+                        df.to_excel(writer, sheet_name="Consumable Log", index=False)
+                except: pass
     except Exception as e:
         flash(f"Export Error: {e}", "error")
         release_db(conn)
@@ -826,13 +896,12 @@ def export_instock():
 @app.route('/export/stb/<status>')
 def export_stb_status(status):
     if 'logged_user' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn:
-        flash('Database connection failed', 'error')
         return redirect(url_for('dashboard'))
     try:
-        df = pd.read_sql("""SELECT stb_no as "Serial No", status as "Status", stock_type as "Type", dealer as "Dealer", updated_at as "Last Update" FROM stb_stock WHERE status = %s""", conn, params=(status,))
+        df = pd.read_sql("SELECT stb_no as \"Serial No\", status as \"Status\", stock_type as \"Type\", dealer as \"Dealer\", updated_at as \"Last Update\" FROM stb_stock WHERE status=%s", conn, params=(status,))
         df = fix_timezone(df)
         release_db(conn)
         return dl_excel(df, f"KCCL_{status}_Report.xlsx")
@@ -845,13 +914,12 @@ def export_stb_status(status):
 @app.route('/export/dealer/<dealer_name>')
 def export_dealer(dealer_name):
     if 'logged_user' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn:
-        flash('Database connection failed', 'error')
         return redirect(url_for('dashboard'))
     try:
-        df = pd.read_sql("""SELECT stb_no as "Serial No", dealer as "Dealer", stock_type as "Type", updated_at as "Last Update" FROM stb_stock WHERE dealer = %s AND status = 'Issued'""", conn, params=(dealer_name,))
+        df = pd.read_sql("SELECT stb_no as \"Serial No\", dealer as \"Dealer\", stock_type as \"Type\", updated_at as \"Last Update\" FROM stb_stock WHERE dealer=%s AND status='Issued'", conn, params=(dealer_name,))
         df = fix_timezone(df)
         release_db(conn)
         return dl_excel(df, f"STB_Issued_{dealer_name}.xlsx")
@@ -864,50 +932,46 @@ def export_dealer(dealer_name):
 @app.route('/export/hardware')
 def export_hardware():
     if 'logged_user' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn:
-        flash('Database connection failed', 'error')
         return redirect(url_for('dashboard'))
     try:
-        df = pd.read_sql("""
-            SELECT COALESCE(NULLIF(ml.item_name,''), ml.item_code) as "Item Name",
-                   ml.item_code as "Item Code",
-                   COALESCE(ml.serial_nos, '') as "Serial Nos",
-                   ml.quantity as "Quantity", 'Pcs' as "Unit",
-                   ml.dealer as "Dealer", ml.invoice_no as "Invoice",
-                   ml.action as "Action", ml.created_at as "Date"
-            FROM material_logs ml
-            ORDER BY ml.created_at DESC
-        """, conn)
+        df = pd.read_sql("""SELECT COALESCE(NULLIF(ml.item_name,''), ml.item_code) as "Item Name",
+               ml.item_code as "Item Code", COALESCE(ml.serial_nos,'') as "Serial Nos",
+               ml.quantity as "Quantity", 'Pcs' as "Unit", ml.dealer as "Dealer",
+               ml.invoice_no as "Invoice", ml.action as "Action", ml.created_at as "Date"
+               FROM material_logs ml ORDER BY ml.created_at DESC""", conn)
         df = fix_timezone(df)
         release_db(conn)
         return dl_excel(df, "Material_Transaction_Report.xlsx")
-    except Exception as e:
-        flash(f"Export Error: {e}", "error")
-        release_db(conn)
-        return redirect(url_for('dashboard'))
+    except:
+        try:
+            df = pd.read_sql("""SELECT ml.item_code as "Item Name", ml.item_code as "Item Code",
+                   COALESCE(ml.serial_nos,'') as "Serial Nos", ml.quantity as "Quantity",
+                   'Pcs' as "Unit", ml.dealer as "Dealer", ml.invoice_no as "Invoice",
+                   ml.action as "Action", ml.created_at as "Date"
+                   FROM material_logs ml ORDER BY ml.created_at DESC""", conn)
+            df = fix_timezone(df)
+            release_db(conn)
+            return dl_excel(df, "Material_Transaction_Report.xlsx")
+        except Exception as e:
+            flash(f"Export Error: {e}", "error")
+            release_db(conn)
+            return redirect(url_for('dashboard'))
 
 
 @app.route('/export/fibre')
 def export_fibre():
     if 'logged_user' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn:
-        flash('Database connection failed', 'error')
         return redirect(url_for('dashboard'))
     try:
-        df = pd.read_sql("""
-            SELECT fl.drum_id as "Drum ID",
-                   fl.action as "Action",
-                   fl.length as "Length (M)",
-                   fl.dealer as "Dealer",
-                   fl.done_by as "Done By",
-                   fl.created_at as "Date Time"
-            FROM fibre_logs fl
-            ORDER BY fl.created_at DESC
-        """, conn)
+        df = pd.read_sql("""SELECT fl.drum_id as "Drum ID", fl.action as "Action",
+               fl.length as "Length (M)", fl.dealer as "Dealer", fl.done_by as "Done By",
+               fl.created_at as "Date Time" FROM fibre_logs fl ORDER BY fl.created_at DESC""", conn)
         df = fix_timezone(df)
         release_db(conn)
         return dl_excel(df, "Fibre_Transaction_Report.xlsx")
@@ -920,30 +984,36 @@ def export_fibre():
 @app.route('/export/consumables')
 def export_consumables():
     if 'logged_user' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn:
-        flash('Database failed', 'error')
         return redirect(url_for('dashboard'))
     try:
-        df = pd.read_sql("""
-            SELECT cl.item_code as "Item Code",
-                   COALESCE(NULLIF(cl.item_name,''), cl.item_code) as "Item Name",
-                   cl.batch_id as "Batch ID", cl.qty as "Quantity",
-                   cs.unit as "Unit", cl.dealer as "Dealer",
-                   cl.invoice_no as "Invoice", cl.action as "Action",
-                   cl.created_at as "Date"
-            FROM consumable_logs cl
-            LEFT JOIN consumable_stock cs ON cl.batch_id = cs.batch_id
-            ORDER BY cl.created_at DESC
-        """, conn)
+        df = pd.read_sql("""SELECT cl.item_code as "Item Code",
+               COALESCE(NULLIF(cl.item_name,''), cl.item_code) as "Item Name",
+               cl.batch_id as "Batch ID", cl.qty as "Quantity", cs.unit as "Unit",
+               cl.dealer as "Dealer", cl.invoice_no as "Invoice", cl.action as "Action",
+               cl.created_at as "Date"
+               FROM consumable_logs cl LEFT JOIN consumable_stock cs ON cl.batch_id=cs.batch_id
+               ORDER BY cl.created_at DESC""", conn)
         df = fix_timezone(df)
         release_db(conn)
         return dl_excel(df, "Consumable_Transaction_Report.xlsx")
-    except Exception as e:
-        flash(f"Export Error: {e}", "error")
-        release_db(conn)
-        return redirect(url_for('dashboard'))
+    except:
+        try:
+            df = pd.read_sql("""SELECT cl.item_code as "Item Code", cl.item_code as "Item Name",
+                   cl.batch_id as "Batch ID", cl.qty as "Quantity", cs.unit as "Unit",
+                   cl.dealer as "Dealer", cl.invoice_no as "Invoice", cl.action as "Action",
+                   cl.created_at as "Date"
+                   FROM consumable_logs cl LEFT JOIN consumable_stock cs ON cl.batch_id=cs.batch_id
+                   ORDER BY cl.created_at DESC""", conn)
+            df = fix_timezone(df)
+            release_db(conn)
+            return dl_excel(df, "Consumable_Transaction_Report.xlsx")
+        except Exception as e:
+            flash(f"Export Error: {e}", "error")
+            release_db(conn)
+            return redirect(url_for('dashboard'))
 
 
 if __name__ == "__main__":
