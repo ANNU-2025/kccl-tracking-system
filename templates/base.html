@@ -94,7 +94,6 @@
         .tab-panel{display:none}.tab-panel.active{display:block}
         .col-hide{display:none}
 
-        /* ========== MOBILE FIRST ========== */
         @media(max-width:768px){
             html,body{height:auto;overflow:auto}
             .layout{height:auto;min-height:100vh}
@@ -151,6 +150,7 @@
                 <a href="{{ url_for('inventory') }}" class="sb-link {% if request.endpoint=='inventory' %}active{% endif %}"><i class="fas fa-boxes-stacked"></i> Inventory</a>
                 <a href="{{ url_for('fibre_manager') }}" class="sb-link {% if request.endpoint=='fibre_manager' %}active{% endif %}"><i class="fas fa-network-wired"></i> Fibre Manager</a>
                 {% endif %}
+                <a href="{{ url_for('daily_active') }}" class="sb-link {% if request.endpoint=='daily_active' %}active{% endif %}"><i class="fas fa-chart-column"></i> Daily Active</a>
                 <a href="{{ url_for('logs') }}" class="sb-link {% if request.endpoint=='logs' %}active{% endif %}"><i class="fas fa-clock-rotate-left"></i> Activity Log</a>
             </nav>
             <div class="sb-foot">
