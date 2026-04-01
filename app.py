@@ -1023,7 +1023,249 @@ def export_consumables():
         except Exception as e:
             flash(f"Export Error: {e}", "error"); release_db(conn)
             return redirect(url_for('dashboard'))
+# ==================== DAILY ACTIVE SUMMARY ====================
 
+@app.route('/daily-active', methods=['GET', 'POST'])
+def daily_active():
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
+    conn = get_db()
+    if not conn:
+        flash('Database connection failed', 'error')
+        return redirect(url_for('dashboard'))
+    cur = conn.cursor()
+
+    if request.method == 'POST':
+        form_type = request.form.get('form_type', '')
+
+        # --- Single Row Add ---
+        if form_type == 'single':
+            try:
+                rdate = request.form.get('report_date')
+                lco = request.form.get('lco_code', '').strip().upper()
+                cnt = int(request.form.get('active_count', 0))
+                if not rdate or not lco:
+                    flash('Date and LCO Code are required', 'error')
+                else:
+                    cur.execute("""
+                        INSERT INTO daily_active_summary (report_date, lco_code, active_count)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (report_date, lco_code)
+                        DO UPDATE SET active_count = EXCLUDED.active_count
+                    """, (rdate, lco, cnt))
+                    conn.commit()
+                    flash('Record saved!', 'success')
+            except Exception as e:
+                conn.rollback()
+                flash(f'Error: {e}', 'error')
+
+        # --- Bulk Upload ---
+        elif form_type == 'bulk':
+            file = request.files.get('da_file')
+            if not file:
+                flash('Please select a file', 'error')
+            else:
+                try:
+                    if file.filename.endswith('.xlsx'):
+                        df = pd.read_excel(file, dtype=str)
+                    else:
+                        df = pd.read_csv(file, dtype=str)
+                    if df.empty:
+                        flash('File is empty', 'error')
+                    else:
+                        df.columns = [str(c).strip().lower().replace(' ', '_') for c in df.columns]
+                        count = 0
+                        failed = []
+                        for idx, row in df.iterrows():
+                            rn = idx + 2
+                            try:
+                                raw_date = _clean(row.get('report_date', ''))
+                                lco = _clean(row.get('lco_code', '')).upper()
+                                cnt_str = _clean(row.get('active_count', ''))
+                                if not raw_date or not lco or not cnt_str:
+                                    raise ValueError("Missing required field")
+                                # Parse date - try multiple formats
+                                parsed_date = None
+                                for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%m-%d-%Y', '%Y/%m/%d'):
+                                    try:
+                                        parsed_date = datetime.strptime(raw_date, fmt).date()
+                                        break
+                                    except:
+                                        continue
+                                if not parsed_date:
+                                    raise ValueError(f"Invalid date format: {raw_date}")
+                                cnt = int(float(cnt_str))
+                                cur.execute("""
+                                    INSERT INTO daily_active_summary (report_date, lco_code, active_count)
+                                    VALUES (%s, %s, %s)
+                                    ON CONFLICT (report_date, lco_code)
+                                    DO UPDATE SET active_count = EXCLUDED.active_count
+                                """, (parsed_date, lco, cnt))
+                                conn.commit()
+                                count += 1
+                            except Exception as e:
+                                conn.rollback()
+                                failed.append({'row': rn, 'lco': _clean(row.get('lco_code', '')), 'error': str(e)[:80]})
+                        msg = f'{count} records uploaded'
+                        if failed:
+                            msg += f', {len(failed)} failed'
+                        flash(msg, 'success' if not failed else 'error')
+                        session['da_failures'] = failed[-50:]
+                except Exception as e:
+                    flash(f'Upload Error: {e}', 'error')
+                    session['da_failures'] = []
+
+        # --- Delete ---
+        elif form_type == 'delete':
+            try:
+                del_id = request.form.get('del_id', '')
+                if del_id:
+                    cur.execute("DELETE FROM daily_active_summary WHERE id=%s", (int(del_id),))
+                    conn.commit()
+                    flash('Record deleted', 'success')
+            except Exception as e:
+                conn.rollback()
+                flash(f'Delete Error: {e}', 'error')
+
+        # --- Bulk Delete by Date ---
+        elif form_type == 'delete_date':
+            try:
+                del_date = request.form.get('del_date', '')
+                if del_date:
+                    cur.execute("DELETE FROM daily_active_summary WHERE report_date=%s", (del_date,))
+                    conn.commit()
+                    flash(f'Deleted all records for {del_date}', 'success')
+            except Exception as e:
+                conn.rollback()
+                flash(f'Delete Error: {e}', 'error')
+
+    # --- GET: Fetch data ---
+    filter_date = request.args.get('filter_date', '')
+    filter_lco = request.args.get('filter_lco', '')
+    data = []
+    lco_list = []
+    date_list = []
+
+    try:
+        # Fetch distinct LCO codes
+        cur.execute("SELECT DISTINCT lco_code FROM daily_active_summary ORDER BY lco_code")
+        lco_list = [r[0] for r in cur.fetchall()]
+    except:
+        pass
+
+    try:
+        # Fetch distinct dates
+        cur.execute("SELECT DISTINCT report_date FROM daily_active_summary ORDER BY report_date DESC")
+        date_list = [r[0] for r in cur.fetchall()]
+    except:
+        pass
+
+    try:
+        q = "SELECT id, report_date, lco_code, active_count, created_at FROM daily_active_summary WHERE 1=1"
+        p = []
+        if filter_date:
+            q += " AND report_date = %s"
+            p.append(filter_date)
+        if filter_lco:
+            q += " AND lco_code = %s"
+            p.append(filter_lco.upper())
+        q += " ORDER BY report_date DESC, lco_code ASC"
+        cur.execute(q, tuple(p))
+        data = cur.fetchall()
+    except:
+        pass
+
+    # Summary stats
+    total_active = 0
+    total_lc = 0
+    latest_date = None
+    try:
+        cur.execute("SELECT report_date, SUM(active_count), COUNT(DISTINCT lco_code) FROM daily_active_summary GROUP BY report_date ORDER BY report_date DESC LIMIT 1")
+        row = cur.fetchone()
+        if row:
+            latest_date = row[0]
+            total_active = row[1] or 0
+            total_lc = row[2] or 0
+    except:
+        pass
+
+    # Trend data (last 7 dates)
+    trend = []
+    try:
+        cur.execute("""
+            SELECT report_date, SUM(active_count), COUNT(DISTINCT lco_code)
+            FROM daily_active_summary
+            GROUP BY report_date ORDER BY report_date DESC LIMIT 7
+        """)
+        trend = cur.fetchall()
+    except:
+        pass
+
+    bulk_failures = session.pop('da_failures', [])
+
+    cur.close()
+    release_db(conn)
+    return render_template('daily_active.html', data=data, lco_list=lco_list, date_list=date_list,
+        filter_date=filter_date, filter_lco=filter_lco, total_active=total_active,
+        total_lc=total_lc, latest_date=latest_date, trend=trend, bulk_failures=bulk_failures)
+
+
+@app.route('/daily-active/export')
+def export_daily_active():
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
+    conn = get_db()
+    if not conn:
+        return redirect(url_for('dashboard'))
+    try:
+        df = pd.read_sql("""
+            SELECT report_date as "Report Date", lco_code as "LCO Code",
+                   active_count as "Active Count", created_at as "Uploaded At"
+            FROM daily_active_summary ORDER BY report_date DESC, lco_code ASC
+        """, conn)
+        df = fix_timezone(df)
+        release_db(conn)
+        return dl_excel(df, "Daily_Active_Summary.xlsx")
+    except Exception as e:
+        flash(f"Export Error: {e}", "error")
+        release_db(conn)
+        return redirect(url_for('daily_active'))
+
+
+@app.route('/daily-active/template')
+def daily_active_template():
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
+    output = BytesIO()
+    df = pd.DataFrame(columns=['report_date', 'lco_code', 'active_count'])
+    df.loc[0] = ['2025-01-15', 'LCO-001', 150]
+    df.loc[1] = ['2025-01-15', 'LCO-002', 200]
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name="Template", index=False)
+    output.seek(0)
+    return send_file(output, download_name="Daily_Active_Template.xlsx", as_attachment=True)
+
+
+@app.route('/daily-active/delete-all', methods=['POST'])
+def daily_active_delete_all():
+    if 'logged_user' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('login'))
+    conn = get_db()
+    if not conn:
+        flash('Database connection failed', 'error')
+        return redirect(url_for('daily_active'))
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM daily_active_summary")
+        conn.commit()
+        flash('All records deleted', 'success')
+        cur.close()
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error: {e}', 'error')
+    release_db(conn)
+    return redirect(url_for('daily_active'))
+    
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
