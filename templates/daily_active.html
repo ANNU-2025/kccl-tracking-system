@@ -2,201 +2,314 @@
 {% block title %}Daily Active Summary{% endblock %}
 {% block page_title %}Daily Active Summary{% endblock %}
 {% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
-    .da-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
-    .da-stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden}
-    .da-stat .sv{font-size:28px;font-weight:700;color:var(--primary)}
-    .da-stat .sl{font-size:11px;color:var(--grey);font-weight:500;margin-top:2px}
-    .da-stat .si{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;position:absolute;top:14px;right:14px}
-    .trend-bar{display:flex;align-items:flex-end;gap:6px;height:80px;padding:8px 0}
-    .trend-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
-    .trend-fill{width:100%;border-radius:4px 4px 0 0;transition:.3s;min-height:4px}
-    .trend-label{font-size:9px;color:var(--grey);white-space:nowrap}
-    .trend-val{font-size:9px;font-weight:700;color:var(--primary)}
-    .da-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
-    .del-btn{background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:4px;transition:.15s}
-    .del-btn:hover{background:var(--red-bg)}
-    .confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
-    .confirm-overlay.show{display:flex}
-    .confirm-box{background:var(--card);border-radius:12px;padding:24px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
-    .confirm-box h3{font-size:16px;margin-bottom:8px}
-    .confirm-box p{font-size:13px;color:var(--grey);margin-bottom:20px}
-    .confirm-box .btn-row{display:flex;gap:10px;justify-content:center}
+    .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+    .kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;position:relative;overflow:hidden}
+    .kpi .kpi-icon{position:absolute;top:14px;right:16px;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px}
+    .kpi .kpi-label{font-size:10px;font-weight:600;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+    .kpi .kpi-val{font-size:28px;font-weight:700;line-height:1}
+    .kpi-cyan .kpi-icon{background:rgba(0,188,212,.1);color:#00BCD4}
+    .kpi-cyan .kpi-val{color:#00BCD4}
+    .kpi-green .kpi-icon{background:var(--green-bg);color:var(--green)}
+    .kpi-green .kpi-val{color:var(--green)}
+    .kpi-red .kpi-icon{background:var(--red-bg);color:var(--red)}
+    .kpi-red .kpi-val{color:var(--red)}
+    .kpi-gold .kpi-icon{background:rgba(255,215,64,.12);color:#FFD740}
+    .kpi-gold .kpi-val{color:#FFD740}
+
+    .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:14px;overflow:hidden}
+    .chart-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+    .chart-inner{min-width:600px;height:240px;position:relative}
+
+    .cmp-bar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin-bottom:14px;display:flex;align-items:end;gap:10px;flex-wrap:wrap}
+    .cmp-bar .fg{margin-bottom:0;flex:1;min-width:160px}
+
+    .up-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+
+    .tbl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .tbl-panel{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;max-height:420px}
+    .tbl-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .tbl-head h3{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+    .tbl-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .tbl-scroll table{margin:0}
+    .tbl-scroll thead{position:sticky;top:0;z-index:2}
+    .tbl-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 16px;color:var(--grey)}
+    .tbl-empty i{font-size:28px;opacity:.3;margin-bottom:8px}
+    .tbl-empty p{font-size:12px}
+
+    .fail-box{background:var(--red-bg);border:1px solid rgba(231,76,60,.2);border-radius:8px;padding:12px 16px;margin-bottom:14px;max-height:160px;overflow-y:auto}
+    .fail-box .ft{font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px}
+    .fail-box .fr{font-size:10px;color:var(--red);padding:2px 0}
+
+    .gen-loading{opacity:.6;pointer-events:none}
+
     @media(max-width:768px){
-        .da-grid{grid-template-columns:1fr !important}
-        .da-stats{grid-template-columns:1fr 1fr}
-        .da-stat .sv{font-size:22px}
-        .trend-bar{height:60px}
+        .kpi-row{grid-template-columns:1fr 1fr}
+        .kpi .kpi-val{font-size:22px}
+        .up-grid,.tbl-grid{grid-template-columns:1fr !important}
+        .cmp-bar{flex-direction:column;align-items:stretch}
+        .chart-inner{height:200px;min-width:500px}
     }
     @media(max-width:400px){
-        .da-stats{grid-template-columns:1fr}
+        .kpi-row{grid-template-columns:1fr}
     }
 </style>
 {% endblock %}
 {% block body %}
 
-<!-- Confirmation Modal -->
-<div class="confirm-overlay" id="confirmModal">
-    <div class="confirm-box">
-        <h3 id="confirmTitle">Confirm Delete</h3>
-        <p id="confirmMsg">Are you sure?</p>
-        <div class="btn-row">
-            <button class="btn btn-outline" onclick="closeConfirm()">Cancel</button>
-            <button class="btn btn-red" id="confirmBtn">Delete</button>
+<!-- KPI CARDS -->
+<div class="kpi-row">
+    <div class="kpi kpi-cyan">
+        <div class="kpi-icon"><i class="fas fa-users"></i></div>
+        <div class="kpi-label">Total Active VC</div>
+        <div class="kpi-val" id="kpiTotal">—</div>
+    </div>
+    <div class="kpi kpi-green">
+        <div class="kpi-icon"><i class="fas fa-arrow-trend-up"></i></div>
+        <div class="kpi-label">Total Growth</div>
+        <div class="kpi-val" id="kpiGrowth">—</div>
+    </div>
+    <div class="kpi kpi-red">
+        <div class="kpi-icon"><i class="fas fa-arrow-trend-down"></i></div>
+        <div class="kpi-label">Total Churn</div>
+        <div class="kpi-val" id="kpiChurn">—</div>
+    </div>
+    <div class="kpi kpi-gold">
+        <div class="kpi-icon"><i class="fas fa-bolt"></i></div>
+        <div class="kpi-label">Net Change</div>
+        <div class="kpi-val" id="kpiNet">—</div>
+    </div>
+</div>
+
+<!-- BAR CHART -->
+<div class="chart-wrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:var(--primary)"><i class="fas fa-chart-bar" style="color:#00BCD4;margin-right:6px"></i>Daily Active Trend</div>
+        <div style="font-size:10px;color:var(--grey)">Click any bar to download that date's summary</div>
+    </div>
+    <div class="chart-scroll">
+        <div class="chart-inner">
+            <canvas id="barChart"></canvas>
         </div>
     </div>
 </div>
 
-<!-- Stats -->
-<div class="da-stats">
-    <div class="da-stat">
-        <div class="sv">{{ total_active }}</div>
-        <div class="sl">LATEST TOTAL ACTIVE</div>
-        <div class="si" style="background:var(--blue-bg);color:var(--blue)"><i class="fas fa-users"></i></div>
+<!-- COMPARE BAR -->
+<div class="cmp-bar">
+    <div class="fg">
+        <label class="fl">Compare From</label>
+        <select id="dateFrom" class="fs">
+            <option value="">-- Select --</option>
+            {% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b-%Y') }}</option>{% endfor %}
+        </select>
     </div>
-    <div class="da-stat">
-        <div class="sv">{{ total_lc }}</div>
-        <div class="sl">LCOs REPORTED</div>
-        <div class="si" style="background:var(--green-bg);color:var(--green)"><i class="fas fa-building"></i></div>
+    <div class="fg">
+        <label class="fl">Compare To</label>
+        <select id="dateTo" class="fs">
+            <option value="">-- Select --</option>
+            {% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b-%Y') }}</option>{% endfor %}
+        </select>
     </div>
-    <div class="da-stat">
-        <div class="sv">{{ latest_date.strftime('%d-%b-%Y') if latest_date else '—' }}</div>
-        <div class="sl">LATEST REPORT DATE</div>
-        <div class="si" style="background:var(--purple-bg);color:var(--purple)"><i class="fas fa-calendar"></i></div>
+    <div class="fg" style="flex:0;min-width:auto">
+        <button class="btn btn-blue" id="btnGenerate" onclick="generateReports()" style="height:42px"><i class="fas fa-magnifying-glass-chart"></i> GENERATE REPORTS</button>
     </div>
-    <div class="da-stat">
-        <div class="sv">{{ data|length }}</div>
-        <div class="sl">TOTAL RECORDS</div>
-        <div class="si" style="background:rgba(240,191,42,.1);color:#C8960A"><i class="fas fa-database"></i></div>
+    <div class="fg" style="flex:0;min-width:auto">
+        <button class="btn btn-outline" onclick="window.location.href='/daily-active/export'" style="height:42px"><i class="fas fa-download"></i> Export All</button>
     </div>
 </div>
 
-<!-- Mini Trend -->
-{% if trend %}
-<div class="card" style="margin-bottom:16px">
-    <div class="card-head">
-        <div class="card-title"><i class="fas fa-chart-bar" style="color:var(--blue)"></i> 7-Day Trend</div>
-    </div>
-    <div class="trend-bar">
-        {% set max_val = trend[0][1] if trend else 1 %}
-        {% for row in trend|reverse %}
-        <div class="trend-col">
-            <div class="trend-val">{{ row[1] }}</div>
-            <div class="trend-fill" style="height:{{ (row[1]/max_val)*60 }}%;background:var(--blue)"></div>
-            <div class="trend-label">{{ row[0].strftime('%d-%b') if row[0] else '—' }}</div>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-<!-- Input Cards -->
-<div class="da-grid">
-    <!-- Single Add -->
+<!-- UPLOAD SECTION -->
+<div class="up-grid">
     <div class="card">
-        <div class="card-head"><div class="card-title"><i class="fas fa-pen" style="color:var(--green)"></i> Single Entry</div></div>
+        <div class="card-head" style="margin-bottom:10px"><div class="card-title"><i class="fas fa-pen" style="color:var(--green)"></i> Single Entry</div></div>
         <form method="POST"><input type="hidden" name="form_type" value="single">
             <div class="fg"><label class="fl">Report Date</label><input type="date" name="report_date" class="fi" required></div>
-            <div class="fg"><label class="fl">LCO Code</label><input type="text" name="lco_code" class="fi" placeholder="LCO-001" required style="text-transform:uppercase"></div>
+            <div class="fg"><label class="fl">LCO Code</label><input type="text" name="lco_code" class="fi" placeholder="WB01A006" required style="text-transform:uppercase"></div>
             <div class="fg"><label class="fl">Active Count</label><input type="number" name="active_count" class="fi" placeholder="0" min="0" required></div>
             <button type="submit" class="btn btn-green" style="width:100%;justify-content:center"><i class="fas fa-check"></i> SAVE</button>
         </form>
     </div>
-
-    <!-- Bulk Upload -->
     <div class="card">
-        <div class="card-head"><div class="card-title"><i class="fas fa-file-excel" style="color:var(--blue)"></i> Bulk Upload</div></div>
+        <div class="card-head" style="margin-bottom:10px"><div class="card-title"><i class="fas fa-file-excel" style="color:var(--blue)"></i> Bulk Upload</div></div>
         <form method="POST" enctype="multipart/form-data"><input type="hidden" name="form_type" value="bulk">
             <div class="fg"><label class="fl">Excel / CSV File</label><input type="file" name="da_file" accept=".csv,.xlsx" class="fi" style="padding:8px" required></div>
             <div style="display:flex;gap:8px">
                 <button type="button" class="btn btn-outline" style="flex:1" onclick="window.location.href='/daily-active/template'"><i class="fas fa-download"></i> Template</button>
                 <button type="submit" class="btn btn-blue" style="flex:1"><i class="fas fa-upload"></i> Upload</button>
             </div>
-            <p style="font-size:10px;color:var(--grey);margin-top:8px">Columns: report_date (YYYY-MM-DD), lco_code, active_count. Duplicate date+LCO will be updated.</p>
+            <p style="font-size:10px;color:var(--grey);margin-top:8px">Columns: report_date (YYYY-MM-DD), lco_code, active_count</p>
         </form>
         {% if bulk_failures %}
-        <div style="background:var(--red-bg);border:1px solid rgba(231,76,60,.2);border-radius:8px;padding:10px 14px;margin-top:12px;max-height:150px;overflow-y:auto">
-            <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px"><i class="fas fa-triangle-exclamation"></i> {{ bulk_failures|length }} Failed</div>
-            {% for f in bulk_failures %}
-            <div style="font-size:10px;color:var(--red);padding:2px 0">Row {{ f.row }}: {{ f.lco or '—' }} — {{ f.error }}</div>
-            {% endfor %}
+        <div class="fail-box" style="margin-top:10px">
+            <div class="ft"><i class="fas fa-triangle-exclamation"></i> {{ bulk_failures|length }} Failed</div>
+            {% for f in bulk_failures %}<div class="fr">Row {{ f.row }}: {{ f.lco or '—' }} — {{ f.error }}</div>{% endfor %}
         </div>
         {% endif %}
     </div>
 </div>
 
-<!-- Data Table -->
-<div class="tw">
-    <div class="tw-bar">
-        <div class="card-title"><i class="fas fa-table" style="color:var(--purple)"></i> Records</div>
-        <div style="flex:1"></div>
-        <form method="GET" action="{{ url_for('daily_active') }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input type="date" name="filter_date" class="fi" style="max-width:150px;padding:6px 10px" value="{{ filter_date }}">
-            <select name="filter_lco" class="fs" style="padding:6px 10px;min-width:120px">
-                <option value="">All LCOs</option>
-                {% for l in lco_list %}<option value="{{ l }}" {% if filter_lco==l %}selected{% endif %}>{{ l }}</option>{% endfor %}
-            </select>
-            <button type="submit" class="btn btn-blue btn-sm"><i class="fas fa-filter"></i></button>
-            {% if filter_date or filter_lco %}<a href="{{ url_for('daily_active') }}" class="btn btn-outline btn-sm"><i class="fas fa-xmark"></i></a>{% endif %}
-        </form>
-        <button class="btn btn-green btn-sm" onclick="window.location.href='/daily-active/export'"><i class="fas fa-download"></i> Export</button>
+<!-- GROWTH + CHURN TABLES -->
+<div class="tbl-grid">
+    <div class="tbl-panel" style="border-color:rgba(47,163,96,.25)">
+        <div class="tbl-head">
+            <h3 style="color:var(--green)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="growthCount" style="font-size:11px;color:var(--grey);font-weight:400"></span></h3>
+            <button class="btn btn-sm" id="btnExpGrowth" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none" onclick="exportCSV('growth')"><i class="fas fa-download"></i> Export</button>
+        </div>
+        <div class="tbl-scroll" id="growthBody">
+            <div class="tbl-empty"><i class="fas fa-chart-line"></i><p>Select dates and generate report</p></div>
+        </div>
     </div>
-    {% if data %}
-    <div class="tw-hscroll">
-        <table>
-            <thead><tr><th>#</th><th>Report Date</th><th>LCO Code</th><th>Active Count</th><th>Uploaded</th>{% if session.get('user_role')=='admin' %}<th></th>{% endif %}</tr></thead>
-            <tbody>
-            {% for row in data %}
-            <tr>
-                <td style="color:var(--grey)">{{ loop.index }}</td>
-                <td style="font-weight:600">{{ row[1].strftime('%d-%b-%Y') if row[1] else '—' }}</td>
-                <td><span class="bg bg-blue"><span class="bd"></span>{{ row[2] }}</span></td>
-                <td style="font-weight:700;font-size:14px;color:var(--green)">{{ row[3] }}</td>
-                <td style="font-size:10px;color:var(--grey)">{{ row[4].strftime('%d-%b %H:%M') if row[4] else '—' }}</td>
-                {% if session.get('user_role')=='admin' %}
-                <td><button class="del-btn" onclick="confirmDelete({{ row[0] }}, '{{ row[2] }}', '{{ row[1].strftime('%d-%b-%Y') if row[1] else '' }}')"><i class="fas fa-trash"></i></button></td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <div class="tbl-panel" style="border-color:rgba(231,76,60,.25)">
+        <div class="tbl-head">
+            <h3 style="color:var(--red)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="churnCount" style="font-size:11px;color:var(--grey);font-weight:400"></span></h3>
+            <button class="btn btn-sm" id="btnExpChurn" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none" onclick="exportCSV('churn')"><i class="fas fa-download"></i> Export</button>
+        </div>
+        <div class="tbl-scroll" id="churnBody">
+            <div class="tbl-empty"><i class="fas fa-chart-line"></i><p>Select dates and generate report</p></div>
+        </div>
     </div>
-    {% else %}
-    <div class="empty"><i class="fas fa-chart-simple"></i><h3>No Records</h3><p>Upload data using the forms above</p></div>
-    {% endif %}
 </div>
 
 {% if session.get('user_role')=='admin' %}
-<div style="margin-top:12px;text-align:right">
-    <button class="btn btn-red btn-sm" onclick="confirmDeleteAll()"><i class="fas fa-trash"></i> Delete All Records</button>
+<div style="text-align:right;margin-top:10px">
+    <button class="btn btn-red btn-sm" onclick="if(confirm('Delete ALL daily active data?')){var f=document.createElement('form');f.method='POST';f.action='/daily-active/delete-all';document.body.appendChild(f);f.submit()}"><i class="fas fa-trash"></i> Delete All</button>
 </div>
 {% endif %}
 
 <script>
-var pendingAction = null;
-function closeConfirm(){document.getElementById('confirmModal').classList.remove('show');pendingAction=null}
-function confirmDelete(id, lco, date){
-    document.getElementById('confirmTitle').textContent='Delete Record';
-    document.getElementById('confirmMsg').textContent='Delete '+lco+' data for '+date+'?';
-    document.getElementById('confirmModal').classList.add('show');
-    pendingAction=function(){
-        var f=document.createElement('form');f.method='POST';f.action='{{ url_for('daily_active') }}';
-        var h1=document.createElement('input');h1.type='hidden';h1.name='form_type';h1.value='delete';
-        var h2=document.createElement('input');h2.type='hidden';h2.name='del_id';h2.value=id;
-        f.appendChild(h1);f.appendChild(h2);document.body.appendChild(f);f.submit();
-    };
-    document.getElementById('confirmBtn').onclick=function(){if(pendingAction)pendingAction();closeConfirm()};
+var growthData=[], churnData=[], chartInstance=null, fullDates=[];
+
+// ===== CHART =====
+function loadChart(){
+    fetch('/daily-active/chart-data').then(r=>r.json()).then(d=>{
+        if(!d.dates||!d.dates.length){document.getElementById('barChart').parentElement.innerHTML='<div class="tbl-empty"><i class="fas fa-chart-bar"></i><p>No data yet — upload to see chart</p></div>';return}
+        fullDates=d.full_dates;
+        var ctx=document.getElementById('barChart').getContext('2d');
+        if(chartInstance)chartInstance.destroy();
+        var grad=ctx.createLinearGradient(0,0,0,240);
+        grad.addColorStop(0,'rgba(0,188,212,0.85)');
+        grad.addColorStop(1,'rgba(0,96,100,0.85)');
+        chartInstance=new Chart(ctx,{
+            type:'bar',
+            data:{
+                labels:d.dates,
+                datasets:[
+                    {label:'Total Active',data:d.totals,backgroundColor:grad,borderColor:'#004D40',borderWidth:1,borderRadius:4,barPercentage:.7,order:2},
+                    {label:'Trend',data:d.totals,type:'line',borderColor:'#FF5252',borderWidth:2.5,pointBackgroundColor:'#FF5252',pointRadius:4,pointHoverRadius:6,tension:.3,fill:false,order:1}
+                ]
+            },
+            options:{
+                responsive:true,maintainAspectRatio:false,
+                plugins:{
+                    legend:{display:false},
+                    tooltip:{
+                        backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#B0B0B0',
+                        padding:10,cornerRadius:6,
+                        callbacks:{afterBody:function(items){return 'Click to download summary'}}
+                    }
+                },
+                scales:{
+                    x:{grid:{display:false},ticks:{color:'#6C757D',font:{size:10},maxRotation:45}},
+                    y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#6C757D',font:{size:10}},beginAtZero:true}
+                },
+                onClick:function(e,elements){
+                    if(elements.length>0){var idx=elements[0].index;window.open('/daily-active/date-summary?date='+fullDates[idx],'_blank')}
+                }
+            }
+        });
+    });
 }
-function confirmDeleteAll(){
-    document.getElementById('confirmTitle').textContent='Delete ALL Records';
-    document.getElementById('confirmMsg').textContent='This will permanently delete all daily active summary data. Continue?';
-    document.getElementById('confirmModal').classList.add('show');
-    pendingAction=function(){
-        var f=document.createElement('form');f.method='POST';f.action='{{ url_for('daily_active_delete_all') }}';
-        document.body.appendChild(f);f.submit();
-    };
-    document.getElementById('confirmBtn').onclick=function(){if(pendingAction)pendingAction();closeConfirm()};
+
+// ===== COMPARE =====
+function generateReports(){
+    var df=document.getElementById('dateFrom').value;
+    var dt=document.getElementById('dateTo').value;
+    if(!df||!dt){flash('Select both dates','error');return}
+    if(df===dt){flash('Select two different dates','error');return}
+    var btn=document.getElementById('btnGenerate');
+    btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Loading...';
+    btn.classList.add('gen-loading');
+    fetch('/daily-active/compare?from='+df+'&to='+dt).then(r=>r.json()).then(d=>{
+        btn.innerHTML='<i class="fas fa-magnifying-glass-chart"></i> GENERATE REPORTS';
+        btn.classList.remove('gen-loading');
+        if(d.error){flash(d.error,'error');return}
+        // Update KPIs
+        document.getElementById('kpiTotal').textContent=d.total_vc.toLocaleString();
+        document.getElementById('kpiGrowth').textContent='+'+d.total_growth.toLocaleString();
+        document.getElementById('kpiChurn').textContent=d.total_churn.toLocaleString();
+        var net=d.net;
+        var netEl=document.getElementById('kpiNet');
+        netEl.textContent=(net>=0?'+':'')+net.toLocaleString();
+        netEl.style.color=net>0?'var(--green)':net<0?'var(--red)':'#FFD740';
+
+        growthData=d.growth;churnData=d.churn;
+        renderTable('growthBody','growthCount','btnExpGrowth',growthData,var(--green)','+');
+        renderTable('churnBody','churnCount','btnExpChurn',churnData,'var(--red)','');
+
+        flash('Report generated: '+df+' vs '+dt,'success');
+    }).catch(function(){
+        btn.innerHTML='<i class="fas fa-magnifying-glass-chart"></i> GENERATE REPORTS';
+        btn.classList.remove('gen-loading');
+        flash('Network error','error');
+    });
 }
-document.getElementById('confirmModal').addEventListener('click',function(e){if(e.target===this)closeConfirm()});
+
+function renderTable(bodyId,countId,btnId,data,color,prefix){
+    var el=document.getElementById(bodyId);
+    var countEl=document.getElementById(countId);
+    var btnEl=document.getElementById(btnId);
+    if(!data.length){
+        el.innerHTML='<div class="tbl-empty"><i class="fas fa-check-circle"></i><p>No data</p></div>';
+        countEl.textContent='';
+        btnEl.style.display='none';
+        return;
+    }
+    countEl.textContent='('+data.length+' LCOs)';
+    btnEl.style.display='';
+    var h='<table><thead><tr><th>#</th><th>LCO Code</th><th>Previous</th><th>Current</th><th>Diff</th></tr></thead><tbody>';
+    for(var i=0;i<data.length;i++){
+        var r=data[i];
+        var diffTxt=prefix+r.diff;
+        var bg=i%2!==0?'background:#F8F9FB':'';
+        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
+        h+='<td style="font-weight:600;font-family:Consolas,monospace">'+r.lco+'</td>';
+        h+='<td>'+r.old+'</td><td>'+r.new+'</td>';
+        h+='<td style="font-weight:700;color:'+color+'">'+diffTxt+'</td></tr>';
+    }
+    h+='</tbody></table>';
+    el.innerHTML=h;
+}
+
+// ===== CLIENT CSV EXPORT =====
+function exportCSV(type){
+    var d=type==='growth'?growthData:churnData;
+    if(!d.length)return;
+    var csv='LCO Code,Previous,Current,Diff\n';
+    for(var i=0;i<d.length;i++){
+        csv+='"'+d[i].lco+'",'+d[i].old+','+d[i].new+','+d[i].diff+'\n';
+    }
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=(type==='growth'?'Growth':'Churn')+'_Report.csv';
+    a.click();
+}
+
+// ===== FLASH HELPER =====
+function flash(msg,type){
+    var c=document.querySelector('.flashes');
+    var d=document.createElement('div');
+    d.className='flash '+type;
+    d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;
+    c.prepend(d);
+    setTimeout(function(){d.remove()},5000);
+}
+
+// ===== INIT =====
+loadChart();
+if(document.getElementById('dateFrom').value&&document.getElementById('dateTo').value){
+    setTimeout(generateReports,300);
+}
 </script>
 {% endblock %}
