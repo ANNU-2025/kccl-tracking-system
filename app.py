@@ -1023,7 +1023,6 @@ def export_consumables():
         except Exception as e:
             flash(f"Export Error: {e}", "error"); release_db(conn)
             return redirect(url_for('dashboard'))
-# ==================== DAILY ACTIVE SUMMARY ====================
 
 # ==================== DAILY ACTIVE SUMMARY ====================
 
@@ -1061,9 +1060,10 @@ def daily_active():
                             try:
                                 raw_date = _clean(row.get('report_date', ''))
                                 lco = _clean(row.get('lco_code', '')).upper()
-                                cnt_str = _clean(row.get('active_count', ''))
-                                if not raw_date or not lco or not cnt_str:
-                                    raise ValueError(f"Missing — date:'{raw_date}' lco:'{lco}' cnt:'{cnt_str}'")
+                                act_str = _clean(row.get('active_count', ''))
+                                deact_str = _clean(row.get('deactive_count', '0') or '0')
+                                if not raw_date or not lco or not act_str:
+                                    raise ValueError(f"Missing — date:'{raw_date}' lco:'{lco}' act:'{act_str}'")
                                 parsed_date = None
                                 for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%d-%m-%Y', '%d/%m/%Y', '%m-%d-%Y', '%Y/%m/%d'):
                                     try:
@@ -1073,16 +1073,35 @@ def daily_active():
                                         continue
                                 if not parsed_date:
                                     raise ValueError(f"Invalid date: '{raw_date}'")
-                                cnt = int(float(cnt_str))
+                                act = int(float(act_str))
+                                deact = int(float(deact_str))
+                                # Upsert daily_active
                                 try:
                                     cur.execute("""
-                                        INSERT INTO daily_active_summary (report_date, lco_code, active_count)
-                                        VALUES (%s, %s, %s)
+                                        INSERT INTO daily_active_summary (report_date, lco_code, active_count, deactive_count)
+                                        VALUES (%s, %s, %s, %s)
                                         ON CONFLICT (report_date, lco_code)
-                                        DO UPDATE SET active_count = EXCLUDED.active_count
-                                    """, (parsed_date, lco, cnt))
+                                        DO UPDATE SET active_count = EXCLUDED.active_count, deactive_count = EXCLUDED.deactive_count
+                                    """, (parsed_date, lco, act, deact))
                                 except:
-                                    cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count) VALUES (%s,%s,%s)", (parsed_date, lco, cnt))
+                                    cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count, deactive_count) VALUES (%s,%s,%s,%s)", (parsed_date, lco, act, deact))
+                                # Upsert lco_master if extra columns provided
+                                lco_name = _clean(row.get('lco_name', ''))
+                                area = _clean(row.get('area', ''))
+                                sub_dist = _clean(row.get('sub_distributor', ''))
+                                if lco_name or area or sub_dist:
+                                    try:
+                                        cur.execute("""
+                                            INSERT INTO lco_master (lco_code, lco_name, area, sub_distributor)
+                                            VALUES (%s, %s, %s, %s)
+                                            ON CONFLICT (lco_code)
+                                            DO UPDATE SET
+                                                lco_name = CASE WHEN %s != '' THEN %s ELSE lco_master.lco_name END,
+                                                area = CASE WHEN %s != '' THEN %s ELSE lco_master.area END,
+                                                sub_distributor = CASE WHEN %s != '' THEN %s ELSE lco_master.sub_distributor END
+                                        """, (lco, lco_name, area, sub_dist, lco_name, lco_name, area, area, sub_dist, sub_dist))
+                                    except:
+                                        pass
                                 conn.commit()
                                 count += 1
                             except Exception as e:
@@ -1100,30 +1119,69 @@ def daily_active():
                     flash(f'Upload Error: {e}', 'error')
                     session['da_failures'] = []
 
+    cur.execute("SELECT DISTINCT area FROM lco_master WHERE area != '' ORDER BY area")
+    areas = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT DISTINCT sub_distributor FROM lco_master WHERE sub_distributor != '' ORDER BY sub_distributor")
+    sub_dists = [r[0] for r in cur.fetchall()]
     cur.execute("SELECT DISTINCT report_date FROM daily_active_summary ORDER BY report_date DESC")
     date_list = [r[0] for r in cur.fetchall()]
     bulk_failures = session.pop('da_failures', [])
     cur.close()
     release_db(conn)
-    return render_template('daily_active.html', date_list=date_list, bulk_failures=bulk_failures)
+    return render_template('daily_active.html', areas=areas, sub_dists=sub_dists, date_list=date_list, bulk_failures=bulk_failures)
+
+
+@app.route('/daily-active/sub-dists')
+def da_sub_dists():
+    if 'logged_user' not in session:
+        return jsonify([])
+    area = request.args.get('area', '')
+    conn = get_db()
+    if not conn:
+        return jsonify([])
+    cur = conn.cursor()
+    if area:
+        cur.execute("SELECT DISTINCT sub_distributor FROM lco_master WHERE area = %s AND sub_distributor != '' ORDER BY sub_distributor", (area,))
+    else:
+        cur.execute("SELECT DISTINCT sub_distributor FROM lco_master WHERE sub_distributor != '' ORDER BY sub_distributor")
+    rows = cur.fetchall()
+    cur.close()
+    release_db(conn)
+    return jsonify([r[0] for r in rows])
 
 
 @app.route('/daily-active/chart-data')
 def da_chart_data():
     if 'logged_user' not in session:
         return jsonify({})
+    area = request.args.get('area', '')
+    sub_dist = request.args.get('sub_dist', '')
     conn = get_db()
     if not conn:
         return jsonify({})
     cur = conn.cursor()
-    cur.execute("SELECT report_date, SUM(active_count) FROM daily_active_summary GROUP BY report_date ORDER BY report_date ASC")
+    q = "SELECT d.report_date, SUM(d.active_count), SUM(d.deactive_count) FROM daily_active_summary d"
+    p = []
+    if area or sub_dist:
+        q += " INNER JOIN lco_master m ON d.lco_code = m.lco_code"
+        conds = []
+        if area:
+            conds.append("m.area = %s")
+            p.append(area)
+        if sub_dist:
+            conds.append("m.sub_distributor = %s")
+            p.append(sub_dist)
+        q += " WHERE " + " AND ".join(conds)
+    q += " GROUP BY d.report_date ORDER BY d.report_date ASC"
+    cur.execute(q, tuple(p))
     rows = cur.fetchall()
     cur.close()
     release_db(conn)
     return jsonify({
         'dates': [r[0].strftime('%d-%b') for r in rows],
         'full_dates': [r[0].strftime('%Y-%m-%d') for r in rows],
-        'totals': [r[1] for r in rows]
+        'actives': [r[1] for r in rows],
+        'deactives': [r[2] for r in rows]
     })
 
 
@@ -1133,6 +1191,8 @@ def da_compare():
         return jsonify({'error': 'Not logged in'})
     d_from = request.args.get('from', '')
     d_to = request.args.get('to', '')
+    area = request.args.get('area', '')
+    sub_dist = request.args.get('sub_dist', '')
     if not d_from or not d_to:
         return jsonify({'error': 'Select both dates'})
     if d_from == d_to:
@@ -1141,42 +1201,55 @@ def da_compare():
     if not conn:
         return jsonify({'error': 'DB error'})
     cur = conn.cursor()
-
-    cur.execute("SELECT COALESCE(SUM(active_count), 0) FROM daily_active_summary WHERE report_date = %s", (d_to,))
-    total_vc = cur.fetchone()[0]
-
-    cur.execute("""
+    q = """
         SELECT COALESCE(t1.lco_code, t2.lco_code) as lco_code,
-               COALESCE(t1.active_count, 0) as old_v,
-               COALESCE(t2.active_count, 0) as new_v,
-               (COALESCE(t2.active_count, 0) - COALESCE(t1.active_count, 0)) as diff
-        FROM (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t1
-        FULL OUTER JOIN (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t2
+               COALESCE(lm.lco_name, '') as lco_name,
+               COALESCE(lm.area, '') as area_name,
+               COALESCE(lm.sub_distributor, '') as sub_dist_name,
+               COALESCE(t1.active_count, 0) as old_active,
+               COALESCE(t2.active_count, 0) as new_active,
+               COALESCE(t1.deactive_count, 0) as old_deact,
+               COALESCE(t2.deactive_count, 0) as new_deact
+        FROM (SELECT lco_code, active_count, deactive_count FROM daily_active_summary WHERE report_date = %s) t1
+        FULL OUTER JOIN (SELECT lco_code, active_count, deactive_count FROM daily_active_summary WHERE report_date = %s) t2
         ON t1.lco_code = t2.lco_code
-    """, (d_from, d_to))
+        LEFT JOIN lco_master lm ON COALESCE(t1.lco_code, t2.lco_code) = lm.lco_code
+    """
+    p = [d_from, d_to]
+    if area or sub_dist:
+        conds = []
+        if area:
+            conds.append("(lm.area = %s OR %s = '')")
+            p.append(area)
+            p.append('')
+        if sub_dist:
+            conds.append("(lm.sub_distributor = %s OR %s = '')")
+            p.append(sub_dist)
+            p.append('')
+        if conds:
+            q += " WHERE " + " AND ".join(conds)
+    cur.execute(q, tuple(p))
     rows = cur.fetchall()
-
+    total_active = sum(r[5] for r in rows)
+    total_deactive = sum(r[7] for r in rows)
     growth, churn = [], []
-    total_growth, total_churn = 0, 0
+    tg, tc = 0, 0
     for r in rows:
-        diff = r[3]
-        if diff > 0:
-            growth.append({'lco': r[0], 'old': r[1], 'new': r[2], 'diff': diff})
-            total_growth += diff
-        elif diff < 0:
-            churn.append({'lco': r[0], 'old': r[1], 'new': r[2], 'diff': diff})
-            total_churn += diff
-    growth.sort(key=lambda x: x['diff'], reverse=True)
-    churn.sort(key=lambda x: x['diff'])
-    net = total_growth + total_churn
+        ad = r[5] - r[4]
+        dd = r[7] - r[6]
+        net = ad - dd
+        entry = {'lco': r[0], 'name': r[1], 'area': r[2], 'sub': r[3], 'oa': r[4], 'na': r[5], 'od': r[6], 'nd': r[7], 'ad': ad, 'dd': dd, 'net': net}
+        if net > 0:
+            growth.append(entry)
+            tg += net
+        elif net < 0:
+            churn.append(entry)
+            tc += net
+    growth.sort(key=lambda x: x['net'], reverse=True)
+    churn.sort(key=lambda x: x['net'])
     cur.close()
     release_db(conn)
-    return jsonify({
-        'total_vc': total_vc, 'total_growth': total_growth,
-        'total_churn': abs(total_churn), 'net': net,
-        'growth': growth, 'churn': churn,
-        'd_from': d_from, 'd_to': d_to
-    })
+    return jsonify({'total_active': total_active, 'total_deactive': total_deactive, 'total_growth': tg, 'total_churn': abs(tc), 'net': tg + tc, 'growth': growth, 'churn': churn, 'd_from': d_from, 'd_to': d_to})
 
 
 @app.route('/daily-active/date-summary')
@@ -1190,7 +1263,14 @@ def da_date_summary():
     if not conn:
         return redirect(url_for('daily_active'))
     try:
-        df = pd.read_sql("SELECT lco_code as LCO_Code, active_count as Active_Count FROM daily_active_summary WHERE report_date = %s ORDER BY lco_code", conn, params=(d,))
+        df = pd.read_sql("""
+            SELECT d.lco_code as "LCO Code", COALESCE(m.lco_name, d.lco_code) as "LCO Name",
+                   COALESCE(m.area, '') as "Area", COALESCE(m.sub_distributor, '') as "Sub Distributor",
+                   d.active_count as "Active", d.deactive_count as "Deactive"
+            FROM daily_active_summary d
+            LEFT JOIN lco_master m ON d.lco_code = m.lco_code
+            WHERE d.report_date = %s ORDER BY d.active_count DESC
+        """, conn, params=(d,))
         df = fix_timezone(df)
         release_db(conn)
         return dl_excel(df, f"Summary_{d}.xlsx")
@@ -1200,30 +1280,14 @@ def da_date_summary():
         return redirect(url_for('daily_active'))
 
 
-@app.route('/daily-active/export')
-def export_daily_active():
-    if 'logged_user' not in session:
-        return redirect(url_for('login'))
-    conn = get_db()
-    if not conn:
-        return redirect(url_for('dashboard'))
-    try:
-        df = pd.read_sql('SELECT report_date as "Report Date", lco_code as "LCO Code", active_count as "Active Count", created_at as "Uploaded At" FROM daily_active_summary ORDER BY report_date DESC, lco_code ASC', conn)
-        df = fix_timezone(df)
-        release_db(conn)
-        return dl_excel(df, "Daily_Active_Summary.xlsx")
-    except Exception as e:
-        flash(f"Export Error: {e}", "error")
-        release_db(conn)
-        return redirect(url_for('daily_active'))
-
-
 @app.route('/daily-active/export-growth')
 def export_growth_report():
     if 'logged_user' not in session:
         return redirect(url_for('login'))
     d_from = request.args.get('from', '')
     d_to = request.args.get('to', '')
+    area = request.args.get('area', '')
+    sub_dist = request.args.get('sub_dist', '')
     if not d_from or not d_to:
         return redirect(url_for('daily_active'))
     conn = get_db()
@@ -1231,24 +1295,38 @@ def export_growth_report():
         return redirect(url_for('daily_active'))
     try:
         cur = conn.cursor()
-        cur.execute("""
-            SELECT COALESCE(t1.lco_code, t2.lco_code) as lco_code,
-                   COALESCE(t1.active_count, 0) as previous,
-                   COALESCE(t2.active_count, 0) as current,
-                   (COALESCE(t2.active_count, 0) - COALESCE(t1.active_count, 0)) as diff
-            FROM (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t1
-            FULL OUTER JOIN (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t2
-            ON t1.lco_code = t2.lco_code
-            ORDER BY diff DESC
-        """, (d_from, d_to))
+        q = """
+            SELECT COALESCE(t1.lco_code, t2.lco_code), COALESCE(lm.lco_name,''),
+                   COALESCE(lm.area,''), COALESCE(lm.sub_distributor,''),
+                   COALESCE(t1.active_count,0), COALESCE(t2.active_count,0),
+                   COALESCE(t1.deactive_count,0), COALESCE(t2.deactive_count,0)
+            FROM (SELECT lco_code, active_count, deactive_count FROM daily_active_summary WHERE report_date=%s) t1
+            FULL OUTER JOIN (SELECT lco_code, active_count, deactive_count FROM daily_active_summary WHERE report_date=%s) t2
+            ON t1.lco_code=t2.lco_code LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code
+        """
+        p = [d_from, d_to]
+        if area or sub_dist:
+            conds = []
+            if area:
+                conds.append("(lm.area=%s OR %s='')")
+                p += [area, '']
+            if sub_dist:
+                conds.append("(lm.sub_distributor=%s OR %s='')")
+                p += [sub_dist, '']
+            q += " WHERE " + " AND ".join(conds)
+        cur.execute(q, tuple(p))
         rows = cur.fetchall()
         cur.close()
         release_db(conn)
-        df = pd.DataFrame(rows, columns=['LCO Code', 'Previous', 'Current', 'Diff'])
-        df = df[df['Diff'] > 0]
-        if df.empty:
+        data = []
+        for r in rows:
+            net = (r[5]-r[4]) - (r[7]-r[6])
+            if net > 0:
+                data.append({'Code': r[0], 'Name': r[1], 'Area': r[2], 'Sub Dist': r[3], 'Prev Active': r[4], 'Now Active': r[5], 'Prev Deact': r[6], 'Now Deact': r[7], 'Net': net})
+        if not data:
             flash('No growth data', 'error')
             return redirect(url_for('daily_active'))
+        df = pd.DataFrame(data)
         return dl_excel(df, f"Growth_{d_from}_vs_{d_to}.xlsx")
     except Exception as e:
         release_db(conn)
@@ -1262,6 +1340,8 @@ def export_churn_report():
         return redirect(url_for('login'))
     d_from = request.args.get('from', '')
     d_to = request.args.get('to', '')
+    area = request.args.get('area', '')
+    sub_dist = request.args.get('sub_dist', '')
     if not d_from or not d_to:
         return redirect(url_for('daily_active'))
     conn = get_db()
@@ -1269,28 +1349,67 @@ def export_churn_report():
         return redirect(url_for('daily_active'))
     try:
         cur = conn.cursor()
-        cur.execute("""
-            SELECT COALESCE(t1.lco_code, t2.lco_code) as lco_code,
-                   COALESCE(t1.active_count, 0) as previous,
-                   COALESCE(t2.active_count, 0) as current,
-                   (COALESCE(t2.active_count, 0) - COALESCE(t1.active_count, 0)) as diff
-            FROM (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t1
-            FULL OUTER JOIN (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t2
-            ON t1.lco_code = t2.lco_code
-            ORDER BY diff ASC
-        """, (d_from, d_to))
+        q = """
+            SELECT COALESCE(t1.lco_code, t2.lco_code), COALESCE(lm.lco_name,''),
+                   COALESCE(lm.area,''), COALESCE(lm.sub_distributor,''),
+                   COALESCE(t1.active_count,0), COALESCE(t2.active_count,0),
+                   COALESCE(t1.deactive_count,0), COALESCE(t2.deactive_count,0)
+            FROM (SELECT lco_code, active_count, deactive_count FROM daily_active_summary WHERE report_date=%s) t1
+            FULL OUTER JOIN (SELECT lco_code, active_count, deactive_count FROM daily_active_summary WHERE report_date=%s) t2
+            ON t1.lco_code=t2.lco_code LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code
+        """
+        p = [d_from, d_to]
+        if area or sub_dist:
+            conds = []
+            if area:
+                conds.append("(lm.area=%s OR %s='')")
+                p += [area, '']
+            if sub_dist:
+                conds.append("(lm.sub_distributor=%s OR %s='')")
+                p += [sub_dist, '']
+            q += " WHERE " + " AND ".join(conds)
+        cur.execute(q, tuple(p))
         rows = cur.fetchall()
         cur.close()
         release_db(conn)
-        df = pd.DataFrame(rows, columns=['LCO Code', 'Previous', 'Current', 'Diff'])
-        df = df[df['Diff'] < 0]
-        if df.empty:
+        data = []
+        for r in rows:
+            net = (r[5]-r[4]) - (r[7]-r[6])
+            if net < 0:
+                data.append({'Code': r[0], 'Name': r[1], 'Area': r[2], 'Sub Dist': r[3], 'Prev Active': r[4], 'Now Active': r[5], 'Prev Deact': r[6], 'Now Deact': r[7], 'Net': net})
+        if not data:
             flash('No churn data', 'error')
             return redirect(url_for('daily_active'))
+        df = pd.DataFrame(data)
         return dl_excel(df, f"Churn_{d_from}_vs_{d_to}.xlsx")
     except Exception as e:
         release_db(conn)
         flash(f"Error: {e}", "error")
+        return redirect(url_for('daily_active'))
+
+
+@app.route('/daily-active/export')
+def export_daily_active():
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
+    conn = get_db()
+    if not conn:
+        return redirect(url_for('dashboard'))
+    try:
+        df = pd.read_sql("""
+            SELECT d.report_date as "Report Date", d.lco_code as "LCO Code",
+                   COALESCE(m.lco_name,'') as "LCO Name", COALESCE(m.area,'') as "Area",
+                   COALESCE(m.sub_distributor,'') as "Sub Distributor",
+                   d.active_count as "Active", d.deactive_count as "Deactive", d.created_at as "Uploaded At"
+            FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code = m.lco_code
+            ORDER BY d.report_date DESC, d.lco_code ASC
+        """, conn)
+        df = fix_timezone(df)
+        release_db(conn)
+        return dl_excel(df, "Daily_Active_Full.xlsx")
+    except Exception as e:
+        flash(f"Export Error: {e}", "error")
+        release_db(conn)
         return redirect(url_for('daily_active'))
 
 
@@ -1299,9 +1418,9 @@ def daily_active_template():
     if 'logged_user' not in session:
         return redirect(url_for('login'))
     output = BytesIO()
-    df = pd.DataFrame(columns=['report_date', 'lco_code', 'active_count'])
-    df.loc[0] = ['2025-01-15', 'WB01A006', 277]
-    df.loc[1] = ['2025-01-15', 'WB01A003', 421]
+    df = pd.DataFrame(columns=['report_date', 'lco_code', 'lco_name', 'area', 'sub_distributor', 'active_count', 'deactive_count'])
+    df.loc[0] = ['2026-04-01', 'WB01A006', 'Anima Cable', 'North Zone', 'Rajesh Dist', 540, 12]
+    df.loc[1] = ['2026-04-01', 'WB01A003', 'BABLU CABLE', 'South Zone', 'Amit Dist', 421, 5]
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name="Template", index=False)
     output.seek(0)
@@ -1326,7 +1445,7 @@ def daily_active_delete_all():
         conn.rollback()
         flash(f'Error: {e}', 'error')
     release_db(conn)
-    return redirect(url_for('daily_active'))   
+    return redirect(url_for('daily_active'))
     
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
