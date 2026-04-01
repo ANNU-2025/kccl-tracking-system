@@ -9,31 +9,28 @@
     .kpi .kpi-icon{position:absolute;top:14px;right:16px;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px}
     .kpi .kpi-label{font-size:10px;font-weight:600;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
     .kpi .kpi-val{font-size:28px;font-weight:700;line-height:1}
-    .kpi-cyan .kpi-icon{background:rgba(0,188,212,.1);color:#00BCD4}
-    .kpi-cyan .kpi-val{color:#00BCD4}
-    .kpi-green .kpi-icon{background:var(--green-bg);color:var(--green)}
-    .kpi-green .kpi-val{color:var(--green)}
-    .kpi-red .kpi-icon{background:var(--red-bg);color:var(--red)}
-    .kpi-red .kpi-val{color:var(--red)}
-    .kpi-gold .kpi-icon{background:rgba(255,215,64,.12);color:#FFD740}
-    .kpi-gold .kpi-val{color:#FFD740}
+    .kpi-cyan .kpi-icon{background:rgba(0,188,212,.1);color:#00BCD4}.kpi-cyan .kpi-val{color:#00BCD4}
+    .kpi-green .kpi-icon{background:var(--green-bg);color:var(--green)}.kpi-green .kpi-val{color:var(--green)}
+    .kpi-red .kpi-icon{background:var(--red-bg);color:var(--red)}.kpi-red .kpi-val{color:var(--red)}
+    .kpi-gold .kpi-icon{background:rgba(255,215,64,.12);color:#FFD740}.kpi-gold .kpi-val{color:#FFD740}
+    .kpi-orange .kpi-icon{background:rgba(255,152,0,.1);color:#FF9800}.kpi-orange .kpi-val{color:#FF9800}
 
     .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:14px}
-    .chart-box{position:relative;width:100%;height:260px}
+    .chart-box{position:relative;width:100%;height:280px}
 
     .cmp-bar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin-bottom:14px;display:flex;align-items:end;gap:10px;flex-wrap:wrap}
-    .cmp-bar .fg{margin-bottom:0;flex:1;min-width:150px}
+    .cmp-bar .fg{margin-bottom:0;flex:1;min-width:140px}
+    .cmp-bar .fg-sm{margin-bottom:0;flex:0;min-width:auto}
 
     .tbl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .tbl-panel{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;max-height:440px}
+    .tbl-panel{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;max-height:460px}
     .tbl-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
     .tbl-head h3{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
     .tbl-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .tbl-scroll table{margin:0}
     .tbl-scroll thead{position:sticky;top:0;z-index:2}
     .tbl-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 16px;color:var(--grey)}
-    .tbl-empty i{font-size:28px;opacity:.3;margin-bottom:8px}
-    .tbl-empty p{font-size:12px}
+    .tbl-empty i{font-size:28px;opacity:.3;margin-bottom:8px}.tbl-empty p{font-size:12px}
 
     .fail-box{background:var(--red-bg);border:1px solid rgba(231,76,60,.2);border-radius:8px;padding:12px 16px;margin-bottom:14px;max-height:140px;overflow-y:auto}
     .fail-box .ft{font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px}
@@ -48,15 +45,16 @@
     .upl-drop i{font-size:28px;color:var(--grey);margin-bottom:8px;display:block}
     .upl-drop p{font-size:12px;color:var(--grey)}
     .upl-actions{display:flex;gap:10px;justify-content:flex-end}
-
     .gen-loading{opacity:.6;pointer-events:none}
+    .sub-name{font-size:9px;color:var(--grey);font-weight:400;display:block;line-height:1.1}
 
     @media(max-width:768px){
-        .kpi-row{grid-template-columns:1fr 1fr}
-        .kpi .kpi-val{font-size:22px}
+        .kpi-row{grid-template-columns:1fr 1fr}.kpi .kpi-val{font-size:22px}
         .tbl-grid{grid-template-columns:1fr !important}
         .cmp-bar{flex-direction:column;align-items:stretch}
-        .chart-box{height:200px}
+        .cmp-bar .fg-sm{flex:1;min-width:0}
+        .chart-box{height:220px}
+        .mob-hide{display:none !important}
     }
     @media(max-width:400px){.kpi-row{grid-template-columns:1fr}}
 </style>
@@ -67,18 +65,18 @@
 <div class="kpi-row">
     <div class="kpi kpi-cyan">
         <div class="kpi-icon"><i class="fas fa-users"></i></div>
-        <div class="kpi-label">Total Active VC</div>
+        <div class="kpi-label">Total Active</div>
         <div class="kpi-val" id="kpiTotal">—</div>
     </div>
-    <div class="kpi kpi-green">
-        <div class="kpi-icon"><i class="fas fa-arrow-trend-up"></i></div>
-        <div class="kpi-label">Total Growth</div>
-        <div class="kpi-val" id="kpiGrowth">—</div>
-    </div>
     <div class="kpi kpi-red">
-        <div class="kpi-icon"><i class="fas fa-arrow-trend-down"></i></div>
-        <div class="kpi-label">Total Churn</div>
-        <div class="kpi-val" id="kpiChurn">—</div>
+        <div class="kpi-icon"><i class="fas fa-user-minus"></i></div>
+        <div class="kpi-label">Total Deactive</div>
+        <div class="kpi-val" id="kpiDeact">—</div>
+    </div>
+    <div class="kpi kpi-orange">
+        <div class="kpi-icon"><i class="fas fa-percent"></i></div>
+        <div class="kpi-label">Deact Rate</div>
+        <div class="kpi-val" id="kpiRate">—</div>
     </div>
     <div class="kpi kpi-gold">
         <div class="kpi-icon"><i class="fas fa-bolt"></i></div>
@@ -87,19 +85,38 @@
     </div>
 </div>
 
-<!-- BAR CHART -->
+<!-- CHART -->
 <div class="chart-wrap">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <div style="font-size:13px;font-weight:700;color:var(--primary)"><i class="fas fa-chart-bar" style="color:#00BCD4;margin-right:6px"></i>Daily Active Trend</div>
-        <div style="font-size:10px;color:var(--grey)">Click bar to download that date</div>
+        <div style="font-size:13px;font-weight:700;color:var(--primary)">
+            <i class="fas fa-chart-bar" style="color:#00BCD4;margin-right:6px"></i>Daily Active vs Deactive
+            <span style="display:inline-flex;align-items:center;gap:12px;margin-left:14px;font-size:10px;font-weight:500;color:var(--grey)">
+                <span><span style="display:inline-block;width:10px;height:10px;background:#00BCD4;border-radius:2px;margin-right:3px"></span>Active</span>
+                <span><span style="display:inline-block;width:10px;height:10px;background:#E74C3C;border-radius:2px;margin-right:3px"></span>Deactive</span>
+                <span><span style="display:inline-block;width:16px;height:2px;background:#fff;border-radius:1px;margin-right:3px;vertical-align:middle"></span>Trend</span>
+            </span>
+        </div>
+        <div style="font-size:10px;color:var(--grey)">Click bar to download</div>
     </div>
-    <div class="chart-box">
-        <canvas id="barChart"></canvas>
-    </div>
+    <div class="chart-box"><canvas id="barChart"></canvas></div>
 </div>
 
-<!-- COMPARE BAR -->
+<!-- FILTER BAR -->
 <div class="cmp-bar">
+    <div class="fg">
+        <label class="fl">Area</label>
+        <select id="selArea" class="fs" onchange="onAreaChange()">
+            <option value="">All Areas</option>
+            {% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="fg">
+        <label class="fl">Sub Distributor</label>
+        <select id="selSub" class="fs" onchange="onFilterChange()">
+            <option value="">All Sub Dists</option>
+            {% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+    </div>
     <div class="fg">
         <label class="fl">From</label>
         <select id="dateFrom" class="fs">
@@ -114,11 +131,11 @@
             {% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b-%Y') }}</option>{% endfor %}
         </select>
     </div>
-    <div style="display:flex;gap:8px;align-items:end;flex-shrink:0">
-        <button class="btn btn-blue" id="btnGen" onclick="generateReports()" style="height:42px"><i class="fas fa-magnifying-glass-chart"></i> GENERATE</button>
-        <button class="btn btn-green" onclick="openUpload()" style="height:42px;padding:10px 14px" title="Upload CSV/Excel"><i class="fas fa-upload"></i></button>
-        <button class="btn btn-outline" onclick="window.location.href='/daily-active/template'" style="height:42px;padding:10px 14px" title="Download Template"><i class="fas fa-file-arrow-down"></i></button>
-        <button class="btn btn-outline" onclick="window.location.href='/daily-active/export'" style="height:42px;padding:10px 14px" title="Export All Data"><i class="fas fa-download"></i></button>
+    <div class="fg-sm" style="display:flex;gap:6px;align-items:end;flex-wrap:wrap">
+        <button class="btn btn-blue" id="btnGen" onclick="generateReports()" style="height:42px;white-space:nowrap"><i class="fas fa-magnifying-glass-chart"></i> GENERATE</button>
+        <button class="btn btn-green" onclick="openUpload()" style="height:42px;padding:10px 14px" title="Upload"><i class="fas fa-upload"></i></button>
+        <button class="btn btn-outline" onclick="window.location.href='/daily-active/template'" style="height:42px;padding:10px 14px" title="Template"><i class="fas fa-file-arrow-down"></i></button>
+        <button class="btn btn-outline" onclick="window.location.href='/daily-active/export'" style="height:42px;padding:10px 14px" title="Export All"><i class="fas fa-download"></i></button>
     </div>
 </div>
 
@@ -134,7 +151,7 @@
             </div>
             <div class="upl-actions">
                 <button type="button" class="btn btn-outline" onclick="closeUpload()">Cancel</button>
-                <button type="submit" class="btn btn-green" id="uplBtn"><i class="fas fa-check"></i> Upload</button>
+                <button type="submit" class="btn btn-green"><i class="fas fa-check"></i> Upload</button>
             </div>
         </form>
     </div>
@@ -148,7 +165,7 @@
 </div>
 {% endif %}
 
-<!-- GROWTH + CHURN TABLES -->
+<!-- GROWTH + CHURN -->
 <div class="tbl-grid">
     <div class="tbl-panel" style="border-color:rgba(47,163,96,.3)">
         <div class="tbl-head">
@@ -170,36 +187,48 @@
     </div>
 </div>
 
+{% if session.get('user_role')=='admin' %}
+<div style="text-align:right;margin-top:10px">
+    <button class="btn btn-red btn-sm" onclick="if(confirm('Delete ALL daily active data?')){var f=document.createElement('form');f.method='POST';f.action='/daily-active/delete-all';document.body.appendChild(f);f.submit()}"><i class="fas fa-trash"></i> Delete All</button>
+</div>
+{% endif %}
+
 <script>
-var growthData=[], churnData=[], chartInstance=null, fullDates=[], selFrom='', selTo='';
+var growthData=[],churnData=[],chartInstance=null,fullDates=[],selFrom='',selTo='';
 
 // ===== CHART =====
+function getFilterParams(){
+    var a=document.getElementById('selArea').value;
+    var s=document.getElementById('selSub').value;
+    var p='';
+    if(a)p+='&area='+encodeURIComponent(a);
+    if(s)p+='&sub_dist='+encodeURIComponent(s);
+    return p;
+}
+
 function loadChart(){
-    fetch('/daily-active/chart-data').then(function(r){return r.json()}).then(function(d){
+    fetch('/daily-active/chart-data?'+getFilterParams().substring(1)).then(function(r){return r.json()}).then(function(d){
         if(!d.dates||!d.dates.length){
-            document.getElementById('barChart').parentElement.innerHTML='<div class="tbl-empty"><i class="fas fa-chart-bar"></i><p>No data yet — click the upload button</p></div>';
+            document.getElementById('barChart').parentElement.innerHTML='<div class="tbl-empty"><i class="fas fa-chart-bar"></i><p>No data yet — click upload</p></div>';
             return;
         }
         fullDates=d.full_dates;
         var ctx=document.getElementById('barChart').getContext('2d');
         if(chartInstance)chartInstance.destroy();
-
-        var grad=ctx.createLinearGradient(0,0,0,260);
-        grad.addColorStop(0,'rgba(0,188,212,0.9)');
-        grad.addColorStop(1,'rgba(0,96,100,0.9)');
-
+        var gA=ctx.createLinearGradient(0,0,0,280);gA.addColorStop(0,'rgba(0,188,212,0.9)');gA.addColorStop(1,'rgba(0,96,100,0.9)');
+        var gD=ctx.createLinearGradient(0,0,0,280);gD.addColorStop(0,'rgba(231,76,60,0.9)');gD.addColorStop(1,'rgba(169,50,38,0.9)');
         chartInstance=new Chart(ctx,{
             type:'bar',
             data:{
                 labels:d.dates,
                 datasets:[
-                    {label:'Total Active',data:d.totals,backgroundColor:grad,borderColor:'#004D40',borderWidth:1,borderRadius:4,barPercentage:.65,categoryPercentage:.8,order:2},
-                    {label:'Trend',data:d.totals,type:'line',borderColor:'#FF5252',borderWidth:2.5,pointBackgroundColor:'#FF5252',pointRadius:4,pointHoverRadius:6,tension:.3,fill:false,order:1}
+                    {label:'Active',data:d.actives,backgroundColor:gA,borderColor:'#004D40',borderWidth:1,borderRadius:4,barPercentage:.6,categoryPercentage:.7,order:2},
+                    {label:'Deactive',data:d.deactives,backgroundColor:gD,borderColor:'#7B241C',borderWidth:1,borderRadius:4,barPercentage:.6,categoryPercentage:.7,order:3},
+                    {label:'Trend',data:d.actives,type:'line',borderColor:'#FFFFFF',borderWidth:2,borderDash:[6,4],pointBackgroundColor:'#FFF',pointRadius:3,pointHoverRadius:5,tension:.3,fill:false,order:1}
                 ]
             },
             options:{
-                responsive:true,
-                maintainAspectRatio:false,
+                responsive:true,maintainAspectRatio:false,
                 interaction:{mode:'index',intersect:false},
                 plugins:{
                     legend:{display:false},
@@ -210,13 +239,26 @@ function loadChart(){
                     x:{grid:{display:false},ticks:{color:'#6C757D',font:{size:9},maxRotation:50,autoSkip:false}},
                     y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#6C757D',font:{size:10}},beginAtZero:true}
                 },
-                onClick:function(e,elements){
-                    if(elements.length>0){window.open('/daily-active/date-summary?date='+fullDates[elements[0].index],'_blank')}
-                }
+                onClick:function(e,el){if(el.length>0)window.open('/daily-active/date-summary?date='+fullDates[el[0].index],'_blank')}
             }
         });
-    }).catch(function(err){console.error('Chart error:',err)});
+    }).catch(function(e){console.error('Chart:',e)});
 }
+
+// ===== FILTERS =====
+function onAreaChange(){
+    var area=document.getElementById('selArea').value;
+    var sel=document.getElementById('selSub');
+    sel.innerHTML='<option value="">All Sub Dists</option>';
+    fetch('/daily-active/sub-dists?area='+encodeURIComponent(area)).then(function(r){return r.json()}).then(function(list){
+        for(var i=0;i<list.length;i++){
+            var o=document.createElement('option');o.value=list[i];o.textContent=list[i];sel.appendChild(o);
+        }
+    });
+    loadChart();
+}
+
+function onFilterChange(){loadChart()}
 
 // ===== COMPARE =====
 function generateReports(){
@@ -225,21 +267,24 @@ function generateReports(){
     if(!selFrom||!selTo){flash('Select both dates','error');return}
     if(selFrom===selTo){flash('Select two different dates','error');return}
     var btn=document.getElementById('btnGen');
-    btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Loading...';
+    btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> ...';
     btn.classList.add('gen-loading');
-    fetch('/daily-active/compare?from='+selFrom+'&to='+selTo).then(function(r){return r.json()}).then(function(d){
+    var url='/daily-active/compare?from='+selFrom+'&to='+selTo+getFilterParams();
+    fetch(url).then(function(r){return r.json()}).then(function(d){
         btn.innerHTML='<i class="fas fa-magnifying-glass-chart"></i> GENERATE';
         btn.classList.remove('gen-loading');
         if(d.error){flash(d.error,'error');return}
-        document.getElementById('kpiTotal').textContent=d.total_vc.toLocaleString();
-        document.getElementById('kpiGrowth').textContent='+'+d.total_growth.toLocaleString();
-        document.getElementById('kpiChurn').textContent=d.total_churn.toLocaleString();
+        // KPIs
+        document.getElementById('kpiTotal').textContent=d.total_active.toLocaleString();
+        document.getElementById('kpiDeact').textContent=d.total_deactive.toLocaleString();
+        var rate=d.total_active>0?((d.total_deactive/d.total_active)*100).toFixed(1):'0.0';
+        document.getElementById('kpiRate').textContent=rate+'%';
         var ne=document.getElementById('kpiNet');
         ne.textContent=(d.net>=0?'+':'')+d.net.toLocaleString();
         ne.style.color=d.net>0?'var(--green)':d.net<0?'var(--red)':'#FFD740';
         growthData=d.growth;churnData=d.churn;
-        renderTbl('growthBody','growthCount','btnExpG',growthData,'var(--green)','+');
-        renderTbl('churnBody','churnCount','btnExpC',churnData,'var(--red)','');
+        renderTbl('growthBody','growthCount','btnExpG',growthData,'var(--green)');
+        renderTbl('churnBody','churnCount','btnExpC',churnData,'var(--red)');
         flash('Report: '+selFrom+' vs '+selTo,'success');
     }).catch(function(){
         btn.innerHTML='<i class="fas fa-magnifying-glass-chart"></i> GENERATE';
@@ -248,33 +293,33 @@ function generateReports(){
     });
 }
 
-function renderTbl(bodyId,cntId,btnId,data,color,pfx){
-    var el=document.getElementById(bodyId);
-    var ce=document.getElementById(cntId);
-    var be=document.getElementById(btnId);
+function renderTbl(bodyId,cntId,btnId,data,color){
+    var el=document.getElementById(bodyId),ce=document.getElementById(cntId),be=document.getElementById(btnId);
     if(!data.length){el.innerHTML='<div class="tbl-empty"><i class="fas fa-check-circle"></i><p>No data</p></div>';ce.textContent='';be.style.display='none';return}
     ce.textContent='('+data.length+' LCOs)';be.style.display='';
-    var h='<table><thead><tr><th>#</th><th>LCO Code</th><th>Previous</th><th>Current</th><th>Diff</th></tr></thead><tbody>';
+    var h='<table><thead><tr><th>#</th><th>LCO</th><th class="mob-hide">Area</th><th>P.Act</th><th>N.Act</th><th class="mob-hide">P.Deact</th><th class="mob-hide">N.Deact</th><th>Net</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg=i%2!==0?'background:#F8F9FB':'';
+        var name=r.name&&r.name!==r.lco?'<span class="sub-name">'+r.name+'</span>':'';
+        var areaTxt=r.area||'—';
         h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
-        h+='<td style="font-weight:600;font-family:Consolas,monospace">'+r.lco+'</td>';
-        h+='<td>'+r.old+'</td><td>'+r.new+'</td>';
-        h+='<td style="font-weight:700;color:'+color+'">'+pfx+r.diff+'</td></tr>';
+        h+='<td style="font-weight:600;font-family:Consolas,monospace">'+r.lco+name+'</td>';
+        h+='<td class="mob-hide" style="font-size:11px">'+areaTxt+'</td>';
+        h+='<td>'+r.oa+'</td><td style="font-weight:600">'+r.na+'</td>';
+        h+='<td class="mob-hide">'+r.od+'</td><td class="mob-hide">'+r.nd+'</td>';
+        h+='<td style="font-weight:700;color:'+color+'">'+(r.net>=0?'+':'')+r.net+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-// ===== SERVER EXCEL EXPORT =====
-function dlGrowth(){if(selFrom&&selTo)window.location.href='/daily-active/export-growth?from='+selFrom+'&to='+selTo}
-function dlChurn(){if(selFrom&&selTo)window.location.href='/daily-active/export-churn?from='+selFrom+'&to='+selTo}
+// ===== EXPORTS =====
+function dlGrowth(){if(selFrom&&selTo)window.location.href='/daily-active/export-growth?from='+selFrom+'&to='+selTo+getFilterParams()}
+function dlChurn(){if(selFrom&&selTo)window.location.href='/daily-active/export-churn?from='+selFrom+'&to='+selTo+getFilterParams()}
 
 // ===== UPLOAD MODAL =====
 function openUpload(){document.getElementById('uplModal').classList.add('show')}
 function closeUpload(){document.getElementById('uplModal').classList.remove('show');document.getElementById('uplForm').reset();document.getElementById('dropLabel').textContent='Click or drag file here'}
 document.getElementById('uplModal').addEventListener('click',function(e){if(e.target===this)closeUpload()});
-
-// Drag & drop
 var dz=document.getElementById('dropZone'),fi=document.getElementById('fileIn'),dl=document.getElementById('dropLabel');
 dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dragover')});
 dz.addEventListener('dragleave',function(){dz.classList.remove('dragover')});
@@ -282,17 +327,10 @@ dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('d
 fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.files[0].name});
 
 // ===== FLASH =====
-function flash(msg,type){
-    var c=document.querySelector('.flashes');
-    var d=document.createElement('div');d.className='flash '+type;
-    d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;
-    c.prepend(d);setTimeout(function(){d.remove()},5000);
-}
+function flash(msg,type){var c=document.querySelector('.flashes'),d=document.createElement('div');d.className='flash '+type;d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;c.prepend(d);setTimeout(function(){d.remove()},5000)}
 
 // ===== INIT =====
 loadChart();
-if(document.getElementById('dateFrom').value&&document.getElementById('dateTo').value&&document.getElementById('dateFrom').value!==document.getElementById('dateTo').value){
-    setTimeout(generateReports,400);
-}
+if(document.getElementById('dateFrom').value&&document.getElementById('dateTo').value&&document.getElementById('dateFrom').value!==document.getElementById('dateTo').value){setTimeout(generateReports,400)}
 </script>
 {% endblock %}
