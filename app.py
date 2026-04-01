@@ -1088,7 +1088,7 @@ def daily_active():
                                 if not raw_date or not lco or not cnt_str:
                                     raise ValueError(f"Missing — date:'{raw_date}' lco:'{lco}' cnt:'{cnt_str}'")
                                 parsed_date = None
-                                for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%m-%d-%Y', '%Y/%m/%d'):
+                                for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%d-%m-%Y', '%d/%m/%Y', '%m-%d-%Y', '%Y/%m/%d'):
                                     try:
                                         parsed_date = datetime.strptime(raw_date, fmt).date()
                                         break
