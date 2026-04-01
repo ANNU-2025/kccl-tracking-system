@@ -1040,29 +1040,85 @@ def daily_active():
     if request.method == 'POST':
         form_type = request.form.get('form_type', '')
 
-        if form_type == 'single':
-            try:
-                rdate = request.form.get('report_date')
-                lco = request.form.get('lco_code', '').strip().upper()
-                cnt = int(request.form.get('active_count', 0))
-                if not rdate or not lco:
-                    flash('Date and LCO Code are required', 'error')
-                else:
-                    try:
-                        cur.execute("""
-                            INSERT INTO daily_active_summary (report_date, lco_code, active_count)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (report_date, lco_code)
-                            DO UPDATE SET active_count = EXCLUDED.active_count
-                        """, (rdate, lco, cnt))
-                    except:
-                        cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count) VALUES (%s,%s,%s)", (rdate, lco, cnt))
-                    conn.commit()
-                    flash('Record saved!', 'success')
-            except Exception as e:
-                conn.rollback()
-                flash(f'Error: {e}', 'error')
+        @app.route('/daily-active', methods=['GET', 'POST'])
+def daily_active():
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
+    conn = get_db()
+    if not conn:
+        flash('Database connection failed', 'error')
+        return redirect(url_for('dashboard'))
+    cur = conn.cursor()
 
+    if request.method == 'POST':
+        form_type = request.form.get('form_type', '')
+
+        # --- শুধু bulk রাখুন, single সরিয়ে দিন ---
+
+        if form_type == 'bulk':
+            file = request.files.get('da_file')
+            if not file:
+                flash('Please select a file', 'error')
+            else:
+                try:
+                    if file.filename.endswith('.xlsx'):
+                        df = pd.read_excel(file, dtype=str)
+                    else:
+                        df = pd.read_csv(file, dtype=str, encoding='utf-8-sig')
+                    if df.empty:
+                        flash('File is empty', 'error')
+                    else:
+                        df.columns = [str(c).strip().lower().replace(' ', '_').replace('\ufeff', '') for c in df.columns]
+                        count = 0
+                        failed = []
+                        for idx, row in df.iterrows():
+                            rn = idx + 2
+                            try:
+                                raw_date = _clean(row.get('report_date', ''))
+                                lco = _clean(row.get('lco_code', '')).upper()
+                                cnt_str = _clean(row.get('active_count', ''))
+                                if not raw_date or not lco or not cnt_str:
+                                    raise ValueError(f"Missing — date:'{raw_date}' lco:'{lco}' cnt:'{cnt_str}'")
+                                parsed_date = None
+                                for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%d-%m-%Y', '%d/%m/%Y', '%m-%d-%Y', '%Y/%m/%d'):
+                                    try:
+                                        parsed_date = datetime.strptime(raw_date, fmt).date()
+                                        break
+                                    except:
+                                        continue
+                                if not parsed_date:
+                                    raise ValueError(f"Invalid date: '{raw_date}'")
+                                cnt = int(float(cnt_str))
+                                try:
+                                    cur.execute("""
+                                        INSERT INTO daily_active_summary (report_date, lco_code, active_count)
+                                        VALUES (%s, %s, %s)
+                                        ON CONFLICT (report_date, lco_code)
+                                        DO UPDATE SET active_count = EXCLUDED.active_count
+                                    """, (parsed_date, lco, cnt))
+                                except:
+                                    cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count) VALUES (%s,%s,%s)", (parsed_date, lco, cnt))
+                                conn.commit()
+                                count += 1
+                            except Exception as e:
+                                try: conn.rollback()
+                                except: pass
+                                failed.append({'row': rn, 'lco': _clean(row.get('lco_code', '')), 'error': str(e)[:100]})
+                        msg = f'{count} records uploaded'
+                        if failed: msg += f', {len(failed)} failed'
+                        flash(msg, 'success' if not failed else 'error')
+                        session['da_failures'] = failed[-50:]
+                except Exception as e:
+                    flash(f'Upload Error: {e}', 'error')
+                    session['da_failures'] = []
+
+    cur.execute("SELECT DISTINCT report_date FROM daily_active_summary ORDER BY report_date DESC")
+    date_list = [r[0] for r in cur.fetchall()]
+    bulk_failures = session.pop('da_failures', [])
+    cur.close()
+    release_db(conn)
+    return render_template('daily_active.html', date_list=date_list, bulk_failures=bulk_failures)
+    
         elif form_type == 'bulk':
             file = request.files.get('da_file')
             if not file:
