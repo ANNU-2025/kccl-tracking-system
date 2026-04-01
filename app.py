@@ -1040,21 +1040,6 @@ def daily_active():
     if request.method == 'POST':
         form_type = request.form.get('form_type', '')
 
-        @app.route('/daily-active', methods=['GET', 'POST'])
-def daily_active():
-    if 'logged_user' not in session:
-        return redirect(url_for('login'))
-    conn = get_db()
-    if not conn:
-        flash('Database connection failed', 'error')
-        return redirect(url_for('dashboard'))
-    cur = conn.cursor()
-
-    if request.method == 'POST':
-        form_type = request.form.get('form_type', '')
-
-        # --- শুধু bulk রাখুন, single সরিয়ে দিন ---
-
         if form_type == 'bulk':
             file = request.files.get('da_file')
             if not file:
@@ -1101,75 +1086,14 @@ def daily_active():
                                 conn.commit()
                                 count += 1
                             except Exception as e:
-                                try: conn.rollback()
-                                except: pass
-                                failed.append({'row': rn, 'lco': _clean(row.get('lco_code', '')), 'error': str(e)[:100]})
-                        msg = f'{count} records uploaded'
-                        if failed: msg += f', {len(failed)} failed'
-                        flash(msg, 'success' if not failed else 'error')
-                        session['da_failures'] = failed[-50:]
-                except Exception as e:
-                    flash(f'Upload Error: {e}', 'error')
-                    session['da_failures'] = []
-
-    cur.execute("SELECT DISTINCT report_date FROM daily_active_summary ORDER BY report_date DESC")
-    date_list = [r[0] for r in cur.fetchall()]
-    bulk_failures = session.pop('da_failures', [])
-    cur.close()
-    release_db(conn)
-    return render_template('daily_active.html', date_list=date_list, bulk_failures=bulk_failures)
-    
-        elif form_type == 'bulk':
-            file = request.files.get('da_file')
-            if not file:
-                flash('Please select a file', 'error')
-            else:
-                try:
-                    if file.filename.endswith('.xlsx'):
-                        df = pd.read_excel(file, dtype=str)
-                    else:
-                        df = pd.read_csv(file, dtype=str, encoding='utf-8-sig')
-                    if df.empty:
-                        flash('File is empty', 'error')
-                    else:
-                        df.columns = [str(c).strip().lower().replace(' ', '_').replace('\ufeff', '') for c in df.columns]
-                        count = 0
-                        failed = []
-                        for idx, row in df.iterrows():
-                            rn = idx + 2
-                            try:
-                                raw_date = _clean(row.get('report_date', ''))
-                                lco = _clean(row.get('lco_code', '')).upper()
-                                cnt_str = _clean(row.get('active_count', ''))
-                                if not raw_date or not lco or not cnt_str:
-                                    raise ValueError(f"Missing — date:'{raw_date}' lco:'{lco}' cnt:'{cnt_str}'")
-                                parsed_date = None
-                                for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%d-%m-%Y', '%d/%m/%Y', '%m-%d-%Y', '%Y/%m/%d'):
-                                    try:
-                                        parsed_date = datetime.strptime(raw_date, fmt).date()
-                                        break
-                                    except:
-                                        continue
-                                if not parsed_date:
-                                    raise ValueError(f"Invalid date: '{raw_date}'")
-                                cnt = int(float(cnt_str))
                                 try:
-                                    cur.execute("""
-                                        INSERT INTO daily_active_summary (report_date, lco_code, active_count)
-                                        VALUES (%s, %s, %s)
-                                        ON CONFLICT (report_date, lco_code)
-                                        DO UPDATE SET active_count = EXCLUDED.active_count
-                                    """, (parsed_date, lco, cnt))
+                                    conn.rollback()
                                 except:
-                                    cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count) VALUES (%s,%s,%s)", (parsed_date, lco, cnt))
-                                conn.commit()
-                                count += 1
-                            except Exception as e:
-                                try: conn.rollback()
-                                except: pass
+                                    pass
                                 failed.append({'row': rn, 'lco': _clean(row.get('lco_code', '')), 'error': str(e)[:100]})
                         msg = f'{count} records uploaded'
-                        if failed: msg += f', {len(failed)} failed'
+                        if failed:
+                            msg += f', {len(failed)} failed'
                         flash(msg, 'success' if not failed else 'error')
                         session['da_failures'] = failed[-50:]
                 except Exception as e:
@@ -1186,9 +1110,11 @@ def daily_active():
 
 @app.route('/daily-active/chart-data')
 def da_chart_data():
-    if 'logged_user' not in session: return jsonify({})
+    if 'logged_user' not in session:
+        return jsonify({})
     conn = get_db()
-    if not conn: return jsonify({})
+    if not conn:
+        return jsonify({})
     cur = conn.cursor()
     cur.execute("SELECT report_date, SUM(active_count) FROM daily_active_summary GROUP BY report_date ORDER BY report_date ASC")
     rows = cur.fetchall()
@@ -1203,7 +1129,8 @@ def da_chart_data():
 
 @app.route('/daily-active/compare')
 def da_compare():
-    if 'logged_user' not in session: return jsonify({'error': 'Not logged in'})
+    if 'logged_user' not in session:
+        return jsonify({'error': 'Not logged in'})
     d_from = request.args.get('from', '')
     d_to = request.args.get('to', '')
     if not d_from or not d_to:
@@ -1211,7 +1138,8 @@ def da_compare():
     if d_from == d_to:
         return jsonify({'error': 'Select two different dates'})
     conn = get_db()
-    if not conn: return jsonify({'error': 'DB error'})
+    if not conn:
+        return jsonify({'error': 'DB error'})
     cur = conn.cursor()
 
     cur.execute("SELECT COALESCE(SUM(active_count), 0) FROM daily_active_summary WHERE report_date = %s", (d_to,))
@@ -1253,11 +1181,14 @@ def da_compare():
 
 @app.route('/daily-active/date-summary')
 def da_date_summary():
-    if 'logged_user' not in session: return redirect(url_for('login'))
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
     d = request.args.get('date', '')
-    if not d: return redirect(url_for('daily_active'))
+    if not d:
+        return redirect(url_for('daily_active'))
     conn = get_db()
-    if not conn: return redirect(url_for('daily_active'))
+    if not conn:
+        return redirect(url_for('daily_active'))
     try:
         df = pd.read_sql("SELECT lco_code as LCO_Code, active_count as Active_Count FROM daily_active_summary WHERE report_date = %s ORDER BY lco_code", conn, params=(d,))
         df = fix_timezone(df)
@@ -1271,21 +1202,102 @@ def da_date_summary():
 
 @app.route('/daily-active/export')
 def export_daily_active():
-    if 'logged_user' not in session: return redirect(url_for('login'))
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
     conn = get_db()
-    if not conn: return redirect(url_for('dashboard'))
+    if not conn:
+        return redirect(url_for('dashboard'))
     try:
-        df = pd.read_sql("SELECT report_date as \"Report Date\", lco_code as \"LCO Code\", active_count as \"Active Count\", created_at as \"Uploaded At\" FROM daily_active_summary ORDER BY report_date DESC, lco_code ASC", conn)
-        df = fix_timezone(df); release_db(conn)
+        df = pd.read_sql('SELECT report_date as "Report Date", lco_code as "LCO Code", active_count as "Active Count", created_at as "Uploaded At" FROM daily_active_summary ORDER BY report_date DESC, lco_code ASC', conn)
+        df = fix_timezone(df)
+        release_db(conn)
         return dl_excel(df, "Daily_Active_Summary.xlsx")
     except Exception as e:
-        flash(f"Export Error: {e}", "error"); release_db(conn)
+        flash(f"Export Error: {e}", "error")
+        release_db(conn)
+        return redirect(url_for('daily_active'))
+
+
+@app.route('/daily-active/export-growth')
+def export_growth_report():
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
+    d_from = request.args.get('from', '')
+    d_to = request.args.get('to', '')
+    if not d_from or not d_to:
+        return redirect(url_for('daily_active'))
+    conn = get_db()
+    if not conn:
+        return redirect(url_for('daily_active'))
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COALESCE(t1.lco_code, t2.lco_code) as lco_code,
+                   COALESCE(t1.active_count, 0) as previous,
+                   COALESCE(t2.active_count, 0) as current,
+                   (COALESCE(t2.active_count, 0) - COALESCE(t1.active_count, 0)) as diff
+            FROM (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t1
+            FULL OUTER JOIN (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t2
+            ON t1.lco_code = t2.lco_code
+            ORDER BY diff DESC
+        """, (d_from, d_to))
+        rows = cur.fetchall()
+        cur.close()
+        release_db(conn)
+        df = pd.DataFrame(rows, columns=['LCO Code', 'Previous', 'Current', 'Diff'])
+        df = df[df['Diff'] > 0]
+        if df.empty:
+            flash('No growth data', 'error')
+            return redirect(url_for('daily_active'))
+        return dl_excel(df, f"Growth_{d_from}_vs_{d_to}.xlsx")
+    except Exception as e:
+        release_db(conn)
+        flash(f"Error: {e}", "error")
+        return redirect(url_for('daily_active'))
+
+
+@app.route('/daily-active/export-churn')
+def export_churn_report():
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
+    d_from = request.args.get('from', '')
+    d_to = request.args.get('to', '')
+    if not d_from or not d_to:
+        return redirect(url_for('daily_active'))
+    conn = get_db()
+    if not conn:
+        return redirect(url_for('daily_active'))
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COALESCE(t1.lco_code, t2.lco_code) as lco_code,
+                   COALESCE(t1.active_count, 0) as previous,
+                   COALESCE(t2.active_count, 0) as current,
+                   (COALESCE(t2.active_count, 0) - COALESCE(t1.active_count, 0)) as diff
+            FROM (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t1
+            FULL OUTER JOIN (SELECT lco_code, active_count FROM daily_active_summary WHERE report_date = %s) t2
+            ON t1.lco_code = t2.lco_code
+            ORDER BY diff ASC
+        """, (d_from, d_to))
+        rows = cur.fetchall()
+        cur.close()
+        release_db(conn)
+        df = pd.DataFrame(rows, columns=['LCO Code', 'Previous', 'Current', 'Diff'])
+        df = df[df['Diff'] < 0]
+        if df.empty:
+            flash('No churn data', 'error')
+            return redirect(url_for('daily_active'))
+        return dl_excel(df, f"Churn_{d_from}_vs_{d_to}.xlsx")
+    except Exception as e:
+        release_db(conn)
+        flash(f"Error: {e}", "error")
         return redirect(url_for('daily_active'))
 
 
 @app.route('/daily-active/template')
 def daily_active_template():
-    if 'logged_user' not in session: return redirect(url_for('login'))
+    if 'logged_user' not in session:
+        return redirect(url_for('login'))
     output = BytesIO()
     df = pd.DataFrame(columns=['report_date', 'lco_code', 'active_count'])
     df.loc[0] = ['2025-01-15', 'WB01A006', 277]
@@ -1314,7 +1326,7 @@ def daily_active_delete_all():
         conn.rollback()
         flash(f'Error: {e}', 'error')
     release_db(conn)
-    return redirect(url_for('daily_active'))    
+    return redirect(url_for('daily_active'))   
     
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
