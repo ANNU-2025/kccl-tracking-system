@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Daily Active Summary{% endblock %}
+{% block page_title %}Daily Active Summary{% endblock %}
+{% block head %}
+<style>
+    .da-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+    .da-stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden}
+    .da-stat .sv{font-size:28px;font-weight:700;color:var(--primary)}
+    .da-stat .sl{font-size:11px;color:var(--grey);font-weight:500;margin-top:2px}
+    .da-stat .si{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;position:absolute;top:14px;right:14px}
+    .trend-bar{display:flex;align-items:flex-end;gap:6px;height:80px;padding:8px 0}
+    .trend-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+    .trend-fill{width:100%;border-radius:4px 4px 0 0;transition:.3s;min-height:4px}
+    .trend-label{font-size:9px;color:var(--grey);white-space:nowrap}
+    .trend-val{font-size:9px;font-weight:700;color:var(--primary)}
+    .da-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+    .del-btn{background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:4px;transition:.15s}
+    .del-btn:hover{background:var(--red-bg)}
+    .confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+    .confirm-overlay.show{display:flex}
+    .confirm-box{background:var(--card);border-radius:12px;padding:24px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+    .confirm-box h3{font-size:16px;margin-bottom:8px}
+    .confirm-box p{font-size:13px;color:var(--grey);margin-bottom:20px}
+    .confirm-box .btn-row{display:flex;gap:10px;justify-content:center}
+    @media(max-width:768px){
+        .da-grid{grid-template-columns:1fr !important}
+        .da-stats{grid-template-columns:1fr 1fr}
+        .da-stat .sv{font-size:22px}
+        .trend-bar{height:60px}
+    }
+    @media(max-width:400px){
+        .da-stats{grid-template-columns:1fr}
+    }
+</style>
+{% endblock %}
+{% block body %}
+
+<!-- Confirmation Modal -->
+<div class="confirm-overlay" id="confirmModal">
+    <div class="confirm-box">
+        <h3 id="confirmTitle">Confirm Delete</h3>
+        <p id="confirmMsg">Are you sure?</p>
+        <div class="btn-row">
+            <button class="btn btn-outline" onclick="closeConfirm()">Cancel</button>
+            <button class="btn btn-red" id="confirmBtn">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="da-stats">
+    <div class="da-stat">
+        <div class="sv">{{ total_active }}</div>
+        <div class="sl">LATEST TOTAL ACTIVE</div>
+        <div class="si" style="background:var(--blue-bg);color:var(--blue)"><i class="fas fa-users"></i></div>
+    </div>
+    <div class="da-stat">
+        <div class="sv">{{ total_lc }}</div>
+        <div class="sl">LCOs REPORTED</div>
+        <div class="si" style="background:var(--green-bg);color:var(--green)"><i class="fas fa-building"></i></div>
+    </div>
+    <div class="da-stat">
+        <div class="sv">{{ latest_date.strftime('%d-%b-%Y') if latest_date else '—' }}</div>
+        <div class="sl">LATEST REPORT DATE</div>
+        <div class="si" style="background:var(--purple-bg);color:var(--purple)"><i class="fas fa-calendar"></i></div>
+    </div>
+    <div class="da-stat">
+        <div class="sv">{{ data|length }}</div>
+        <div class="sl">TOTAL RECORDS</div>
+        <div class="si" style="background:rgba(240,191,42,.1);color:#C8960A"><i class="fas fa-database"></i></div>
+    </div>
+</div>
+
+<!-- Mini Trend -->
+{% if trend %}
+<div class="card" style="margin-bottom:16px">
+    <div class="card-head">
+        <div class="card-title"><i class="fas fa-chart-bar" style="color:var(--blue)"></i> 7-Day Trend</div>
+    </div>
+    <div class="trend-bar">
+        {% set max_val = trend[0][1] if trend else 1 %}
+        {% for row in trend|reverse %}
+        <div class="trend-col">
+            <div class="trend-val">{{ row[1] }}</div>
+            <div class="trend-fill" style="height:{{ (row[1]/max_val)*60 }}%;background:var(--blue)"></div>
+            <div class="trend-label">{{ row[0].strftime('%d-%b') if row[0] else '—' }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Input Cards -->
+<div class="da-grid">
+    <!-- Single Add -->
+    <div class="card">
+        <div class="card-head"><div class="card-title"><i class="fas fa-pen" style="color:var(--green)"></i> Single Entry</div></div>
+        <form method="POST"><input type="hidden" name="form_type" value="single">
+            <div class="fg"><label class="fl">Report Date</label><input type="date" name="report_date" class="fi" required></div>
+            <div class="fg"><label class="fl">LCO Code</label><input type="text" name="lco_code" class="fi" placeholder="LCO-001" required style="text-transform:uppercase"></div>
+            <div class="fg"><label class="fl">Active Count</label><input type="number" name="active_count" class="fi" placeholder="0" min="0" required></div>
+            <button type="submit" class="btn btn-green" style="width:100%;justify-content:center"><i class="fas fa-check"></i> SAVE</button>
+        </form>
+    </div>
+
+    <!-- Bulk Upload -->
+    <div class="card">
+        <div class="card-head"><div class="card-title"><i class="fas fa-file-excel" style="color:var(--blue)"></i> Bulk Upload</div></div>
+        <form method="POST" enctype="multipart/form-data"><input type="hidden" name="form_type" value="bulk">
+            <div class="fg"><label class="fl">Excel / CSV File</label><input type="file" name="da_file" accept=".csv,.xlsx" class="fi" style="padding:8px" required></div>
+            <div style="display:flex;gap:8px">
+                <button type="button" class="btn btn-outline" style="flex:1" onclick="window.location.href='/daily-active/template'"><i class="fas fa-download"></i> Template</button>
+                <button type="submit" class="btn btn-blue" style="flex:1"><i class="fas fa-upload"></i> Upload</button>
+            </div>
+            <p style="font-size:10px;color:var(--grey);margin-top:8px">Columns: report_date (YYYY-MM-DD), lco_code, active_count. Duplicate date+LCO will be updated.</p>
+        </form>
+        {% if bulk_failures %}
+        <div style="background:var(--red-bg);border:1px solid rgba(231,76,60,.2);border-radius:8px;padding:10px 14px;margin-top:12px;max-height:150px;overflow-y:auto">
+            <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px"><i class="fas fa-triangle-exclamation"></i> {{ bulk_failures|length }} Failed</div>
+            {% for f in bulk_failures %}
+            <div style="font-size:10px;color:var(--red);padding:2px 0">Row {{ f.row }}: {{ f.lco or '—' }} — {{ f.error }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Data Table -->
+<div class="tw">
+    <div class="tw-bar">
+        <div class="card-title"><i class="fas fa-table" style="color:var(--purple)"></i> Records</div>
+        <div style="flex:1"></div>
+        <form method="GET" action="{{ url_for('daily_active') }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input type="date" name="filter_date" class="fi" style="max-width:150px;padding:6px 10px" value="{{ filter_date }}">
+            <select name="filter_lco" class="fs" style="padding:6px 10px;min-width:120px">
+                <option value="">All LCOs</option>
+                {% for l in lco_list %}<option value="{{ l }}" {% if filter_lco==l %}selected{% endif %}>{{ l }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-blue btn-sm"><i class="fas fa-filter"></i></button>
+            {% if filter_date or filter_lco %}<a href="{{ url_for('daily_active') }}" class="btn btn-outline btn-sm"><i class="fas fa-xmark"></i></a>{% endif %}
+        </form>
+        <button class="btn btn-green btn-sm" onclick="window.location.href='/daily-active/export'"><i class="fas fa-download"></i> Export</button>
+    </div>
+    {% if data %}
+    <div class="tw-hscroll">
+        <table>
+            <thead><tr><th>#</th><th>Report Date</th><th>LCO Code</th><th>Active Count</th><th>Uploaded</th>{% if session.get('user_role')=='admin' %}<th></th>{% endif %}</tr></thead>
+            <tbody>
+            {% for row in data %}
+            <tr>
+                <td style="color:var(--grey)">{{ loop.index }}</td>
+                <td style="font-weight:600">{{ row[1].strftime('%d-%b-%Y') if row[1] else '—' }}</td>
+                <td><span class="bg bg-blue"><span class="bd"></span>{{ row[2] }}</span></td>
+                <td style="font-weight:700;font-size:14px;color:var(--green)">{{ row[3] }}</td>
+                <td style="font-size:10px;color:var(--grey)">{{ row[4].strftime('%d-%b %H:%M') if row[4] else '—' }}</td>
+                {% if session.get('user_role')=='admin' %}
+                <td><button class="del-btn" onclick="confirmDelete({{ row[0] }}, '{{ row[2] }}', '{{ row[1].strftime('%d-%b-%Y') if row[1] else '' }}')"><i class="fas fa-trash"></i></button></td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><i class="fas fa-chart-simple"></i><h3>No Records</h3><p>Upload data using the forms above</p></div>
+    {% endif %}
+</div>
+
+{% if session.get('user_role')=='admin' %}
+<div style="margin-top:12px;text-align:right">
+    <button class="btn btn-red btn-sm" onclick="confirmDeleteAll()"><i class="fas fa-trash"></i> Delete All Records</button>
+</div>
+{% endif %}
+
+<script>
+var pendingAction = null;
+function closeConfirm(){document.getElementById('confirmModal').classList.remove('show');pendingAction=null}
+function confirmDelete(id, lco, date){
+    document.getElementById('confirmTitle').textContent='Delete Record';
+    document.getElementById('confirmMsg').textContent='Delete '+lco+' data for '+date+'?';
+    document.getElementById('confirmModal').classList.add('show');
+    pendingAction=function(){
+        var f=document.createElement('form');f.method='POST';f.action='{{ url_for('daily_active') }}';
+        var h1=document.createElement('input');h1.type='hidden';h1.name='form_type';h1.value='delete';
+        var h2=document.createElement('input');h2.type='hidden';h2.name='del_id';h2.value=id;
+        f.appendChild(h1);f.appendChild(h2);document.body.appendChild(f);f.submit();
+    };
+    document.getElementById('confirmBtn').onclick=function(){if(pendingAction)pendingAction();closeConfirm()};
+}
+function confirmDeleteAll(){
+    document.getElementById('confirmTitle').textContent='Delete ALL Records';
+    document.getElementById('confirmMsg').textContent='This will permanently delete all daily active summary data. Continue?';
+    document.getElementById('confirmModal').classList.add('show');
+    pendingAction=function(){
+        var f=document.createElement('form');f.method='POST';f.action='{{ url_for('daily_active_delete_all') }}';
+        document.body.appendChild(f);f.submit();
+    };
+    document.getElementById('confirmBtn').onclick=function(){if(pendingAction)pendingAction();closeConfirm()};
+}
+document.getElementById('confirmModal').addEventListener('click',function(e){if(e.target===this)closeConfirm()});
+</script>
+{% endblock %}
