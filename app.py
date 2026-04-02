@@ -1153,7 +1153,6 @@ def da_sub_dists():
     release_db(conn)
     return jsonify([r[0] for r in rows])
 
-
 @app.route('/daily-active/chart-data')
 def da_chart_data():
     if 'logged_user' not in session:
@@ -1166,24 +1165,35 @@ def da_chart_data():
         return jsonify({})
     cur = conn.cursor()
     try:
-        q = """SELECT d.report_date,
-               COALESCE(SUM(CASE WHEN COALESCE(m.distributor,'') IN ('KCCL','') THEN d.active_count ELSE 0 END),0),
-               COALESCE(SUM(CASE WHEN COALESCE(m.distributor,'') IN ('KCCL','') THEN d.deactive_count ELSE 0 END),0),
-               COALESCE(SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.active_count ELSE 0 END),0),
-               COALESCE(SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.deactive_count ELSE 0 END),0)
-               FROM daily_active_summary d
-               LEFT JOIN lco_master m ON d.lco_code = m.lco_code
-               WHERE 1=1"""
-        p = []
-        if area:
-            q += " AND m.area = %s"
-            p.append(area)
-        if sub_dist:
-            q += " AND m.sub_distributor = %s"
-            p.append(sub_dist)
-        if dist:
-            q += " AND COALESCE(m.distributor,'') = %s"
-            p.append(dist)
+        cur.execute("SELECT 1 FROM information_schema.columns WHERE table_name='lco_master' AND column_name='distributor'")
+        has_dist = cur.fetchone() is not None
+    except:
+        has_dist = False
+
+    try:
+        if has_dist:
+            q = """SELECT d.report_date,
+                   COALESCE(SUM(CASE WHEN COALESCE(m.distributor,'') NOT IN ('AROHON','') THEN d.active_count ELSE 0 END),0),
+                   COALESCE(SUM(CASE WHEN COALESCE(m.distributor,'') NOT IN ('AROHON','') THEN d.deactive_count ELSE 0 END),0),
+                   COALESCE(SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.active_count ELSE 0 END),0),
+                   COALESCE(SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.deactive_count ELSE 0 END),0)
+                   FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE 1=1"""
+            p = []
+            if area:
+                q += " AND m.area=%s"; p.append(area)
+            if sub_dist:
+                q += " AND m.sub_distributor=%s"; p.append(sub_dist)
+            if dist:
+                q += " AND COALESCE(m.distributor,'')=%s"; p.append(dist)
+        else:
+            q = """SELECT d.report_date, SUM(d.active_count), SUM(d.deactive_count), 0, 0
+                   FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE 1=1"""
+            p = []
+            if area:
+                q += " AND m.area=%s"; p.append(area)
+            if sub_dist:
+                q += " AND m.sub_distributor=%s"; p.append(sub_dist)
+
         q += " GROUP BY d.report_date ORDER BY d.report_date ASC"
         cur.execute(q, tuple(p))
         rows = cur.fetchall()
@@ -1198,23 +1208,21 @@ def da_chart_data():
             'arohon_d': [r[4] for r in rows]
         })
     except Exception as e:
-        print('[chart-data fallback]', e)
-        cur.close()
+        print('[chart-data err]', e)
+        try: cur.close()
+        except: pass
         release_db(conn)
-        q2 = "SELECT d.report_date, SUM(d.active_count), SUM(d.deactive_count), 0, 0 FROM daily_active_summary d GROUP BY d.report_date ORDER BY d.report_date ASC"
-        cur2 = conn.cursor()
-        cur2.execute(q2)
-        rows2 = cur2.fetchall()
-        cur2.close()
-        release_db(conn)
-        return jsonify({
-            'dates': [r[0].strftime('%d-%b') for r in rows2],
-            'full_dates': [r[0].strftime('%Y-%m-%d') for r in rows2],
-            'kccl_a': [r[1] for r in rows2],
-            'kccl_d': [r[2] for r in rows2],
-            'arohon_a': [0]*len(rows2),
-            'arohon_d': [0]*len(rows2)
-        })
+        try:
+            cur2 = conn if conn else get_db()
+            if not cur2: return jsonify({'dates':[],'full_dates':[],'kccl_a':[],'kccl_d':[],'arohon_a':[],'arohon_d':[]})
+            cur2.execute("SELECT d.report_date, SUM(d.active_count), SUM(d.deactive_count) FROM daily_active_summary d GROUP BY d.report_date ORDER BY d.report_date ASC")
+            rows2 = cur2.fetchall()
+            cur2.close()
+            if conn: release_db(conn)
+            return jsonify({'dates':[r[0].strftime('%d-%b') for r in rows2],'full_dates':[r[0].strftime('%Y-%m-%d') for r in rows2],'kccl_a':[r[1] for r in rows2],'kccl_d':[r[2] for r in rows2],'arohon_a':[0]*len(rows2),'arohon_d':[0]*len(rows2)})
+        except:
+            return jsonify({'dates':[],'full_dates':[],'kccl_a':[],'kccl_d':[],'arohon_a':[],'arohon_d':[]})
+
 
 @app.route('/daily-active/compare')
 def da_compare():
@@ -1234,56 +1242,85 @@ def da_compare():
     if not conn:
         return jsonify({'error': 'DB error'})
     cur = conn.cursor()
-    q = """SELECT COALESCE(t1.lco_code,t2.lco_code), COALESCE(lm.lco_name,COALESCE(t1.lco_code,t2.lco_code)),
-       COALESCE(lm.area,''), COALESCE(lm.sub_distributor,''), COALESCE(lm.distributor,''),
-       COALESCE(t1.active_count,0), COALESCE(t2.active_count,0),
-       COALESCE(t1.deactive_count,0), COALESCE(t2.deactive_count,0)
-       FROM (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s) t1
-       FULL OUTER JOIN (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s) t2
-       ON t1.lco_code=t2.lco_code
-       LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code"""
-    p = [d_from, d_to]
-    if area or sub_dist or dist:
-        cs = []
-        if area:
-            cs.append("lm.area=%s")
-            p.append(area)
-        if sub_dist:
-            cs.append("lm.sub_distributor=%s")
-            p.append(sub_dist)
-        if dist:
-            cs.append("COALESCE(lm.distributor,'')=%s")
-            p.append(dist)
-        q += " WHERE " + " AND ".join(cs)
-    cur.execute(q, tuple(p))
-    rows = cur.fetchall()
-    total_active = sum(r[6] for r in rows)
-    total_deactive = sum(r[8] for r in rows)
-    ka = sum(r[6] for r in rows if (r[4] or '').upper() == 'KCCL')
-    kd = sum(r[8] for r in rows if (r[4] or '').upper() == 'KCCL')
-    aa = sum(r[6] for r in rows if (r[4] or '').upper() == 'AROHON')
-    ad = sum(r[8] for r in rows if (r[4] or '').upper() == 'AROHON')
-    growth, churn = [], []
-    tg, tc = 0, 0
-    for r in rows:
-        if mode == 'active':
-            change = r[6] - r[5]
-            prev_v, now_v = r[5], r[6]
+    try:
+        cur.execute("SELECT 1 FROM information_schema.columns WHERE table_name='lco_master' AND column_name='distributor'")
+        has_dist = cur.fetchone() is not None
+    except:
+        has_dist = False
+
+    try:
+        if has_dist:
+            q = """SELECT COALESCE(t1.lco_code,t2.lco_code), COALESCE(lm.lco_name,COALESCE(t1.lco_code,t2.lco_code)),
+               COALESCE(lm.area,''), COALESCE(lm.sub_distributor,''), COALESCE(lm.distributor,''),
+               COALESCE(t1.active_count,0), COALESCE(t2.active_count,0),
+               COALESCE(t1.deactive_count,0), COALESCE(t2.deactive_count,0)
+               FROM (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s) t1
+               FULL OUTER JOIN (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s) t2
+               ON t1.lco_code=t2.lco_code
+               LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code"""
         else:
-            change = r[7] - r[8]
-            prev_v, now_v = r[7], r[8]
-        entry = {'lco': r[0], 'name': r[1], 'area': r[2], 'sub': r[3], 'dist': r[4], 'prev': prev_v, 'now': now_v, 'change': change}
-        if change > 0:
-            growth.append(entry)
-            tg += change
-        elif change < 0:
-            churn.append(entry)
-            tc += change
-    growth.sort(key=lambda x: x['change'], reverse=True)
-    churn.sort(key=lambda x: x['change'])
-    cur.close()
-    release_db(conn)
-    return jsonify({'kccl_active': ka, 'kccl_deactive': kd, 'arohon_active': aa, 'arohon_deactive': ad, 'total_active': total_active, 'total_deactive': total_deactive, 'total_growth': tg, 'total_churn': abs(tc), 'net': tg + tc, 'growth': growth, 'churn': churn, 'd_from': d_from, 'd_to': d_to, 'mode': mode})
+            q = """SELECT COALESCE(t1.lco_code,t2.lco_code), COALESCE(lm.lco_name,COALESCE(t1.lco_code,t2.lco_code)),
+               COALESCE(lm.area,''), COALESCE(lm.sub_distributor,''), '',
+               COALESCE(t1.active_count,0), COALESCE(t2.active_count,0),
+               COALESCE(t1.deactive_count,0), COALESCE(t2.deactive_count,0)
+               FROM (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s) t1
+               FULL OUTER JOIN (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s) t2
+               ON t1.lco_code=t2.lco_code
+               LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code"""
+        p = [d_from, d_to]
+        if has_dist and (area or sub_dist or dist):
+            cs = []
+            if area:
+                cs.append("lm.area=%s"); p.append(area)
+            if sub_dist:
+                cs.append("lm.sub_distributor=%s"); p.append(sub_dist)
+            if dist:
+                cs.append("COALESCE(lm.distributor,'')=%s"); p.append(dist)
+            if cs:
+                q += " WHERE " + " AND ".join(cs)
+        elif area or sub_dist:
+            cs = []
+            if area:
+                cs.append("lm.area=%s"); p.append(area)
+            if sub_dist:
+                cs.append("lm.sub_distributor=%s"); p.append(sub_dist)
+            if cs:
+                q += " WHERE " + " AND ".join(cs)
+        cur.execute(q, tuple(p))
+        rows = cur.fetchall()
+        total_active = sum(r[5] for r in rows)
+        total_deactive = sum(r[7] for r in rows)
+        ka = sum(r[5] for r in rows if (r[4] or '').upper() == 'AROHON')
+        kd = sum(r[7] for r in rows if (r[4] or '').upper() == 'AROHON')
+        aa = total_active - ka
+        ad = total_deactive - kd
+        growth, churn = [], []
+        tg, tc = 0, 0
+        for r in rows:
+            if mode == 'active':
+                change = r[5] - r[4]
+                prev_v, now_v = r[4], r[5]
+            else:
+                change = r[6] - r[7]
+                prev_v, now_v = r[6], r[7]
+            entry = {'lco': r[0], 'name': r[1], 'area': r[2], 'sub': r[3], 'dist': r[4], 'prev': prev_v, 'now': now_v, 'change': change}
+            if change > 0:
+                growth.append(entry)
+                tg += change
+            elif change < 0:
+                churn.append(entry)
+                tc += change
+        growth.sort(key=lambda x: x['change'], reverse=True)
+        churn.sort(key=lambda x: x['change'])
+        cur.close()
+        release_db(conn)
+        return jsonify({'kccl_active': aa, 'kccl_deactive': ad, 'arohon_active': ka, 'arohon_deactive': kd, 'total_active': total_active, 'total_deactive': total_deactive, 'total_growth': tg, 'total_churn': abs(tc), 'net': tg + tc, 'growth': growth, 'churn': churn, 'd_from': d_from, 'd_to': d_to, 'mode': mode})
+    except Exception as e:
+        print('[compare err]', e)
+        try: cur.close()
+        except: pass
+        release_db(conn)
+        return jsonify({'error': 'Query failed: ' + str(e)})
 
 
 @app.route('/daily-active/summary-tables')
@@ -1301,17 +1338,14 @@ def da_summary_tables():
         return jsonify({'areas': [], 'subs': []})
     cur = conn.cursor()
     try:
-        base = "FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code = m.lco_code WHERE d.report_date = %s"
+        base = "FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE d.report_date=%s"
         p = [date_val]
         if area:
-            base += " AND m.area = %s"
-            p.append(area)
+            base += " AND m.area=%s"; p.append(area)
         if sub_dist:
-            base += " AND m.sub_distributor = %s"
-            p.append(sub_dist)
+            base += " AND m.sub_distributor=%s"; p.append(sub_dist)
         if dist:
-            base += " AND COALESCE(m.distributor,'') = %s"
-            p.append(dist)
+            base += " AND COALESCE(m.distributor,'')=%s"; p.append(dist)
         cur.execute("SELECT COALESCE(m.area,'Unassigned'), SUM(d.active_count), SUM(d.deactive_count), COUNT(DISTINCT d.lco_code) " + base + " GROUP BY COALESCE(m.area,'Unassigned') ORDER BY SUM(d.active_count) DESC", tuple(p))
         area_rows = cur.fetchall()
         cur.execute("SELECT COALESCE(m.sub_distributor,'Unassigned'), SUM(d.active_count), SUM(d.deactive_count), COUNT(DISTINCT d.lco_code) " + base + " GROUP BY COALESCE(m.sub_distributor,'Unassigned') ORDER BY SUM(d.active_count) DESC", tuple(p))
@@ -1329,12 +1363,12 @@ def da_summary_tables():
             return result
         return jsonify({'areas': fmt(area_rows), 'subs': fmt(sub_rows)})
     except Exception as e:
-        print('[summary-tables fallback]', e)
+        print('[summary err]', e)
         try: cur.close()
         except: pass
         release_db(conn)
         return jsonify({'areas': [], 'subs': []})
-
+        
 @app.route('/daily-active/date-summary')
 def da_date_summary():
     if 'logged_user' not in session:
