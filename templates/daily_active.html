@@ -107,9 +107,9 @@ body .content{padding:12px 14px}
     <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Area</label><select id="sA" class="fs" onchange="onAreaChange()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Sub Dist</label><select id="sS" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
-    <div class="fg ff"><label class="fl">From</label><select id="dF" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
-    <div class="fg ff"><label class="fl">To</label><select id="dT" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
-    <div class="fg ff"><label class="fl">Type</label><select id="sM" class="fs"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
+    <div class="fg ff"><label class="fl">From</label><select id="dF" class="fs" onchange="onDateChange()"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
+    <div class="fg ff"><label class="fl">To</label><select id="dT" class="fs" onchange="onDateChange()"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
+    <div class="fg ff"><label class="fl">Type</label><select id="sM" class="fs" onchange="onFilterChange()"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
     <div class="acts">
         <button class="btn btn-blue" id="bG" onclick="gen()" style="height:32px;padding:6px 12px;font-size:11px;white-space:nowrap"><i class="fas fa-bolt"></i> GO</button>
         <button class="btn btn-green" onclick="oU()" style="height:32px;padding:6px 10px" title="Upload"><i class="fas fa-upload"></i></button>
@@ -164,7 +164,7 @@ window.onerror=function(msg,src,line){
 var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',vMode='active';
 var chartOK=(typeof Chart!=='undefined');
 
-/* ===== FILTER HELPERS ===== */
+/* ===== HELPERS ===== */
 function getParams(){
     var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,p=[];
     if(d)p.push('distributor='+encodeURIComponent(d));
@@ -174,15 +174,14 @@ function getParams(){
 }
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
-/* ===== CHARTS — STATIC, LOAD ONCE ONLY ===== */
+/* ===== CHARTS — STATIC, LOAD ONCE, NO FILTER ===== */
 function makeChart(cid,mid,data,ak,dk,c1,c2){
     var msg=document.getElementById(mid);
     if(!data.dates||!data.dates.length){if(msg)msg.classList.add('show');return;}
     if(msg)msg.classList.remove('show');
     if(!chartOK){if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart.js missing</p>';}return;}
     try{
-        var old=(cid==='kcChart')?kcChart:arChart;
-        if(old){old.destroy();old=null;}
+        var old=(cid==='kcChart')?kcChart:arChart;if(old){old.destroy();old=null;}
         var cv=document.getElementById(cid);if(!cv)return;
         var ctx=cv.getContext('2d');
         var gA=ctx.createLinearGradient(0,0,0,160);gA.addColorStop(0,c1);gA.addColorStop(1,c2);
@@ -211,15 +210,14 @@ function loadChartsOnce(){
     });
 }
 
-/* ===== FILTER CHANGES — ONLY UPDATE TABLES, NOT CHARTS ===== */
-function onFilterChange(){
-    updateSubDists();
-    if(vFrom&&vTo)gen();
+/* ===== FILTER HANDLERS — READ FRESH FROM DROPDOWNS ===== */
+function readDates(){
+    return{f:document.getElementById('dF').value,t:document.getElementById('dT').value};
 }
-function onAreaChange(){
-    updateSubDists();
-    if(vFrom&&vTo)gen();
+function datesOk(){
+    var d=readDates();return d.f&&d.t&&d.f!==d.t;
 }
+
 function updateSubDists(){
     var a=document.getElementById('sA').value,d=document.getElementById('sD').value;
     var sel=document.getElementById('sS');sel.innerHTML='<option value="">All</option>';
@@ -229,11 +227,26 @@ function updateSubDists(){
     }).catch(function(){});
 }
 
-/* ===== GO — UPDATE KPIs + 4 TABLES ONLY ===== */
+/* Date change → only update tables, NOT charts */
+function onDateChange(){
+    if(datesOk()) gen();
+}
+
+/* Area change → update sub-dist dropdown + tables, NOT charts */
+function onAreaChange(){
+    updateSubDists();
+    if(datesOk()) gen();
+}
+
+/* Distributor / Sub Dist / Type change → update tables, NOT charts */
+function onFilterChange(){
+    if(datesOk()) gen();
+}
+
+/* ===== GO — UPDATE KPIs + 4 TABLES, NOT CHARTS ===== */
 function gen(){
-    vFrom=document.getElementById('dF').value;
-    vTo=document.getElementById('dT').value;
-    vMode=document.getElementById('sM').value;
+    var dd=readDates();
+    vFrom=dd.f; vTo=dd.t; vMode=document.getElementById('sM').value;
     if(!vFrom||!vTo){showFlash('Select both dates','error');return;}
     if(vFrom===vTo){showFlash('Select two different dates','error');return;}
     var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
@@ -350,13 +363,9 @@ function showFlash(msg,type){
     c.prepend(d);setTimeout(function(){if(d.parentNode)d.remove();},5000);
 }
 
-/* ===== INIT: Charts once, then auto-gen if dates set ===== */
+/* ===== INIT ===== */
 try{loadChartsOnce();}catch(e){console.error('[InitCh]',e);}
-try{
-    var dfV=document.getElementById('dF').value,dtV=document.getElementById('dT').value;
-    if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){try{gen();}catch(e){console.error('[AutoGen]',e);}},600);
-}catch(e){console.error('[AutoSetup]',e);}
-
+try{if(datesOk())setTimeout(function(){try{gen();}catch(e){console.error('[AutoGen]',e);}},600);}catch(e){console.error('[AutoSetup]',e);}
 console.log('[DA] dates={{ date_list|length }}, Chart.js:',chartOK);
 </script>
 {% endblock %}
