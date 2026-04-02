@@ -2,6 +2,8 @@
 {% block title %}Daily Active Summary{% endblock %}
 {% block page_title %}Daily Active Summary{% endblock %}
 {% block head %}
+{# ★ FIX: Include Chart.js here as fallback if base.html doesn't have it #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 :root{--cy:#00BCD4;--rd:#EF5350;--gn:#2FA360;--gd:#FFD740;--og:#FF9800;--pk:#7C4DFF}
 body .content{padding:12px 14px}
@@ -64,12 +66,17 @@ body .content{padding:12px 14px}
 .empty-state i{font-size:40px;color:var(--cy);margin-bottom:12px;opacity:.6}
 .empty-state h4{font-size:16px;margin-bottom:6px}
 .empty-state p{font-size:11px;color:var(--grey);max-width:300px;margin-bottom:15px}
+.js-err{background:rgba(239,83,80,.08);border:1px solid rgba(239,83,80,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--rd);display:none}
+.js-err.show{display:block}
 @media(max-width:900px){.kpi-r{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:768px){.kpi-r{grid-template-columns:repeat(3,1fr);gap:6px}.kpi .kv{font-size:18px}.kpi{padding:8px 10px}.t2{grid-template-columns:1fr !important}.sel-c{flex-direction:column;align-items:stretch}.ch-inner{height:140px}.mh{display:none !important}}
 @media(max-width:400px){.kpi-r{grid-template-columns:repeat(2,1fr)}}
 </style>
 {% endblock %}
 {% block body %}
+
+{# ★ FIX: JS error banner for debugging on Render #}
+<div class="js-err" id="jsErr"><i class="fas fa-bug"></i> <span id="jsErrMsg"></span></div>
 
 {% if not date_list %}
 <div class="empty-state">
@@ -105,6 +112,7 @@ body .content{padding:12px 14px}
     <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onDistChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Area</label><select id="sA" class="fs" onchange="onAreaChange()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Sub Dist</label><select id="sS" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+    {# ★ FIX: From selects latest-1, To selects latest. Works even with 1 date. #}
     <div class="fg ff"><label class="fl">From</label><select id="dF" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">To</label><select id="dT" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">Type</label><select id="sM" class="fs"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
@@ -119,11 +127,11 @@ body .content{padding:12px 14px}
 <div class="t2">
     <div class="tc tg">
         <div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC"></span></h4><button class="btn btn-sm" id="bEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none;padding:4px 8px;font-size:10px" onclick="dG()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="gB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div>
+        <div class="tsc" id="gB"><div class="tem"><i class="fas fa-chart-line"></i><p>Select 2 dates & click GO</p></div></div>
     </div>
     <div class="tc tr">
         <div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC"></span></h4><button class="btn btn-sm" id="bEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none;padding:4px 8px;font-size:10px" onclick="dC()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="cB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div>
+        <div class="tsc" id="cB"><div class="tem"><i class="fas fa-chart-line"></i><p>Select 2 dates & click GO</p></div></div>
     </div>
 </div>
 
@@ -137,8 +145,8 @@ body .content{padding:12px 14px}
 </div>
 
 <div class="t2" style="margin-bottom:16px">
-    <div class="tc to"><div class="thd"><h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Distributor</h4></div><div class="tsc" id="suB"><div class="tem"><i class="fas fa-table"></i><p>Select date</p></div></div></div>
-    <div class="tc tc2"><div class="thd"><h4 style="color:var(--cy)"><i class="fas fa-map-location-dot"></i> Area Wise</h4></div><div class="tsc" id="arB"><div class="tem"><i class="fas fa-table"></i><p>Select date</p></div></div></div>
+    <div class="tc to"><div class="thd"><h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Distributor</h4></div><div class="tsc" id="suB"><div class="tem"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div></div></div>
+    <div class="tc tc2"><div class="thd"><h4 style="color:var(--cy)"><i class="fas fa-map-location-dot"></i> Area Wise</h4></div><div class="tsc" id="arB"><div class="tem"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div></div></div>
 </div>
 
 <div class="uo" id="uM">
@@ -156,7 +164,21 @@ body .content{padding:12px 14px}
 {% if session.get('user_role')=='admin' %}<div style="text-align:right;margin-bottom:12px"><button class="btn btn-red btn-sm" onclick="if(confirm('Delete ALL?')){var f=document.createElement('form');f.method='POST';f.action='/daily-active/delete-all';document.body.appendChild(f);f.submit()}" style="padding:4px 8px;font-size:10px"><i class="fas fa-trash"></i> Delete All</button></div>{% endif %}
 
 <script>
+{# ★ FIX: Global error handler to catch and display JS errors instead of silent crash #}
+window.onerror=function(msg,src,line,col,err){
+    var el=document.getElementById('jsErr');
+    var em=document.getElementById('jsErrMsg');
+    if(el&&em){
+        var short=msg||'Unknown error';
+        if(short.length>150) short=short.substring(0,150)+'...';
+        em.textContent='JS Error: '+short+' (line '+line+')';
+        el.classList.add('show');
+    }
+    return true; {# prevent default browser error #}
+};
+
 var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',vMode='active';
+var chartJSAvailable=(typeof Chart!=='undefined');
 
 function getParams(){
     var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,p=[];
@@ -166,149 +188,221 @@ function getParams(){
     return p.length?'?'+p.join('&'):'';
 }
 
-function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})}
-
-function makeChart(canvasId,msgId,data,actKey,deactKey,c1,c2){
-    var msg=document.getElementById(msgId);
-    if(!data.dates||!data.dates.length){msg.classList.add('show');return}
-    msg.classList.remove('show');
-    var oldChart=(canvasId==='kcChart')?kcChart:arChart;
-    if(oldChart){oldChart.destroy();oldChart=null}
-    var canvas=document.getElementById(canvasId);
-    var ctx=canvas.getContext('2d');
-    var gA=ctx.createLinearGradient(0,0,0,160);gA.addColorStop(0,c1);gA.addColorStop(1,c2);
-    var gR=ctx.createLinearGradient(0,0,0,160);gR.addColorStop(0,c1);gR.addColorStop(1,c2);
-    var chart=new Chart(ctx,{
-        type:'bar',
-        data:{labels:data.dates,datasets:[
-            {label:'Deactive',data:data[deactKey],backgroundColor:gR,borderColor:'rgba(0,0,0,.3)',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.5,categoryPercentage:.6,stack:'s'},
-            {label:'Active',data:data[actKey],backgroundColor:gA,borderColor:'rgba(0,0,0,.3)',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.5,categoryPercentage:.6,stack:'s'}
-        ]},
-        options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-            plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}},
-            scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#999', font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:'#999',font:{size:9}},beginAtZero:true}},
-            onClick:function(e,el){if(el.length>0&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank')}}
+function safeFetch(url){
+    return fetch(url).then(function(r){
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        return r.json();
     });
-    if(canvasId==='kcChart')kcChart=chart;else arChart=chart;
 }
 
+{# ★ FIX: Wrapped in try-catch so Chart.js failure doesn't break summary tables #}
+function makeChart(canvasId,msgId,data,actKey,deactKey,c1,c2){
+    var msg=document.getElementById(msgId);
+    if(!data.dates||!data.dates.length){
+        if(msg) msg.classList.add('show');
+        return;
+    }
+    if(msg) msg.classList.remove('show');
+    if(!chartJSAvailable){
+        if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart.js not loaded</p>';}
+        return;
+    }
+    try{
+        var oldChart=(canvasId==='kcChart')?kcChart:arChart;
+        if(oldChart){oldChart.destroy();oldChart=null;}
+        var canvas=document.getElementById(canvasId);
+        if(!canvas) return;
+        var ctx=canvas.getContext('2d');
+        var gA=ctx.createLinearGradient(0,0,0,160);gA.addColorStop(0,c1);gA.addColorStop(1,c2);
+        var gR=ctx.createLinearGradient(0,0,0,160);gR.addColorStop(0,'rgba(239,83,80,0.7)');gR.addColorStop(1,'rgba(239,83,80,0.4)');
+        var chart=new Chart(ctx,{
+            type:'bar',
+            data:{
+                labels:data.dates,
+                datasets:[
+                    {label:'Deactive',data:data[deactKey],backgroundColor:gR,borderColor:'rgba(0,0,0,.2)',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.5,categoryPercentage:.6,stack:'s'},
+                    {label:'Active',data:data[actKey],backgroundColor:gA,borderColor:'rgba(0,0,0,.2)',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.5,categoryPercentage:.6,stack:'s'}
+                ]
+            },
+            options:{
+                responsive:true,maintainAspectRatio:false,
+                interaction:{mode:'index',intersect:false},
+                plugins:{
+                    legend:{display:false},
+                    tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}}
+                },
+                scales:{
+                    x:{grid:{display:false},stacked:true,ticks:{color:'#999',font:{size:8},maxRotation:50,autoSkip:false}},
+                    y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:'#999',font:{size:9}},beginAtZero:true}
+                },
+                onClick:function(e,el){if(el.length>0&&fDates&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank');}
+            }
+        });
+        if(canvasId==='kcChart')kcChart=chart;else arChart=chart;
+    }catch(chartErr){
+        console.error('[Chart render error]',chartErr);
+        if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart error</p>';}
+    }
+}
+
+{# ★ FIX: Separated so failure doesn't block summary #}
 function loadCharts(){
     safeFetch('/daily-active/chart-data'+getParams()).then(function(d){
         fDates=d.full_dates||[];
         makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,0.9)','rgba(0,131,143,0.9)');
-        makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,0.9)','rgba(47,163,96,0.9)');
+        makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,0.9)','rgba(30,120,65,0.9)');
     }).catch(function(e){
-        console.error('[Chart Error]',e);
-        document.getElementById('kcMsg').classList.add('show');
-        document.getElementById('arMsg').classList.add('show');
+        console.error('[Chart Data Error]',e);
+        var m1=document.getElementById('kcMsg');if(m1){m1.classList.add('show');m1.innerHTML='<p>Failed to load</p>';}
+        var m2=document.getElementById('arMsg');if(m2){m2.classList.add('show');m2.innerHTML='<p>Failed to load</p>';}
     });
 }
 
-function onDistChange(){loadCharts();loadSummary()}
+function onDistChange(){loadCharts();loadSummary();}
 function onAreaChange(){
     var a=document.getElementById('sA').value,d=document.getElementById('sD').value;
     var sel=document.getElementById('sS');sel.innerHTML='<option value="">All</option>';
     var p='area='+encodeURIComponent(a);if(d)p+='&distributor='+encodeURIComponent(d);
-    fetch('/daily-active/sub-dists?'+p).then(function(r){return r.json()}).then(function(l){for(var i=0;i<l.length;i++){var o=document.createElement('option');o.value=l[i];o.textContent=l[i];sel.appendChild(o)}}).catch(function(){});
+    fetch('/daily-active/sub-dists?'+p).then(function(r){return r.json();}).then(function(l){
+        for(var i=0;i<l.length;i++){var o=document.createElement('option');o.value=l[i];o.textContent=l[i];sel.appendChild(o);}
+    }).catch(function(){});
     loadCharts();loadSummary();
 }
-function onFilterChange(){loadCharts();loadSummary()}
+function onFilterChange(){loadCharts();loadSummary();}
 
 function gen(){
-    vFrom=document.getElementById('dF').value;vTo=document.getElementById('dT').value;vMode=document.getElementById('sM').value;
-    if(!vFrom||!vTo){showFlash('Select both dates','error');return}
-    if(vFrom===vTo){showFlash('Select different dates','error');return}
-    var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
+    vFrom=document.getElementById('dF').value;
+    vTo=document.getElementById('dT').value;
+    vMode=document.getElementById('sM').value;
+    if(!vFrom||!vTo){showFlash('Select both dates','error');return;}
+    if(vFrom===vTo){showFlash('Select two different dates','error');return;}
+    var btn=document.getElementById('bG');
+    btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
     safeFetch('/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode).then(function(d){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
-        if(d.error){showFlash(d.error,'error');return}
-        document.getElementById('kKA').textContent=d.kccl_active.toLocaleString();
-        document.getElementById('kKD').textContent=d.kccl_deactive.toLocaleString();
-        document.getElementById('kAA').textContent=d.arohon_active.toLocaleString();
-        document.getElementById('kAD').textContent=d.arohon_deactive.toLocaleString();
-        var totalA=d.kccl_active+d.arohon_active,totalD=d.kccl_deactive+d.arohon_deactive;
+        if(d.error){showFlash(d.error,'error');return;}
+        document.getElementById('kKA').textContent=(d.kccl_active||0).toLocaleString();
+        document.getElementById('kKD').textContent=(d.kccl_deactive||0).toLocaleString();
+        document.getElementById('kAA').textContent=(d.arohon_active||0).toLocaleString();
+        document.getElementById('kAD').textContent=(d.arohon_deactive||0).toLocaleString();
+        var totalA=(d.kccl_active||0)+(d.arohon_active||0);
+        var totalD=(d.kccl_deactive||0)+(d.arohon_deactive||0);
         var rate=totalA>0?((totalD/totalA)*100).toFixed(1):'0.0';
         document.getElementById('kR').textContent=rate+'%';
-        var ne=document.getElementById('kN');ne.textContent=(d.net>=0?'+':'')+d.net.toLocaleString();
-        ne.style.color=d.net>0?'var(--gn)':d.net<0?'var(--rd)':'#F9A825';
-        growArr=d.growth;churnArr=d.churn;
+        var ne=document.getElementById('kN');
+        var net=d.net||0;
+        ne.textContent=(net>=0?'+':'')+net.toLocaleString();
+        ne.style.color=net>0?'var(--gn)':net<0?'var(--rd)':'#F9A825';
+        growArr=d.growth||[];churnArr=d.churn||[];
         var col=vMode==='active'?'Active':'Deactive';
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
-        showFlash('Report ('+col+')','success');
+        showFlash('Report generated ('+col+')','success');
     }).catch(function(e){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
-        console.error('[Compare Error]',e);showFlash('Failed to load report','error');
+        console.error('[Compare Error]',e);
+        showFlash('Failed to load report: '+e.message,'error');
     });
 }
 
 function renderGC(bid,cid,btid,data,color,colName){
     var el=document.getElementById(bid),ce=document.getElementById(cid),be=document.getElementById(btid);
-    if(!data.length){el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No data</p></div>';ce.textContent='';be.style.display='none';return}
-    ce.textContent='('+data.length+')';be.style.display='';
+    if(!el) return;
+    if(!data||!data.length){el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No change detected</p></div>';if(ce)ce.textContent='';if(be)be.style.display='none';return;}
+    if(ce)ce.textContent='('+data.length+')';if(be)be.style.display='';
     var h='<table><thead><tr><th>#</th><th>LCO</th><th class="mh">Area</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
         h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
-        h+='<td class="nm">'+r.lco+'</td>';
+        h+='<td class="nm">'+(r.lco||'')+'</td>';
         h+='<td class="mh" style="font-size:9px;color:var(--grey)">'+(r.area||'—')+'</td>';
-        h+='<td>'+r.prev+'</td><td style="font-weight:600">'+r.now+'</td>';
-        h+='<td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+':'')+r.change+'</td></tr>';
+        h+='<td>'+(r.prev||0)+'</td><td style="font-weight:600">'+(r.now||0)+'</td>';
+        h+='<td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+':'')+(r.change||0)+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
 
 function loadSummary(){
     var dt=document.getElementById('sDt').value;
-    if(!dt){renderST('suB',[]);renderST('arB',[]);return}
+    if(!dt){renderST('suB',[]);renderST('arB',[]);return;}
     safeFetch('/daily-active/summary-tables?date='+dt+getParams()).then(function(d){
-        renderST('suB',d.subs);renderST('arB',d.areas);
-    }).catch(function(e){console.error('[Summary Error]',e);renderST('suB',[]);renderST('arB',[])});
+        renderST('suB',d.subs||[]);
+        renderST('arB',d.areas||[]);
+    }).catch(function(e){
+        console.error('[Summary Error]',e);
+        renderST('suB',[]);
+        renderST('arB',[]);
+    });
 }
 
 function renderST(bid,data){
     var el=document.getElementById(bid);
-    if(!data||!data.length){el.innerHTML='<div class="tem"><p>No data</p></div>';return}
-    var tA=0;for(var i=0;i<data.length;i++)tA+=data[i].active;
+    if(!el) return;
+    if(!data||!data.length){el.innerHTML='<div class="tem"><p>No data for this date/filter</p></div>';return;}
+    var tA=0;for(var i=0;i<data.length;i++)tA+=(data[i].active||0);
     var isSub=(bid==='suB');
     var h='<table><thead><tr><th>#</th><th>'+(isSub?'Sub Distributor':'Area')+'</th><th>Active</th><th>Deact</th><th>LCOs</th><th>Share</th><th>Rate</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
         var pc=r.rate<3?'pg':r.rate<8?'po':'pr';
         h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
-        h+='<td style="font-weight:600;font-size:10px">'+r.name+'</td>';
-        h+='<td class="nm" style="color:var(--cy)">'+r.active.toLocaleString()+'</td>';
-        h+='<td class="nm" style="color:var(--rd)">'+r.deactive+'</td>';
-        h+='<td class="nm">'+r.lcos+'</td>';
-        h+='<td class="nm">'+r.share+'%</td>';
-        h+='<td><span class="pct '+pc+'">'+r.rate+'%</span></td></tr>';
+        h+='<td style="font-weight:600;font-size:10px">'+(r.name||'')+'</td>';
+        h+='<td class="nm" style="color:var(--cy)">'+(r.active||0).toLocaleString()+'</td>';
+        h+='<td class="nm" style="color:var(--rd)">'+(r.deactive||0)+'</td>';
+        h+='<td class="nm">'+(r.lcos||0)+'</td>';
+        h+='<td class="nm">'+(r.share||0)+'%</td>';
+        h+='<td><span class="pct '+pc+'">'+(r.rate||0)+'%</span></td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode}
-function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode}
-function dSD(){var dt=document.getElementById('sDt').value;if(dt)window.open('/daily-active/date-summary?date='+dt,'_blank')}
+function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
+function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
+function dSD(){var dt=document.getElementById('sDt').value;if(dt)window.open('/daily-active/date-summary?date='+dt,'_blank');}
 
-function oU(){document.getElementById('uM').classList.add('show')}
-function cU(){document.getElementById('uM').classList.remove('show');document.getElementById('uF').reset();document.getElementById('dL').textContent='Click or drag file'}
-document.getElementById('uM').addEventListener('click',function(e){if(e.target===this)cU()});
+function oU(){document.getElementById('uM').classList.add('show');}
+function cU(){document.getElementById('uM').classList.remove('show');document.getElementById('uF').reset();document.getElementById('dL').textContent='Click or drag file';}
+document.getElementById('uM').addEventListener('click',function(e){if(e.target===this)cU();});
 var dz=document.getElementById('dZ'),fi=document.getElementById('fI'),dl=document.getElementById('dL');
-dz.addEventListener('dragover',function(e){e.preventDefault();dz.style.borderColor='var(--cy)'});
-dz.addEventListener('dragleave',function(){dz.style.borderColor=''});
-dz.addEventListener('drop',function(e){e.preventDefault();dz.style.borderColor='';if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;dl.textContent=e.dataTransfer.files[0].name}});
-fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.files[0].name});
+if(dz){
+    dz.addEventListener('dragover',function(e){e.preventDefault();dz.style.borderColor='var(--cy)';});
+    dz.addEventListener('dragleave',function(){dz.style.borderColor='';});
+    dz.addEventListener('drop',function(e){e.preventDefault();dz.style.borderColor='';if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;dl.textContent=e.dataTransfer.files[0].name;}});
+}
+if(fi){
+    fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.files[0].name;});
+}
 
 function showFlash(msg,type){
     var c=document.querySelector('.flashes');
-    if(!c) return; // Prevent crash if container missing
-    var d=document.createElement('div');d.className='flash '+type;d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;
-    c.prepend(d);setTimeout(function(){d.remove()},4000);
+    if(!c){
+        c=document.createElement('div');c.className='flashes';c.style.cssText='position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none';
+        document.body.appendChild(c);
+    }
+    var d=document.createElement('div');
+    d.className='flash '+type;
+    d.style.cssText='pointer-events:auto;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);max-width:320px;word-break:break-word;';
+    if(type==='success'){d.style.background='#E8F5E9';d.style.color='#2E7D32';d.style.border='1px solid #A5D6A7';}
+    else{d.style.background='#FFEBEE';d.style.color='#C62828';d.style.border='1px solid #EF9A9A';}
+    d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;
+    c.prepend(d);
+    setTimeout(function(){if(d.parentNode)d.remove();},5000);
 }
 
-loadCharts();
-setTimeout(function(){loadSummary()},300);
-var dfV=document.getElementById('dF').value,dtV=document.getElementById('dT').value;
-if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){gen()},600);
+{# ★ FIX: Load summary FIRST (always works), then charts (needs Chart.js) #}
+try{ loadSummary(); }catch(e){console.error('[Init summary error]',e);}
+try{ loadCharts(); }catch(e){console.error('[Init charts error]',e);}
+
+{# ★ FIX: Auto-gen only if 2+ dates AND both dropdowns have values #}
+try{
+    var dfV=document.getElementById('dF').value;
+    var dtV=document.getElementById('dT').value;
+    if(dfV&&dtV&&dfV!==dtV){
+        setTimeout(function(){try{gen();}catch(e){console.error('[Auto-gen error]',e);}},800);
+    }
+}catch(e){console.error('[Auto-gen setup error]',e);}
+
+{# ★ DEBUG: Log what we have #}
+console.log('[DA Init] date_list count: {{ date_list|length }}, Chart.js:', chartJSAvailable);
 </script>
 {% endblock %}
