@@ -1267,38 +1267,69 @@ def da_compare():
 @app.route('/daily-active/summary-tables')
 def da_summary_tables():
     if 'logged_user' not in session: return jsonify({'areas': [], 'subs': []})
-    date_val = request.args.get('date', ''); area = request.args.get('area', '')
-    sub_dist = request.args.get('sub_dist', ''); dist = request.args.get('distributor', '')
-    if not date_val: return jsonify({'areas': [], 'subs': []})
+    d_from = request.args.get('from', '')
+    d_to = request.args.get('to', '')
+    area = request.args.get('area', '')
+    sub_dist = request.args.get('sub_dist', '')
+    dist = request.args.get('distributor', '')
+    mode = request.args.get('mode', 'active')
+    if not d_from or not d_to: return jsonify({'areas': [], 'subs': []})
     conn = get_db()
     if not conn: return jsonify({'areas': [], 'subs': []})
     cur = conn.cursor()
     try:
-        base = "FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code = m.lco_code WHERE d.report_date = %s"
-        p = [date_val]
-        if area: base += " AND m.area = %s"; p.append(area)
-        if sub_dist: base += " AND m.sub_distributor = %s"; p.append(sub_dist)
-        if dist: base += " AND COALESCE(m.distributor,'') = %s"; p.append(dist)
-        cur.execute("SELECT COALESCE(m.area,'Unassigned'), SUM(d.active_count), SUM(d.deactive_count), COUNT(DISTINCT d.lco_code) " + base + " GROUP BY COALESCE(m.area,'Unassigned') ORDER BY SUM(d.active_count) DESC", tuple(p))
-        area_rows = cur.fetchall()
-        cur.execute("SELECT COALESCE(m.sub_distributor,'Unassigned'), SUM(d.active_count), SUM(d.deactive_count), COUNT(DISTINCT d.lco_code) " + base + " GROUP BY COALESCE(m.sub_distributor,'Unassigned') ORDER BY SUM(d.active_count) DESC", tuple(p))
-        sub_rows = cur.fetchall()
+        fc = []
+        fp = []
+        if area: fc.append("m.area = %s"); fp.append(area)
+        if sub_dist: fc.append("m.sub_distributor = %s"); fp.append(sub_dist)
+        if dist: fc.append("COALESCE(m.distributor,'') = %s"); fp.append(dist)
+        fsql = (" AND " + " AND ".join(fc)) if fc else ""
+
+        a_q = f"""SELECT COALESCE(t1.name,t2.name),
+                   COALESCE(t1.act,0),COALESCE(t2.act,0),COALESCE(t2.act,0)-COALESCE(t1.act,0),
+                   COALESCE(t1.deact,0),COALESCE(t2.deact,0),COALESCE(t2.deact,0)-COALESCE(t1.deact,0),
+                   COALESCE(t2.lcos,0)
+                   FROM (SELECT COALESCE(m.area,'Unassigned') as name,SUM(d.active_count) as act,SUM(d.deactive_count) as deact,COUNT(DISTINCT d.lco_code) as lcos
+                         FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE d.report_date=%s{fsql}
+                         GROUP BY COALESCE(m.area,'Unassigned')) t1
+                   FULL OUTER JOIN (SELECT COALESCE(m.area,'Unassigned') as name,SUM(d.active_count) as act,SUM(d.deactive_count) as deact,COUNT(DISTINCT d.lco_code) as lcos
+                         FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE d.report_date=%s{fsql}
+                         GROUP BY COALESCE(m.area,'Unassigned')) t2 ON t1.name=t2.name
+                   ORDER BY (COALESCE(t2.act,0)-COALESCE(t1.act,0)) DESC"""
+        s_q = f"""SELECT COALESCE(t1.name,t2.name),
+                   COALESCE(t1.act,0),COALESCE(t2.act,0),COALESCE(t2.act,0)-COALESCE(t1.act,0),
+                   COALESCE(t1.deact,0),COALESCE(t2.deact,0),COALESCE(t2.deact,0)-COALESCE(t1.deact,0),
+                   COALESCE(t2.lcos,0)
+                   FROM (SELECT COALESCE(m.sub_distributor,'Unassigned') as name,SUM(d.active_count) as act,SUM(d.deactive_count) as deact,COUNT(DISTINCT d.lco_code) as lcos
+                         FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE d.report_date=%s{fsql}
+                         GROUP BY COALESCE(m.sub_distributor,'Unassigned')) t1
+                   FULL OUTER JOIN (SELECT COALESCE(m.sub_distributor,'Unassigned') as name,SUM(d.active_count) as act,SUM(d.deactive_count) as deact,COUNT(DISTINCT d.lco_code) as lcos
+                         FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE d.report_date=%s{fsql}
+                         GROUP BY COALESCE(m.sub_distributor,'Unassigned')) t2 ON t1.name=t2.name
+                   ORDER BY (COALESCE(t2.act,0)-COALESCE(t1.act,0)) DESC"""
+
+        ap = [d_from]+fp+[d_to]+fp
+        sp = [d_from]+fp+[d_to]+fp
+        cur.execute(a_q, ap); area_rows = cur.fetchall()
+        cur.execute(s_q, sp); sub_rows = cur.fetchall()
         cur.close(); release_db(conn)
-        def fmt(rows):
-            result = []; total_a = sum(r[1] or 0 for r in rows)
+
+        def fmt(rows, mv):
+            res = []
             for r in rows:
-                a = int(r[1] or 0); d = int(r[2] or 0)
-                rate = ((d / a) * 100) if a > 0 else 0
-                result.append({'name': r[0], 'active': a, 'deactive': d, 'lcos': r[3], 'rate': round(rate, 1), 'share': round((a / total_a) * 100, 1) if total_a > 0 else 0})
-            return result
-        return jsonify({'areas': fmt(area_rows), 'subs': fmt(sub_rows)})
+                if mv == 'active':
+                    res.append({'name':r[0],'prev':int(r[1] or 0),'now':int(r[2] or 0),'change':int(r[3] or 0),'lcos':int(r[7] or 0)})
+                else:
+                    res.append({'name':r[0],'prev':int(r[4] or 0),'now':int(r[5] or 0),'change':int(r[6] or 0),'lcos':int(r[7] or 0)})
+            res.sort(key=lambda x: x['change'], reverse=True)
+            return res
+        return jsonify({'areas': fmt(area_rows, mode), 'subs': fmt(sub_rows, mode)})
     except Exception as e:
         print('[summary ERR]', e)
         try: cur.close()
         except: pass
         release_db(conn)
         return jsonify({'areas': [], 'subs': []})
-
 
 @app.route('/daily-active/date-summary')
 def da_date_summary():
