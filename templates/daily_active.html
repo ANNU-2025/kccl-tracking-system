@@ -170,7 +170,8 @@ function getParams(){
     if(d)p.push('distributor='+encodeURIComponent(d));
     if(a)p.push('area='+encodeURIComponent(a));
     if(s)p.push('sub_dist='+encodeURIComponent(s));
-    return p.length?'?'+p.join('&'):'';
+    /* ★ FIX: '?' er bodole '&' — karon URL e already '?' ache */
+    return p.length?'&'+p.join('&'):'';
 }
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
@@ -210,13 +211,9 @@ function loadChartsOnce(){
     });
 }
 
-/* ===== FILTER HANDLERS — READ FRESH FROM DROPDOWNS ===== */
-function readDates(){
-    return{f:document.getElementById('dF').value,t:document.getElementById('dT').value};
-}
-function datesOk(){
-    var d=readDates();return d.f&&d.t&&d.f!==d.t;
-}
+/* ===== FILTER HANDLERS ===== */
+function readDates(){return{f:document.getElementById('dF').value,t:document.getElementById('dT').value};}
+function datesOk(){var d=readDates();return d.f&&d.t&&d.f!==d.t;}
 
 function updateSubDists(){
     var a=document.getElementById('sA').value,d=document.getElementById('sD').value;
@@ -227,39 +224,30 @@ function updateSubDists(){
     }).catch(function(){});
 }
 
-/* Date change → only update tables, NOT charts */
-function onDateChange(){
-    if(datesOk()) gen();
-}
+function onDateChange(){if(datesOk())gen();}
+function onAreaChange(){updateSubDists();if(datesOk())gen();}
+function onFilterChange(){if(datesOk())gen();}
 
-/* Area change → update sub-dist dropdown + tables, NOT charts */
-function onAreaChange(){
-    updateSubDists();
-    if(datesOk()) gen();
-}
-
-/* Distributor / Sub Dist / Type change → update tables, NOT charts */
-function onFilterChange(){
-    if(datesOk()) gen();
-}
-
-/* ===== GO — UPDATE KPIs + 4 TABLES, NOT CHARTS ===== */
+/* ===== GO — KPIs + 4 TABLES ===== */
 function gen(){
     var dd=readDates();
-    vFrom=dd.f; vTo=dd.t; vMode=document.getElementById('sM').value;
+    vFrom=dd.f;vTo=dd.t;vMode=document.getElementById('sM').value;
     if(!vFrom||!vTo){showFlash('Select both dates','error');return;}
     if(vFrom===vTo){showFlash('Select two different dates','error');return;}
     var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
 
+    /* ★ FIX: getParams() returns '&area=X&sub_dist=Y' — no double '?' */
     var cmpUrl='/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;
     var sumUrl='/daily-active/summary-tables?date='+vTo+getParams();
+
+    console.log('[gen] cmpUrl:',cmpUrl);
+    console.log('[gen] sumUrl:',sumUrl);
 
     Promise.all([safeFetch(cmpUrl),safeFetch(sumUrl)]).then(function(results){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
         var d=results[0],sd=results[1];
         if(d.error){showFlash(d.error,'error');return;}
 
-        /* KPIs */
         document.getElementById('kKA').textContent=(d.kccl_active||0).toLocaleString();
         document.getElementById('kKD').textContent=(d.kccl_deactive||0).toLocaleString();
         document.getElementById('kAA').textContent=(d.arohon_active||0).toLocaleString();
@@ -270,13 +258,10 @@ function gen(){
         ne.textContent=(net>=0?'+':'')+net.toLocaleString();
         ne.style.color=net>0?'var(--gn)':net<0?'var(--rd)':'#F9A825';
 
-        /* Growth + Churn */
         growArr=d.growth||[];churnArr=d.churn||[];
         var col=vMode==='active'?'Active':'Deactive';
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
-
-        /* Sub Distributor + Area Wise */
         renderST('suB',sd.subs||[],true);
         renderST('arB',sd.areas||[],false);
 
