@@ -4,67 +4,77 @@
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
-:root{--g1:#00BCD4;--g2:#00838F;--r1:#EF5350;--r2:#C62828;--card-shadow:0 1px 4px rgba(0,0,0,.06)}
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;box-shadow:var(--card-shadow)}
-.kpi::after{content:'';position:absolute;top:0;right:0;width:80px;height:80px;border-radius:0 12px 0 80px;opacity:.06}
-.kpi-cyan::after{background:var(--g1)}.kpi-red::after{background:var(--r1)}.kpi-orange::after{background:#FF9800}.kpi-gold::after{background:#FFD740}
-.kpi .kpi-label{font-size:10px;font-weight:600;color:var(--grey);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.kpi .kpi-val{font-size:30px;font-weight:800;line-height:1}
-.kpi-cyan .kpi-val{color:var(--g1)}.kpi-red .kpi-val{color:var(--r1)}.kpi-orange .kpi-val{color:#FF9800}.kpi-gold .kpi-val{color:#FFD740}
+*{box-sizing:border-box}
+:root{--cyan:#00BCD4;--cyan2:#00838F;--red:#EF5350;--red2:#C62828;--grn:#2FA360;--gold:#FFD740;--org:#FF9800}
+body .content{padding:14px 16px}
 
-.cmp-bar{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:end;gap:10px;flex-wrap:wrap;box-shadow:var(--card-shadow)}
-.cmp-bar .fg{margin-bottom:0;flex:1;min-width:130px}
-.cmp-bar .acts{display:flex;gap:6px;align-items:end;flex-shrink:0;flex-wrap:wrap}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.kpi{background:linear-gradient(135deg,#fff 0%,#fafbfc 100%);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.07)}
+.kpi .kpi-lbl{font-size:9px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.kpi .kpi-num{font-size:28px;font-weight:800;line-height:1}
+.kpi .kpi-bg{position:absolute;right:-10px;bottom:-10px;font-size:72px;opacity:.04;font-weight:900}
+.k-cyan{border-left:3px solid var(--cyan)}.k-cyan .kpi-num{color:var(--cyan)}.k-cyan .kpi-bg{color:var(--cyan)}
+.k-red{border-left:3px solid var(--red)}.k-red .kpi-num{color:var(--red)}.k-red .kpi-bg{color:var(--red)}
+.k-org{border-left:3px solid var(--org)}.k-org .kpi-num{color:var(--org)}.k-org .kpi-bg{color:var(--org)}
+.k-gold{border-left:3px solid var(--gold)}.k-gold .kpi-num{color:#F9A825}.k-gold .kpi-bg{color:var(--gold)}
 
-.chart-section{display:grid;grid-template-columns:1fr 340px;gap:14px;margin-bottom:16px}
-.chart-main{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--card-shadow)}
-.chart-main .ch-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.chart-main .ch-legend{display:flex;gap:14px;font-size:10px;color:var(--grey);font-weight:500}
-.chart-main .ch-legend span{display:flex;align-items:center;gap:4px}
-.chart-main .ch-legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
-.chart-box{position:relative;height:280px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.chart-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px}
+.chart-hd h3{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.chart-hd .leg{display:flex;gap:12px;font-size:10px;color:var(--grey);font-weight:500}
+.chart-hd .leg i{width:10px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:3px}
+.chart-box{height:260px;position:relative}
 
-.donut-col{display:flex;flex-direction:column;gap:14px}
-.donut-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--card-shadow);flex:1;display:flex;flex-direction:column}
-.donut-card h4{font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px}
-.donut-box{flex:1;position:relative;min-height:0}
-.donut-box canvas{width:100%!important;height:100%!important}
+.sel-bar{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:end;gap:8px;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.sel-bar .fg{margin-bottom:0;flex:1;min-width:120px}
+.sel-bar .acts{display:flex;gap:6px;align-items:end;flex-shrink:0;flex-wrap:wrap}
 
-.tbl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.tbl-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:440px;box-shadow:var(--card-shadow)}
-.tbl-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.tbl-head h3{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
-.tbl-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.tbl-scroll table{margin:0}
-.tbl-scroll thead{position:sticky;top:0;z-index:2}
-.tbl-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 16px;color:var(--grey)}
-.tbl-empty i{font-size:28px;opacity:.25;margin-bottom:8px}.tbl-empty p{font-size:12px}
+.tbl-2x2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.tbl-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:380px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.tbl-card.t-green{border-top:3px solid var(--grn)}
+.tbl-card.t-red{border-top:3px solid var(--red)}
+.tbl-card.t-cyan{border-top:3px solid var(--cyan)}
+.tbl-card.t-org{border-top:3px solid var(--org)}
+.tbl-hd{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.tbl-hd h4{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
+.tbl-sc{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.tbl-sc table{margin:0;width:100%;border-collapse:collapse}
+.tbl-sc thead{position:sticky;top:0;z-index:2}
+.tbl-sc th{padding:8px 10px;font-size:9px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;background:#F7F8FA;border-bottom:1px solid var(--border)}
+.tbl-sc td{padding:8px 10px;font-size:11px;border-bottom:1px solid #F0F1F3;color:var(--primary)}
+.tbl-sc tbody tr:hover{background:#F8F9FB}
+.tbl-sc tbody tr:last-child td{border-bottom:none}
+.tbl-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:var(--grey)}
+.tbl-empty i{font-size:24px;opacity:.2;margin-bottom:6px}.tbl-empty p{font-size:11px}
+.tbl-sc .num{font-family:'Segoe UI',Consolas,monospace;font-weight:600}
+.tbl-sc .pct{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700}
+.pct-g{background:rgba(47,163,96,.08);color:var(--grn)}.pct-r{background:rgba(239,83,80,.08);color:var(--red)}.pct-o{background:rgba(255,152,0,.08);color:var(--org)}
 
-.fail-box{background:var(--red-bg);border:1px solid rgba(231,76,60,.2);border-radius:8px;padding:12px 16px;margin-bottom:14px;max-height:130px;overflow-y:auto}
-.fail-box .ft{font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px}
-.fail-box .fr{font-size:10px;color:var(--red);padding:2px 0}
+.sum-date-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.sum-date-bar label{font-size:11px;font-weight:600;color:var(--grey)}
 
-.upl-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
-.upl-overlay.show{display:flex}
-.upl-box{background:var(--card);border-radius:16px;padding:28px;width:90%;max-width:400px;box-shadow:0 12px 40px rgba(0,0,0,.2)}
-.upl-box h3{font-size:17px;font-weight:700;margin-bottom:18px}
-.upl-drop{border:2px dashed var(--border);border-radius:12px;padding:32px 16px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:18px}
-.upl-drop:hover,.upl-drop.dragover{border-color:var(--g1);background:rgba(0,188,212,.04)}
-.upl-drop i{font-size:30px;color:var(--g1);margin-bottom:8px;display:block}
-.upl-drop p{font-size:12px;color:var(--grey)}
-.upl-actions{display:flex;gap:10px;justify-content:flex-end}
+.fail-box{background:rgba(239,83,80,.06);border:1px solid rgba(239,83,80,.15);border-radius:8px;padding:10px 14px;margin-bottom:14px;max-height:120px;overflow:auto}
+.fail-box .ft{font-size:11px;font-weight:700;color:var(--red);margin-bottom:4px}
+.fail-box .fr{font-size:10px;color:var(--red);padding:1px 0}
+
+.upl-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.upl-ov.show{display:flex}
+.upl-bx{background:var(--card);border-radius:16px;padding:26px;width:90%;max-width:380px;box-shadow:0 16px 48px rgba(0,0,0,.18)}
+.upl-bx h3{font-size:16px;font-weight:700;margin-bottom:16px}
+.upl-dr{border:2px dashed var(--border);border-radius:12px;padding:28px 14px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:14px}
+.upl-dr:hover{border-color:var(--cyan);background:rgba(0,188,212,.03)}
+.upl-dr i{font-size:28px;color:var(--cyan);margin-bottom:6px;display:block}
+.upl-dr p{font-size:11px;color:var(--grey)}
+.upl-acts{display:flex;gap:8px;justify-content:flex-end}
 .gen-loading{opacity:.5;pointer-events:none}
-.sub-name{font-size:9px;color:var(--grey);font-weight:400;display:block;line-height:1.1;margin-top:1px}
 
-@media(max-width:900px){.chart-section{grid-template-columns:1fr}.donut-col{flex-direction:row}.donut-card{min-height:180px}}
 @media(max-width:768px){
-    .kpi-row{grid-template-columns:1fr 1fr}.kpi .kpi-val{font-size:24px}
-    .tbl-grid{grid-template-columns:1fr !important}
-    .cmp-bar{flex-direction:column;align-items:stretch}
-    .chart-box{height:220px}
-    .donut-col{flex-direction:column}
-    .mob-hide{display:none !important}
+    .kpi-row{grid-template-columns:1fr 1fr;gap:8px}.kpi .kpi-num{font-size:22px}
+    .tbl-2x2{grid-template-columns:1fr !important}
+    .sel-bar{flex-direction:column;align-items:stretch}
+    .chart-box{height:200px}
+    .mh{display:none !important}
 }
 @media(max-width:400px){.kpi-row{grid-template-columns:1fr}}
 </style>
@@ -73,220 +83,213 @@
 
 <!-- KPIs -->
 <div class="kpi-row">
-    <div class="kpi kpi-cyan"><div class="kpi-label">Total Active</div><div class="kpi-val" id="kpiTotal">—</div></div>
-    <div class="kpi kpi-red"><div class="kpi-label">Total Deactive</div><div class="kpi-val" id="kpiDeact">—</div></div>
-    <div class="kpi kpi-orange"><div class="kpi-label">Deact Rate</div><div class="kpi-val" id="kpiRate">—</div></div>
-    <div class="kpi kpi-gold"><div class="kpi-label">Net Change</div><div class="kpi-val" id="kpiNet">—</div></div>
+    <div class="kpi k-cyan"><div class="kpi-lbl">Total Active</div><div class="kpi-num" id="kpiA">—</div><div class="kpi-bg">A</div></div>
+    <div class="kpi k-red"><div class="kpi-lbl">Total Deactive</div><div class="kpi-num" id="kpiD">—</div><div class="kpi-bg">D</div></div>
+    <div class="kpi k-org"><div class="kpi-lbl">Deact Rate</div><div class="kpi-num" id="kpiR">—</div><div class="kpi-bg">%</div></div>
+    <div class="kpi k-gold"><div class="kpi-lbl">Net Change</div><div class="kpi-num" id="kpiN">—</div><div class="kpi-bg">N</div></div>
 </div>
 
-<!-- FILTER BAR -->
-<div class="cmp-bar">
+<!-- CHART -->
+<div class="chart-card">
+    <div class="chart-hd">
+        <h3><i class="fas fa-chart-bar" style="color:var(--cyan)"></i> Active vs Deactive</h3>
+        <div class="leg"><span><i style="background:var(--cyan)"></i>Active</span><span><i style="background:var(--red)"></i>Deactive</span></div>
+    </div>
+    <div class="chart-box"><canvas id="barChart"></canvas></div>
+</div>
+
+<!-- SELECTION BAR -->
+<div class="sel-bar">
     <div class="fg"><label class="fl">Area</label><select id="selArea" class="fs" onchange="onAreaChange()"><option value="">All Areas</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Sub Distributor</label><select id="selSub" class="fs" onchange="onFilterChange()"><option value="">All Sub Dists</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">From</label><select id="dateFrom" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b-%Y') }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">To</label><select id="dateTo" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b-%Y') }}</option>{% endfor %}</select></div>
+    <div class="fg"><label class="fl">Mode</label><select id="selMode" class="fs"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
     <div class="acts">
-        <button class="btn btn-blue" id="btnGen" onclick="generateReports()" style="height:42px;white-space:nowrap"><i class="fas fa-magnifying-glass-chart"></i> GENERATE</button>
-        <button class="btn btn-green" onclick="openUpload()" style="height:42px;padding:10px 14px" title="Upload"><i class="fas fa-upload"></i></button>
-        <button class="btn btn-outline" onclick="window.location.href='/daily-active/template'" style="height:42px;padding:10px 14px" title="Template"><i class="fas fa-file-arrow-down"></i></button>
-        <button class="btn btn-outline" onclick="window.location.href='/daily-active/export'" style="height:42px;padding:10px 14px" title="Export All"><i class="fas fa-download"></i></button>
+        <button class="btn btn-blue" id="btnGen" onclick="generateReports()" style="height:42px;white-space:nowrap"><i class="fas fa-bolt"></i> GENERATE</button>
+        <button class="btn btn-green" onclick="openUpload()" style="height:42px;padding:10px 12px" title="Upload"><i class="fas fa-upload"></i></button>
+        <button class="btn btn-outline" onclick="window.location.href='/daily-active/template'" style="height:42px;padding:10px 12px" title="Template"><i class="fas fa-file-arrow-down"></i></button>
+        <button class="btn btn-outline" onclick="window.location.href='/daily-active/export'" style="height:42px;padding:10px 12px" title="Export All"><i class="fas fa-download"></i></button>
     </div>
 </div>
 
-<!-- CHARTS ROW -->
-<div class="chart-section">
-    <div class="chart-main">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px">
-            <div class="ch-title"><i class="fas fa-chart-bar" style="color:var(--g1)"></i> Daily Active vs Deactive</div>
-            <div class="ch-legend">
-                <span><i style="background:var(--g1)"></i>Active</span>
-                <span><i style="background:var(--r1)"></i>Deactive</span>
-                <span><i style="background:transparent;border-bottom:2px dashed #fff;width:14px;height:0;border-radius:0"></i>Trend</span>
-            </div>
-        </div>
-        <div class="chart-box"><canvas id="barChart"></canvas></div>
+<!-- GROWTH + CHURN -->
+<div class="tbl-2x2">
+    <div class="tbl-card t-green">
+        <div class="tbl-hd"><h4 style="color:var(--grn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gCnt" style="font-size:10px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="btnEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none" onclick="dlG()"><i class="fas fa-download"></i></button></div>
+        <div class="tbl-sc" id="gBody"><div class="tbl-empty"><i class="fas fa-chart-line"></i><p>Generate report to see data</p></div></div>
     </div>
-    <div class="donut-col">
-        <div class="donut-card">
-            <h4><i class="fas fa-map" style="margin-right:4px;color:var(--g1)"></i> Area Distribution</h4>
-            <div class="donut-box"><canvas id="areaDonut"></canvas></div>
-        </div>
-        <div class="donut-card">
-            <h4><i class="fas fa-truck" style="margin-right:4px;color:#FF9800"></i> Sub Distributor</h4>
-            <div class="donut-box"><canvas id="subDonut"></canvas></div>
-        </div>
+    <div class="tbl-card t-red">
+        <div class="tbl-hd"><h4 style="color:var(--red)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cCnt" style="font-size:10px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="btnEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none" onclick="dlC()"><i class="fas fa-download"></i></button></div>
+        <div class="tbl-sc" id="cBody"><div class="tbl-empty"><i class="fas fa-chart-line"></i><p>Generate report to see data</p></div></div>
+    </div>
+</div>
+
+<!-- SUMMARY DATE SELECTOR -->
+<div class="sum-date-bar">
+    <label><i class="fas fa-calendar-day" style="margin-right:4px"></i>Summary Date:</label>
+    <select id="sumDate" class="fs" style="width:auto;min-width:160px;padding:6px 30px 6px 10px" onchange="loadSummary()">
+        {% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b-%Y') }}</option>{% endfor %}
+    </select>
+    <div style="flex:1"></div>
+    <button class="btn btn-outline btn-sm" onclick="dlSummaryDate()"><i class="fas fa-download"></i> Excel</button>
+</div>
+
+<!-- SUB DIST + AREA TABLES -->
+<div class="tbl-2x2" style="margin-bottom:20px">
+    <div class="tbl-card t-org">
+        <div class="tbl-hd"><h4 style="color:var(--org)"><i class="fas fa-truck"></i> Sub Distributor</h4></div>
+        <div class="tbl-sc" id="subBody"><div class="tbl-empty"><i class="fas fa-table"></i><p>Select date to see data</p></div></div>
+    </div>
+    <div class="tbl-card t-cyan">
+        <div class="tbl-hd"><h4 style="color:var(--cyan)"><i class="fas fa-map-location-dot"></i> Area Wise</h4></div>
+        <div class="tbl-sc" id="areaBody"><div class="tbl-empty"><i class="fas fa-table"></i><p>Select date to see data</p></div></div>
     </div>
 </div>
 
 <!-- UPLOAD MODAL -->
-<div class="upl-overlay" id="uplModal">
-    <div class="upl-box">
-        <h3><i class="fas fa-cloud-arrow-up" style="color:var(--g1);margin-right:8px"></i>Upload Report</h3>
+<div class="upl-ov" id="uplModal">
+    <div class="upl-bx">
+        <h3><i class="fas fa-cloud-arrow-up" style="color:var(--cyan);margin-right:6px"></i>Upload Report</h3>
         <form method="POST" enctype="multipart/form-data" id="uplForm"><input type="hidden" name="form_type" value="bulk">
-            <div class="upl-drop" id="dropZone" onclick="document.getElementById('fileIn').click()">
+            <div class="upl-dr" id="dropZone" onclick="document.getElementById('fileIn').click()">
                 <i class="fas fa-cloud-arrow-up"></i>
                 <p id="dropLabel">Click or drag file here</p>
                 <input type="file" id="fileIn" name="da_file" accept=".csv,.xlsx" style="display:none" required>
             </div>
-            <p style="font-size:10px;color:var(--grey);margin-bottom:14px">CSV columns: <b>report_date, lco_name, active_count, deactive_count</b></p>
-            <div class="upl-actions">
-                <button type="button" class="btn btn-outline" onclick="closeUpload()">Cancel</button>
-                <button type="submit" class="btn btn-green"><i class="fas fa-check"></i> Upload</button>
-            </div>
+            <p style="font-size:10px;color:var(--grey);margin-bottom:12px"><b>report_date, lco_name, active_count, deactive_count</b></p>
+            <div class="upl-acts"><button type="button" class="btn btn-outline" onclick="closeUpload()">Cancel</button><button type="submit" class="btn btn-green"><i class="fas fa-check"></i> Upload</button></div>
         </form>
     </div>
 </div>
 
 <!-- FAILURES -->
 {% if bulk_failures %}
-<div class="fail-box">
-    <div class="ft"><i class="fas fa-triangle-exclamation"></i> {{ bulk_failures|length }} Failed</div>
-    {% for f in bulk_failures %}<div class="fr">Row {{ f.row }}: {{ f.name or '—' }} — {{ f.error }}</div>{% endfor %}
-</div>
+<div class="fail-box"><div class="ft"><i class="fas fa-triangle-exclamation"></i> {{ bulk_failures|length }} Failed</div>{% for f in bulk_failures %}<div class="fr">Row {{ f.row }}: {{ f.name or '—' }} — {{ f.error }}</div>{% endfor %}</div>
 {% endif %}
 
-<!-- GROWTH + CHURN -->
-<div class="tbl-grid">
-    <div class="tbl-panel" style="border-top:3px solid var(--green)">
-        <div class="tbl-head">
-            <h3 style="color:var(--green)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="growthCount" style="font-size:11px;color:var(--grey);font-weight:400"></span></h3>
-            <button class="btn btn-sm" id="btnExpG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none" onclick="dlGrowth()"><i class="fas fa-download"></i> Excel</button>
-        </div>
-        <div class="tbl-scroll" id="growthBody"><div class="tbl-empty"><i class="fas fa-chart-line"></i><p>Select dates and generate</p></div></div>
-    </div>
-    <div class="tbl-panel" style="border-top:3px solid var(--red)">
-        <div class="tbl-head">
-            <h3 style="color:var(--red)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="churnCount" style="font-size:11px;color:var(--grey);font-weight:400"></span></h3>
-            <button class="btn btn-sm" id="btnExpC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none" onclick="dlChurn()"><i class="fas fa-download"></i> Excel</button>
-        </div>
-        <div class="tbl-scroll" id="churnBody"><div class="tbl-empty"><i class="fas fa-chart-line"></i><p>Select dates and generate</p></div></div>
-    </div>
-</div>
-
 {% if session.get('user_role')=='admin' %}
-<div style="text-align:right;margin-top:12px">
-    <button class="btn btn-red btn-sm" onclick="if(confirm('Delete ALL daily active data?')){var f=document.createElement('form');f.method='POST';f.action='/daily-active/delete-all';document.body.appendChild(f);f.submit()}"><i class="fas fa-trash"></i> Delete All</button>
-</div>
+<div style="text-align:right;margin-bottom:16px"><button class="btn btn-red btn-sm" onclick="if(confirm('Delete ALL data?')){var f=document.createElement('form');f.method='POST';f.action='/daily-active/delete-all';document.body.appendChild(f);f.submit()}"><i class="fas fa-trash"></i> Delete All</button></div>
 {% endif %}
 
 <script>
-var growthData=[],churnData=[],barChart=null,areaChart=null,subChart=null,fullDates=[],selFrom='',selTo='';
-var DONUT_COLORS=['#00BCD4','#26A69A','#FF9800','#AB47BC','#42A5F5','#EF5350','#66BB6A','#FFA726','#7E57C2','#78909C','#EC407A','#8D6E63'];
+var gData=[],cData=[],barC=null,fDates=[],sF='',sT='',sM='active';
 
-function fp(){var a=document.getElementById('selArea').value,s=document.getElementById('selSub').value,p='';if(a)p+='&area='+encodeURIComponent(a);if(s)p+='&sub_dist='+encodeURIComponent(s);return p}
+function fp(){var a=document.getElementById('selArea').value,s=document.getElementById('selSub').value,p=[];if(a)p.push('area='+encodeURIComponent(a));if(s)p.push('sub_dist='+encodeURIComponent(s));return p.length?'?'+p.join('&'):''}
 
 function loadChart(){
-    fetch('/daily-active/chart-data?'+fp().substring(1)).then(function(r){return r.json()}).then(function(d){
-        if(!d.dates||!d.dates.length){document.getElementById('barChart').parentElement.innerHTML='<div class="tbl-empty"><i class="fas fa-chart-bar"></i><p>No data</p></div>';return}
-        fullDates=d.full_dates;
+    fetch('/daily-active/chart-data'+fp()).then(function(r){return r.json()}).then(function(d){
+        if(!d.dates||!d.dates.length){document.getElementById('barChart').parentElement.innerHTML='<div class="tbl-empty"><i class="fas fa-chart-bar"></i><p>No data yet</p></div>';return}
+        fDates=d.full_dates;
         var ctx=document.getElementById('barChart').getContext('2d');
-        if(barChart)barChart.destroy();
-        var gA=ctx.createLinearGradient(0,0,0,280);gA.addColorStop(0,'rgba(0,188,212,0.95)');gA.addColorStop(1,'rgba(0,131,143,0.95)');
-        var gD=ctx.createLinearGradient(0,0,0,280);gD.addColorStop(0,'rgba(239,83,80,0.95)');gD.addColorStop(1,'rgba(198,40,40,0.95)');
-        barChart=new Chart(ctx,{
+        if(barC)barC.destroy();
+        var gA=ctx.createLinearGradient(0,0,0,260);gA.addColorStop(0,'rgba(0,188,212,0.92)');gA.addColorStop(1,'rgba(0,131,143,0.92)');
+        var gD=ctx.createLinearGradient(0,0,0,260);gD.addColorStop(0,'rgba(239,83,80,0.88)');gD.addColorStop(1,'rgba(198,40,40,0.88)');
+        barC=new Chart(ctx,{
             type:'bar',
-            data:{
-                labels:d.dates,
-                datasets:[
-                    {label:'Deactive',data:d.deactives,backgroundColor:gD,borderColor:'#B71C1C',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:4,bottomRight:4},barPercentage:.55,categoryPercentage:.7,stack:'s',order:2},
-                    {label:'Active',data:d.actives,backgroundColor:gA,borderColor:'#004D40',borderWidth:1,borderRadius:{topLeft:4,topRight:4,bottomLeft:0,bottomRight:0},barPercentage:.55,categoryPercentage:.7,stack:'s',order:1},
-                    {label:'Trend',data:d.actives,type:'line',borderColor:'rgba(255,255,255,0.85)',borderWidth:2,borderDash:[6,4],pointBackgroundColor:'#fff',pointBorderColor:'#00BCD4',pointBorderWidth:2,pointRadius:4,pointHoverRadius:6,tension:.35,fill:false,order:0}
-                ]
-            },
-            options:{
-                responsive:true,maintainAspectRatio:false,
-                interaction:{mode:'index',intersect:false},
-                plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:12,cornerRadius:8,bodySpacing:4,
-                    callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}}},
-                scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#6C757D',font:{size:9},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.05)'},stacked:true,ticks:{color:'#6C757D',font:{size:10}},beginAtZero:true}},
-                onClick:function(e,el){if(el.length>0)window.open('/daily-active/date-summary?date='+fullDates[el[0].index],'_blank')}
-            }
+            data:{labels:d.dates,datasets:[
+                {label:'Deactive',data:d.deactives,backgroundColor:gD,borderColor:'#B71C1C',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:4,bottomRight:4},barPercentage:.5,categoryPercentage:.65,stack:'s'},
+                {label:'Active',data:d.actives,backgroundColor:gA,borderColor:'#004D40',borderWidth:1,borderRadius:{topLeft:4,topRight:4,bottomLeft:0,bottomRight:0},barPercentage:.5,categoryPercentage:.65,stack:'s'}
+            ]},
+            options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+                plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:10,cornerRadius:8,bodySpacing:3,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}}},
+                scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#888',font:{size:9},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:'#888',font:{size:10}},beginAtZero:true}},
+                onClick:function(e,el){if(el.length>0)window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank')}}
         });
-    }).catch(function(e){console.error('Bar:',e)});
-}
-
-function loadDonuts(){
-    fetch('/daily-active/donut-data?'+fp().substring(1)).then(function(r){return r.json()}).then(function(d){
-        renderDonut('areaDonut',areaChart,d.areas,'Area');renderDonut('subDonut',subChart,d.sub_dists,'Sub Dist');
-        areaChart=Chart.getChart('areaDonut');subChart=Chart.getChart('subDonut');
-    }).catch(function(e){console.error('Donut:',e)});
-}
-
-function renderDonut(id,inst,data,title){
-    if(inst)inst.destroy();
-    if(!data||!data.length){document.getElementById(id).parentElement.innerHTML='<div class="tbl-empty" style="padding:16px"><p style="font-size:11px">No data</p></div>';return}
-    new Chart(document.getElementById(id),{
-        type:'doughnut',
-        data:{labels:data.map(function(d){return d.label}),datasets:[{data:data.map(function(d){return d.value}),backgroundColor:DONUT_COLORS.slice(0,data.length),borderWidth:2,borderColor:'#fff'}]},
-        options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
-            plugins:{legend:{display:true,position:'bottom',labels:{color:'#6C757D',font:{size:9},padding:8,boxWidth:10,boxHeight:10,borderRadius:2}},
-                tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:10,cornerRadius:6,
-                    callbacks:{label:function(c){var t=c.dataset.data.reduce(function(a,b){return a+b},0);var p=t>0?((c.parsed/t)*100).toFixed(1):0;return ' '+c.label+': '+c.parsed.toLocaleString()+' ('+p+'%)'}}}}}
-    });
+    }).catch(function(e){console.error('Chart:',e)});
 }
 
 function onAreaChange(){
     var a=document.getElementById('selArea').value,sel=document.getElementById('selSub');
     sel.innerHTML='<option value="">All Sub Dists</option>';
     fetch('/daily-active/sub-dists?area='+encodeURIComponent(a)).then(function(r){return r.json()}).then(function(l){for(var i=0;i<l.length;i++){var o=document.createElement('option');o.value=l[i];o.textContent=l[i];sel.appendChild(o)}});
-    loadChart();loadDonuts();
+    loadChart();loadSummary();
 }
-function onFilterChange(){loadChart();loadDonuts()}
+function onFilterChange(){loadChart();loadSummary()}
 
 function generateReports(){
-    selFrom=document.getElementById('dateFrom').value;selTo=document.getElementById('dateTo').value;
-    if(!selFrom||!selTo){flash('Select both dates','error');return}
-    if(selFrom===selTo){flash('Select two different dates','error');return}
-    var btn=document.getElementById('btnGen');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> ...';btn.classList.add('gen-loading');
-    fetch('/daily-active/compare?from='+selFrom+'&to='+selTo+fp()).then(function(r){return r.json()}).then(function(d){
-        btn.innerHTML='<i class="fas fa-magnifying-glass-chart"></i> GENERATE';btn.classList.remove('gen-loading');
+    sF=document.getElementById('dateFrom').value;sT=document.getElementById('dateTo').value;sM=document.getElementById('selMode').value;
+    if(!sF||!sT){flash('Select both dates','error');return}
+    if(sF===sT){flash('Select different dates','error');return}
+    var btn=document.getElementById('btnGen');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gen-loading');
+    fetch('/daily-active/compare?from='+sF+'&to='+sT+fp()+'&mode='+sM).then(function(r){return r.json()}).then(function(d){
+        btn.innerHTML='<i class="fas fa-bolt"></i> GENERATE';btn.classList.remove('gen-loading');
         if(d.error){flash(d.error,'error');return}
-        document.getElementById('kpiTotal').textContent=d.total_active.toLocaleString();
-        document.getElementById('kpiDeact').textContent=d.total_deactive.toLocaleString();
+        document.getElementById('kpiA').textContent=d.total_active.toLocaleString();
+        document.getElementById('kpiD').textContent=d.total_deactive.toLocaleString();
         var rate=d.total_active>0?((d.total_deactive/d.total_active)*100).toFixed(1):'0.0';
-        document.getElementById('kpiRate').textContent=rate+'%';
-        var ne=document.getElementById('kpiNet');ne.textContent=(d.net>=0?'+':'')+d.net.toLocaleString();
-        ne.style.color=d.net>0?'var(--green)':d.net<0?'var(--red)':'#FFD740';
-        growthData=d.growth;churnData=d.churn;
-        renderTbl('growthBody','growthCount','btnExpG',growthData,'var(--green)');
-        renderTbl('churnBody','churnCount','btnExpC',churnData,'var(--red)');
-        flash('Report: '+selFrom+' vs '+selTo,'success');
-    }).catch(function(){btn.innerHTML='<i class="fas fa-magnifying-glass-chart"></i> GENERATE';btn.classList.remove('gen-loading');flash('Network error','error')});
+        document.getElementById('kpiR').textContent=rate+'%';
+        var ne=document.getElementById('kpiN');ne.textContent=(d.net>=0?'+':'')+d.net.toLocaleString();
+        ne.style.color=d.net>0?'var(--grn)':d.net<0?'var(--red)':'#F9A825';
+        gData=d.growth;cData=d.churn;
+        var col=sM==='active'?'Active':'Deactive';
+        renderGC('gBody','gCnt','btnEG',gData,'var(--grn)',col);
+        renderGC('cBody','cCnt','btnEC',cData,'var(--red)',col);
+        flash('Report generated ('+col+' mode)','success');
+    }).catch(function(){btn.innerHTML='<i class="fas fa-bolt"></i> GENERATE';btn.classList.remove('gen-loading');flash('Network error','error')});
 }
 
-function renderTbl(bid,cid,btnid,data,color){
+function renderGC(bid,cid,btnid,data,color,colName){
     var el=document.getElementById(bid),ce=document.getElementById(cid),be=document.getElementById(btnid);
     if(!data.length){el.innerHTML='<div class="tbl-empty"><i class="fas fa-check-circle"></i><p>No data</p></div>';ce.textContent='';be.style.display='none';return}
     ce.textContent='('+data.length+')';be.style.display='';
-    var h='<table><thead><tr><th>#</th><th>LCO</th><th class="mob-hide">Area</th><th>P.Act</th><th>N.Act</th><th class="mob-hide">P.Deact</th><th class="mob-hide">N.Deact</th><th>Net</th></tr></thead><tbody>';
+    var h='<table><thead><tr><th>#</th><th>LCO</th><th class="mh">Area</th><th>Previous</th><th>Current</th><th>'+colName+'</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
-        var r=data[i],bg=i%2!==0?'background:#F8F9FB':'';
-        var nm=r.name&&r.name!==r.lco?'<span class="sub-name">'+r.name+'</span>':'';
+        var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
         h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
-        h+='<td style="font-weight:600;font-family:Consolas,monospace">'+r.lco+nm+'</td>';
-        h+='<td class="mob-hide" style="font-size:11px">'+(r.area||'—')+'</td>';
-        h+='<td>'+r.oa+'</td><td style="font-weight:600">'+r.na+'</td>';
-        h+='<td class="mob-hide">'+r.od+'</td><td class="mob-hide">'+r.nd+'</td>';
-        h+='<td style="font-weight:700;color:'+color+'">'+(r.net>=0?'+':'')+r.net+'</td></tr>';
+        h+='<td class="num">'+r.lco+'</td>';
+        h+='<td class="mh" style="font-size:10px;color:var(--grey)">'+(r.area||'—')+'</td>';
+        h+='<td>'+r.prev+'</td><td style="font-weight:600">'+r.now+'</td>';
+        var sign=r.change>=0?'+':'';
+        h+='<td style="font-weight:700;color:'+color+'">'+sign+r.change+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-function dlGrowth(){if(selFrom&&selTo)window.location.href='/daily-active/export-growth?from='+selFrom+'&to='+selTo+fp()}
-function dlChurn(){if(selFrom&&selTo)window.location.href='/daily-active/export-churn?from='+selFrom+'&to='+selTo+fp()}
+function loadSummary(){
+    var dt=document.getElementById('sumDate').value;
+    if(!dt)return;
+    fetch('/daily-active/summary-tables?date='+dt+fp()).then(function(r){return r.json()}).then(function(d){
+        renderSum('subBody',d.subs,'sub_distributor');
+        renderSum('areaBody',d.areas,'area');
+    }).catch(function(e){console.error('Summary:',e)});
+}
+
+function renderSum(bid,data,type){
+    var el=document.getElementById(bid);
+    if(!data||!data.length){el.innerHTML='<div class="tbl-empty"><i class="fas fa-table"></i><p>No data</p></div>';return}
+    var h='<table><thead><tr><th>#</th><th>'+(type==='area'?'Area':'Sub Distributor')+'</th><th>Active</th><th>Deactive</th><th>LCOs</th><th>Share %</th><th>Rate</th></tr></thead><tbody>';
+    var totalAct=0;for(var i=0;i<data.length;i++)totalAct+=data[i].active;
+    for(var i=0;i<data.length;i++){
+        var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
+        var pctCls=r.rate<3?'pct-g':r.rate<8?'pct-o':'pct-r';
+        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
+        h+='<td style="font-weight:600">'+r.name+'</td>';
+        h+='<td class="num" style="color:var(--cyan)">'+r.active.toLocaleString()+'</td>';
+        h+='<td class="num" style="color:var(--red)">'+r.deactive+'</td>';
+        h+='<td class="num">'+r.lcos+'</td>';
+        h+='<td class="num">'+r.share+'%</td>';
+        h+='<td><span class="pct '+pctCls+'">'+r.rate+'%</span></td></tr>';
+    }
+    h+='</tbody></table>';el.innerHTML=h;
+}
+
+function dlG(){if(sF&&sT)window.location.href='/daily-active/export-growth?from='+sF+'&to='+sT+fp()+'&mode='+sM}
+function dlC(){if(sF&&sT)window.location.href='/daily-active/export-churn?from='+sF+'&to='+sT+fp()+'&mode='+sM}
+function dlSummaryDate(){var dt=document.getElementById('sumDate').value;if(dt)window.open('/daily-active/date-summary?date='+dt,'_blank')}
 
 function openUpload(){document.getElementById('uplModal').classList.add('show')}
 function closeUpload(){document.getElementById('uplModal').classList.remove('show');document.getElementById('uplForm').reset();document.getElementById('dropLabel').textContent='Click or drag file here'}
 document.getElementById('uplModal').addEventListener('click',function(e){if(e.target===this)closeUpload()});
 var dz=document.getElementById('dropZone'),fi=document.getElementById('fileIn'),dl=document.getElementById('dropLabel');
-dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dragover')});
-dz.addEventListener('dragleave',function(){dz.classList.remove('dragover')});
-dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;dl.textContent=e.dataTransfer.files[0].name}});
+dz.addEventListener('dragover',function(e){e.preventDefault();dz.style.borderColor='var(--cyan)';dz.style.background='rgba(0,188,212,.04)'});
+dz.addEventListener('dragleave',function(){dz.style.borderColor='';dz.style.background=''});
+dz.addEventListener('drop',function(e){e.preventDefault();dz.style.borderColor='';dz.style.background='';if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;dl.textContent=e.dataTransfer.files[0].name}});
 fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.files[0].name});
 
 function flash(msg,type){var c=document.querySelector('.flashes'),d=document.createElement('div');d.className='flash '+type;d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;c.prepend(d);setTimeout(function(){d.remove()},5000)}
 
-loadChart();loadDonuts();
+loadChart();loadSummary();
 if(document.getElementById('dateFrom').value&&document.getElementById('dateTo').value&&document.getElementById('dateFrom').value!==document.getElementById('dateTo').value){setTimeout(generateReports,500)}
 </script>
 {% endblock %}
