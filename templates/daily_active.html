@@ -2,9 +2,8 @@
 {% block title %}Daily Active Summary{% endblock %}
 {% block page_title %}Daily Active Summary{% endblock %}
 {% block head %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
-:root{--cy:#00BCD4;--rd:#EF5350;--gn:#2FA360;--gd:#FFD740;--og:#FF9800}
+:root{--cy:#00BCD4;--rd:#EF5350;--gn:#2FA360;--gd:#FFD740;--og:#FF9800;--pk:#7C4DFF}
 body .content{padding:12px 14px}
 .kpi-r{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px}
 .kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;position:relative;overflow:hidden}
@@ -13,7 +12,6 @@ body .content{padding:12px 14px}
 .kpi .kl{font-size:8px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
 .kpi .kv{font-size:20px;font-weight:800;line-height:1}
 .k-ka .kv{color:var(--cy)}.k-kd .kv{color:var(--rd)}.k-aa .kv{color:var(--gn)}.k-ad .kv{color:var(--og)}.k-rt .kv{color:#E91E63}.k-nn .kv{color:#F9A825}
-
 .ch2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .ch-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px 8px;overflow:hidden}
 .ch-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
@@ -24,14 +22,12 @@ body .content{padding:12px 14px}
 .ch-inner{height:160px;min-width:100%;position:relative}
 #chMsg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--grey);font-size:11px;z-index:2;background:var(--card)}
 #chMsg.show{display:flex}
-
 .sel-c{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .sel-c .fg{margin-bottom:0;flex:1;min-width:0}
 .sel-c .fg.ff{flex:0 0 auto;min-width:85px}
 .sel-c .fl{font-size:9px;margin-bottom:2px}
 .sel-c .fs{padding:6px 8px;font-size:11px;min-height:30px}
 .sel-c .acts{display:flex;gap:4px;align-items:center;flex-shrink:0}
-
 .t2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .tc{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;max-height:340px}
 .tc.tg{border-top:3px solid var(--gn)}.tc.tr{border-top:3px solid var(--rd)}.tc.to{border-top:3px solid var(--og)}.tc.tc2{border-top:3px solid var(--cy)}
@@ -107,8 +103,14 @@ body .content{padding:12px 14px}
 </div>
 
 <div class="t2">
-    <div class="tc tg"><div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC"></span></h4><button class="btn btn-sm" id="bEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none;padding:4px 8px;font-size:10px" onclick="dG()"><i class="fas fa-download"></i></button></div><div class="tsc" id="gB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div></div>
-    <div class="tc tr"><div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC"></span></h4><button class="btn btn-sm" id="bEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none;padding:4px 8px;font-size:10px" onclick="dC()"><i class="fas fa-download"></i></button></div><div class="tsc" id="cB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div></div>
+    <div class="tc tg">
+        <div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC"></span></h4><button class="btn btn-sm" id="bEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none;padding:4px 8px;font-size:10px" onclick="dG()"><i class="fas fa-download"></i></button></div>
+        <div class="tsc" id="gB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div>
+    </div>
+    <div class="tc tr">
+        <div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC"></span></h4><button class="btn btn-sm" id="bEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none;padding:4px 8px;font-size:10px" onclick="dC()"><i class="fas fa-download"></i></button></div>
+        <div class="tsc" id="cB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div>
+    </div>
 </div>
 
 <div class="sd-bar">
@@ -154,23 +156,23 @@ function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Er
 
 function makeChart(canvasId,msgId,data,actKey,deactKey,c1,c2){
     var msg=document.getElementById(msgId);
-    var canvas=document.getElementById(canvasId);
     if(!data.dates||!data.dates.length){msg.classList.add('show');return}
     msg.classList.remove('show');
     var oldChart=(canvasId==='kcChart')?kcChart:arChart;
     if(oldChart){oldChart.destroy();oldChart=null}
+    var canvas=document.getElementById(canvasId);
     var ctx=canvas.getContext('2d');
-    var gA=ctx.createLinearGradient(0,0,0,160);gA.addColorStop(0,c1+'F0');gA.addColorStop(1,c1+'90');
-    var gR=ctx.createLinearGradient(0,0,0,160);gR.addColorStop(0,c2+'F0');gR.addColorStop(1,c2+'90');
+    var gA=ctx.createLinearGradient(0,0,0,160);gA.addColorStop(0,c1);gA.addColorStop(1,c2);
+    var gR=ctx.createLinearGradient(0,0,0,160);gR.addColorStop(0,c1);gR.addColorStop(1,c2);
     var chart=new Chart(ctx,{
         type:'bar',
         data:{labels:data.dates,datasets:[
-            {label:'Deactive',data:data[deactKey],backgroundColor:gR,borderColor:c2+'40',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.5,categoryPercentage:.6,stack:'s'},
-            {label:'Active',data:data[actKey],backgroundColor:gA,borderColor:c1+'40',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.5,categoryPercentage:.6,stack:'s'}
+            {label:'Deactive',data:data[deactKey],backgroundColor:gR,borderColor:'rgba(0,0,0,.3)',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.5,categoryPercentage:.6,stack:'s'},
+            {label:'Active',data:data[actKey],backgroundColor:gA,borderColor:'rgba(0,0,0,.3)',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.5,categoryPercentage:.6,stack:'s'}
         ]},
         options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-            plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}}},
-            scales:{x:{grid:{display:false},stacked:true,ticks:{color:#999,font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:#999,font:{size:9}},beginAtZero:true}},
+            plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}},
+            scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#999,font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:#999,font:{size:9}},beginAtZero:true}},
             onClick:function(e,el){if(el.length>0&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank')}}
     });
     if(canvasId==='kcChart')kcChart=chart;else arChart=chart;
@@ -178,11 +180,11 @@ function makeChart(canvasId,msgId,data,actKey,deactKey,c1,c2){
 
 function loadCharts(){
     safeFetch('/daily-active/chart-data'+getParams()).then(function(d){
-        fDates=d.full_dates;
-        makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,','rgba(0,188,212,');
-        makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,','rgba(47,163,96,');
+        fDates=d.full_dates||[];
+        makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,0.9)','rgba(0,131,143,0.9)');
+        makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,0.9)','rgba(47,163,96,0.9)');
     }).catch(function(e){
-        console.error('Chart:',e);
+        console.error('[Chart Error]',e);
         document.getElementById('kcMsg').classList.add('show');
         document.getElementById('arMsg').classList.add('show');
     });
@@ -213,29 +215,31 @@ function gen(){
         var totalA=d.kccl_active+d.arohon_active,totalD=d.kccl_deactive+d.arohon_deactive;
         var rate=totalA>0?((totalD/totalA)*100).toFixed(1):'0.0';
         document.getElementById('kR').textContent=rate+'%';
-        var ne=document.getElementById('kN');ne.textContent=(d.net>=0?'+':'')+d.net.toLocaleString();
+        var ne=document.getElementById('kN');ne.textContent=(d.net>=0?'+:'')+d.net.toLocaleString();
         ne.style.color=d.net>0?'var(--gn)':d.net<0?'var(--rd)':'#F9A825';
         growArr=d.growth;churnArr=d.churn;
         var col=vMode==='active'?'Active':'Deactive';
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
         showFlash('Report ('+col+')','success');
-    }).catch(function(e){btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');console.error('Compare:',e);showFlash('Failed','error')});
+    }).catch(function(e){
+        btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
+        console.error('[Compare Error]',e);showFlash('Failed to load report','error');
+    });
 }
 
 function renderGC(bid,cid,btid,data,color,colName){
     var el=document.getElementById(bid),ce=document.getElementById(cid),be=document.getElementById(btid);
     if(!data.length){el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No data</p></div>';ce.textContent='';be.style.display='none';return}
     ce.textContent='('+data.length+')';be.style.display='';
-    var h='<table><thead><tr><th>#</th><th>LCO</th><th class="mh">Area</th><th class="mh">Dist</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
+    var h='<table><thead><tr><th>#</th><th>LCO</th><th class="mh">Area</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
         h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
         h+='<td class="nm">'+r.lco+'</td>';
         h+='<td class="mh" style="font-size:9px;color:var(--grey)">'+(r.area||'—')+'</td>';
-        h+='<td class="mh" style="font-size:9px;color:var(--grey)">'+(r.dist||'—')+'</td>';
         h+='<td>'+r.prev+'</td><td style="font-weight:600">'+r.now+'</td>';
-        h+='<td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+':'')+r.change+'</td></tr>';
+        h+='<td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+:'')+r.change+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
@@ -245,7 +249,7 @@ function loadSummary(){
     if(!dt){renderST('suB',[]);renderST('arB',[]);return}
     safeFetch('/daily-active/summary-tables?date='+dt+getParams()).then(function(d){
         renderST('suB',d.subs);renderST('arB',d.areas);
-    }).catch(function(e){console.error('Summary:',e);renderST('suB',[]);renderST('arB',[])});
+    }).catch(function(e){console.error('[Summary Error]',e);renderST('suB',[]);renderST('arB',[])});
 }
 
 function renderST(bid,data){
@@ -283,6 +287,9 @@ fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.fil
 
 function showFlash(msg,type){var c=document.querySelector('.flashes'),d=document.createElement('div');d.className='flash '+type;d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;c.prepend(d);setTimeout(function(){d.remove()},4000)}
 
-try{loadCharts();setTimeout(function(){loadSummary()},300);var dfV=document.getElementById('dF').value,dtV=document.getElementById('dT').value;if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){gen()},600)}catch(e){console.error('Init:',e)}
+loadCharts();
+setTimeout(function(){loadSummary()},300);
+var dfV=document.getElementById('dF').value,dtV=document.getElementById('dT').value;
+if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){gen()},600);
 </script>
 {% endblock %}
