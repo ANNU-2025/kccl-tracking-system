@@ -1081,8 +1081,7 @@ def daily_active():
                                 else:
                                     lco_code = lco_name.replace(' ', '_')[:50]
                                     try:
-                                        ins = "INSERT INTO lco_master (lco_code, lco_name, distributor) VALUES (%s, %s, %s) ON CONFLICT (lco_code) DO NOTHING"
-                                        cur.execute(ins, (lco_code, lco_name, dist_val))
+                                        cur.execute("INSERT INTO lco_master (lco_code, lco_name, distributor) VALUES (%s, %s, %s) ON CONFLICT (lco_code) DO NOTHING", (lco_code, lco_name, dist_val))
                                         conn.commit()
                                     except:
                                         pass
@@ -1167,7 +1166,6 @@ def da_chart_data():
         return jsonify({'dates': [], 'full_dates': [], 'kccl_a': [], 'kccl_d': [], 'arohon_a': [], 'arohon_d': []})
     cur = conn.cursor()
     try:
-        # Base query - never references distributor column
         q = "SELECT d.report_date, SUM(d.active_count) as total_a, SUM(d.deactive_count) as total_d FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code = m.lco_code WHERE 1=1"
         params = []
         if area:
@@ -1179,25 +1177,24 @@ def da_chart_data():
         q += " GROUP BY d.report_date ORDER BY d.report_date ASC"
         cur.execute(q, tuple(params))
         rows = cur.fetchall()
-        # Try AROHON subquery if distributor=AROHON selected
         arohon_map = {}
         if dist and dist.upper() == 'AROHON':
             try:
                 q2 = "SELECT d.report_date, SUM(d.active_count) as aa, SUM(d.deactive_count) as ad FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code = m.lco_code WHERE COALESCE(m.distributor,'') = %s"
                 params2 = [dist]
                 if area:
-                    q2 += " AND m.area = %s"
                     params2.append(area)
+                    q2 += " AND m.area = %s"
                 if sub_dist:
-                    q2 += " AND m.sub_distributor = %s"
                     params2.append(sub_dist)
+                    q2 += " AND m.sub_distributor = %s"
                 q2 += " GROUP BY d.report_date"
                 cur2 = conn.cursor()
                 cur2.execute(q2, tuple(params2))
                 for r in cur2.fetchall():
                     arohon_map[r[0].strftime('%Y-%m-%d')] = (int(r[1] or 0), int(r[2] or 0))
                 cur2.close()
-            except Exception:
+            except:
                 pass
         kccl_a, kccl_d, arohon_a, arohon_d = [], [], [], [], []
         for r in rows:
@@ -1244,7 +1241,6 @@ def da_compare():
         return jsonify({'error': 'DB error'})
     cur = conn.cursor()
     try:
-        # Safe query - never uses distributor column directly
         q = """SELECT COALESCE(t1.lco_code,t2.lco_code), COALESCE(lm.lco_name,COALESCE(t1.lco_code,t2.lco_code)),
                COALESCE(lm.area,''), COALESCE(lm.sub_distributor,''), '',
                COALESCE(t1.active_count,0), COALESCE(t2.active_count,0),
@@ -1268,7 +1264,6 @@ def da_compare():
         rows = cur.fetchall()
         total_active = sum(r[5] for r in rows)
         total_deactive = sum(r[7] for r in rows)
-        # KCCL = total minus AROHON (since we can't query distributor safely, assume all is KCCL if no AROHON selected)
         ka, kd, aa, ad = total_active, total_deactive, 0, 0
         if dist and dist.upper() == 'AROHON':
             try:
@@ -1285,6 +1280,7 @@ def da_compare():
                 if sub_dist:
                     p2.append(sub_dist)
                     q2 += " AND lm.sub_distributor=%s"
+                q2 += " GROUP BY d.report_date"
                 cur2 = conn.cursor()
                 cur2.execute(q2, tuple(p2))
                 for r in cur2.fetchall():
@@ -1399,47 +1395,6 @@ def da_date_summary():
         return redirect(url_for('daily_active'))
 
 
-def _export_compare_base(d_from, d_to, mode, area, sub_dist, dist, positive):
-    conn = get_db()
-    if not conn:
-        return None, "DB error"
-    try:
-        cur = conn.cursor()
-        q = """SELECT COALESCE(t1.lco_code,t2.lco_code),COALESCE(lm.lco_name,''),COALESCE(lm.area,''),COALESCE(lm.sub_distributor,''),'',
-               COALESCE(t1.active_count,0),COALESCE(t2.active_count,0),COALESCE(t1.deactive_count,0),COALESCE(t2.deactive_count,0)
-               FROM (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s) t1
-               FULL OUTER JOIN (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s) t2
-               ON t1.lco_code=t2.lco_code
-               LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code"""
-        p = [d_from, d_to]
-        if area or sub_dist:
-            cs = []
-            if area:
-                cs.append("lm.area=%s")
-                p.append(area)
-            if sub_dist:
-                cs.append("lm.sub_distributor=%s")
-                p.append(sub_dist)
-            if cs:
-                q += " WHERE " + " AND ".join(cs)
-        cur.execute(q, tuple(p))
-        rows = cur.fetchall()
-        cur.close()
-        release_db(conn)
-        col_name = 'Active Change' if mode == 'active' else 'Deactive Change'
-        data = []
-        for r in rows:
-            if mode == 'active':
-                ch = r[4] - r[3]
-            else:
-                ch = r[6] - r[7]
-            if (positive and ch > 0) or (not positive and ch < 0):
-                data.append({'LCO Code': r[0], 'LCO Name': r[1], 'Area': r[2], 'Sub Distributor': r[3], 'Distributor': '', 'Previous': r[3] if mode == 'active' else r[5], 'Current': r[4] if mode == 'active' else r[6], col_name: ch})
-        if not data:
-            return None, 'No data'
-        return pd.DataFrame(data), None
-
-
 @app.route('/daily-active/export-growth')
 def export_growth_report():
     if 'logged_user' not in session:
@@ -1454,7 +1409,6 @@ def export_growth_report():
     if data is None:
         flash('No growth data', 'error')
         return redirect(url_for('daily_active'))
-    return dl_excel(data, f"Growth_{mode}_{d_from}_vs_{d_to}.xlsx")
 
 
 @app.route('/daily-active/export-churn')
@@ -1471,6 +1425,7 @@ def export_churn_report():
     if data is None:
         flash('No churn data', 'error')
         return redirect(url_for('daily_active'))
+
 
 @app.route('/daily-active/export')
 def export_daily_active():
