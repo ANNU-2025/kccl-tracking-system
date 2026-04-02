@@ -4,7 +4,7 @@
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
-:root{--cy:#00BCD4;--rd:#EF5350;--gn:#2FA360;--gd:#FFD740;--og:#FF9800;--pk:#7C4DFF}
+:root{--cy:#00BCD4;--rd:#EF5350;--gn:#2FA360;--gd:#FFD740;--og:#FF9800}
 body .content{padding:12px 14px}
 .kpi-r{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px}
 .kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;position:relative;overflow:hidden}
@@ -104,7 +104,7 @@ body .content{padding:12px 14px}
 </div>
 
 <div class="sel-c">
-    <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onDistChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+    <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Area</label><select id="sA" class="fs" onchange="onAreaChange()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Sub Dist</label><select id="sS" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">From</label><select id="dF" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
@@ -132,11 +132,11 @@ body .content{padding:12px 14px}
 <div class="t2" style="margin-bottom:16px">
     <div class="tc to">
         <div class="thd"><h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Distributor <span id="suBadge" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bES" style="background:#E65100;color:#fff;border-color:#E65100;display:none;padding:4px 8px;font-size:10px" onclick="dSU()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="suB"><div class="tem"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div></div>
+        <div class="tsc" id="suB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
     <div class="tc tc2">
         <div class="thd"><h4 style="color:var(--cy)"><i class="fas fa-map-location-dot"></i> Area Wise <span id="arBadge" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bEA" style="background:#006064;color:#fff;border-color:#006064;display:none;padding:4px 8px;font-size:10px" onclick="dAR()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="arB"><div class="tem"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div></div>
+        <div class="tsc" id="arB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
 </div>
 
@@ -157,13 +157,14 @@ body .content{padding:12px 14px}
 <script>
 window.onerror=function(msg,src,line){
     var el=document.getElementById('jsErr'),em=document.getElementById('jsErrMsg');
-    if(el&&em){var s=(msg||'').substring(0,150);em.textContent='JS: '+s+' (L'+line+')';el.classList.add('show');}
+    if(el&&em){em.textContent='JS: '+(msg||'').substring(0,150)+' (L'+line+')';el.classList.add('show');}
     return true;
 };
 
 var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',vMode='active';
 var chartOK=(typeof Chart!=='undefined');
 
+/* ===== FILTER HELPERS ===== */
 function getParams(){
     var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,p=[];
     if(d)p.push('distributor='+encodeURIComponent(d));
@@ -171,17 +172,9 @@ function getParams(){
     if(s)p.push('sub_dist='+encodeURIComponent(s));
     return p.length?'?'+p.join('&'):'';
 }
-
-function getToDate(){
-    var v=document.getElementById('dT').value;
-    if(v)return v;
-    var sel=document.getElementById('dT');
-    if(sel&&sel.options.length>1)return sel.options[1].value;
-    return'';
-}
-
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
+/* ===== CHARTS — STATIC, LOAD ONCE ONLY ===== */
 function makeChart(cid,mid,data,ak,dk,c1,c2){
     var msg=document.getElementById(mid);
     if(!data.dates||!data.dates.length){if(msg)msg.classList.add('show');return;}
@@ -206,8 +199,8 @@ function makeChart(cid,mid,data,ak,dk,c1,c2){
     }catch(e){console.error('[ChartErr]',e);if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart error</p>';}}
 }
 
-function loadCharts(){
-    safeFetch('/daily-active/chart-data'+getParams()).then(function(d){
+function loadChartsOnce(){
+    safeFetch('/daily-active/chart-data').then(function(d){
         fDates=d.full_dates||[];
         makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,0.9)','rgba(0,131,143,0.9)');
         makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,0.9)','rgba(30,120,65,0.9)');
@@ -218,16 +211,25 @@ function loadCharts(){
     });
 }
 
-function onDistChange(){loadCharts();loadSummary();}
+/* ===== FILTER CHANGES — ONLY UPDATE TABLES, NOT CHARTS ===== */
+function onFilterChange(){
+    updateSubDists();
+    if(vFrom&&vTo)gen();
+}
 function onAreaChange(){
+    updateSubDists();
+    if(vFrom&&vTo)gen();
+}
+function updateSubDists(){
     var a=document.getElementById('sA').value,d=document.getElementById('sD').value;
     var sel=document.getElementById('sS');sel.innerHTML='<option value="">All</option>';
     var p='area='+encodeURIComponent(a);if(d)p+='&distributor='+encodeURIComponent(d);
-    fetch('/daily-active/sub-dists?'+p).then(function(r){return r.json();}).then(function(l){for(var i=0;i<l.length;i++){var o=document.createElement('option');o.value=l[i];o.textContent=l[i];sel.appendChild(o);}}).catch(function(){});
-    loadCharts();loadSummary();
+    fetch('/daily-active/sub-dists?'+p).then(function(r){return r.json();}).then(function(l){
+        for(var i=0;i<l.length;i++){var o=document.createElement('option');o.value=l[i];o.textContent=l[i];sel.appendChild(o);}
+    }).catch(function(){});
 }
-function onFilterChange(){loadCharts();loadSummary();}
 
+/* ===== GO — UPDATE KPIs + 4 TABLES ONLY ===== */
 function gen(){
     vFrom=document.getElementById('dF').value;
     vTo=document.getElementById('dT').value;
@@ -241,9 +243,10 @@ function gen(){
 
     Promise.all([safeFetch(cmpUrl),safeFetch(sumUrl)]).then(function(results){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
-        var d=results[0], sd=results[1];
-
+        var d=results[0],sd=results[1];
         if(d.error){showFlash(d.error,'error');return;}
+
+        /* KPIs */
         document.getElementById('kKA').textContent=(d.kccl_active||0).toLocaleString();
         document.getElementById('kKD').textContent=(d.kccl_deactive||0).toLocaleString();
         document.getElementById('kAA').textContent=(d.arohon_active||0).toLocaleString();
@@ -254,11 +257,13 @@ function gen(){
         ne.textContent=(net>=0?'+':'')+net.toLocaleString();
         ne.style.color=net>0?'var(--gn)':net<0?'var(--rd)':'#F9A825';
 
+        /* Growth + Churn */
         growArr=d.growth||[];churnArr=d.churn||[];
         var col=vMode==='active'?'Active':'Deactive';
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
 
+        /* Sub Distributor + Area Wise */
         renderST('suB',sd.subs||[],true);
         renderST('arB',sd.areas||[],false);
 
@@ -269,6 +274,7 @@ function gen(){
     });
 }
 
+/* ===== TABLE RENDERERS ===== */
 function renderGC(bid,cid,btid,data,color,colName){
     var el=document.getElementById(bid),ce=document.getElementById(cid),be=document.getElementById(btid);
     if(!el)return;
@@ -286,33 +292,24 @@ function renderGC(bid,cid,btid,data,color,colName){
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-function loadSummary(){
-    var dt=getToDate();
-    if(!dt){renderST('suB',[],true);renderST('arB',[],false);return;}
-    safeFetch('/daily-active/summary-tables?date='+dt+getParams()).then(function(d){
-        renderST('suB',d.subs||[],true);
-        renderST('arB',d.areas||[],false);
-    }).catch(function(e){console.error('[SumErr]',e);renderST('suB',[],true);renderST('arB',[],false);});
-}
-
 function renderST(bid,data,isSub){
     var el=document.getElementById(bid);
     if(!el)return;
-    if(!data||!data.length){el.innerHTML='<div class="tem"><p>No data for this filter</p></div>';
-        var bId=isSub?'bES':'bEA';var bd=document.getElementById(bId);if(bd)bd.style.display='none';return;}
+    var bId=isSub?'bES':'bEA',bdId=isSub?'suBadge':'arBadge';
+    var bd=document.getElementById(bId),bg=document.getElementById(bdId);
+    if(!data||!data.length){
+        el.innerHTML='<div class="tem"><p>No data for this filter</p></div>';
+        if(bd)bd.style.display='none';if(bg)bg.textContent='';return;
+    }
+    if(bd)bd.style.display='';
     var tA=0;for(var i=0;i<data.length;i++)tA+=(data[i].active||0);
-    var badgeId=isSub?'suBadge':'arBadge';
-    var bId=isSub?'bES':'bEA';
-    var bd=document.getElementById(bId);if(bd)bd.style.display='';
-    var bgEl=document.getElementById(badgeId);
-    if(bgEl)bgEl.textContent='('+data.length+' items)';
-
+    if(bg)bg.textContent='('+data.length+')';
     var label=isSub?'Sub Distributor':'Area';
     var h='<table><thead><tr><th>#</th><th>'+label+'</th><th>Active</th><th>Deact</th><th>LCOs</th><th>Share</th><th>Rate</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
-        var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
+        var r=data[i],bg2=i%2!==0?'background:#FAFBFC':'';
         var pc=r.rate<3?'pg':r.rate<8?'po':'pr';
-        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
+        h+='<tr style="'+bg2+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
         h+='<td style="font-weight:600;font-size:10px">'+(r.name||'')+'</td>';
         h+='<td class="nm" style="color:var(--cy)">'+(r.active||0).toLocaleString()+'</td>';
         h+='<td class="nm" style="color:var(--rd)">'+(r.deactive||0)+'</td>';
@@ -323,18 +320,13 @@ function renderST(bid,data,isSub){
     h+='</tbody></table>';el.innerHTML=h;
 }
 
+/* ===== EXPORTS ===== */
 function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
+function dSU(){if(vTo)window.open('/daily-active/date-summary?date='+vTo+getParams(),'_blank');else showFlash('No To date','error');}
+function dAR(){if(vTo)window.open('/daily-active/date-summary?date='+vTo+getParams(),'_blank');else showFlash('No To date','error');}
 
-function dSU(){
-    var dt=getToDate();if(!dt){showFlash('No date selected','error');return;}
-    window.open('/daily-active/date-summary?date='+dt,'_blank');
-}
-function dAR(){
-    var dt=getToDate();if(!dt){showFlash('No date selected','error');return;}
-    window.open('/daily-active/date-summary?date='+dt,'_blank');
-}
-
+/* ===== UPLOAD MODAL ===== */
 function oU(){document.getElementById('uM').classList.add('show');}
 function cU(){document.getElementById('uM').classList.remove('show');document.getElementById('uF').reset();document.getElementById('dL').textContent='Click or drag file';}
 document.getElementById('uM').addEventListener('click',function(e){if(e.target===this)cU();});
@@ -346,6 +338,7 @@ if(dz){
 }
 if(fi)fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.files[0].name;});
 
+/* ===== FLASH ===== */
 function showFlash(msg,type){
     var c=document.querySelector('.flashes');
     if(!c){c=document.createElement('div');c.className='flashes';c.style.cssText='position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none';document.body.appendChild(c);}
@@ -357,11 +350,11 @@ function showFlash(msg,type){
     c.prepend(d);setTimeout(function(){if(d.parentNode)d.remove();},5000);
 }
 
-try{loadSummary();}catch(e){console.error('[InitSum]',e);}
-try{loadCharts();}catch(e){console.error('[InitCh]',e);}
+/* ===== INIT: Charts once, then auto-gen if dates set ===== */
+try{loadChartsOnce();}catch(e){console.error('[InitCh]',e);}
 try{
     var dfV=document.getElementById('dF').value,dtV=document.getElementById('dT').value;
-    if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){try{gen();}catch(e){console.error('[AutoGen]',e);}},800);
+    if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){try{gen();}catch(e){console.error('[AutoGen]',e);}},600);
 }catch(e){console.error('[AutoSetup]',e);}
 
 console.log('[DA] dates={{ date_list|length }}, Chart.js:',chartOK);
