@@ -60,12 +60,26 @@ body .content{padding:12px 14px}
 .ud p{font-size:10px;color:var(--grey)}
 .ua{display:flex;gap:8px;justify-content:flex-end}
 .gl{opacity:.5;pointer-events:none}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;background:var(--card);border:1px dashed var(--border);border-radius:12px;margin-bottom:14px;text-align:center}
+.empty-state i{font-size:40px;color:var(--cy);margin-bottom:12px;opacity:.6}
+.empty-state h4{font-size:16px;margin-bottom:6px}
+.empty-state p{font-size:11px;color:var(--grey);max-width:300px;margin-bottom:15px}
 @media(max-width:900px){.kpi-r{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:768px){.kpi-r{grid-template-columns:repeat(3,1fr);gap:6px}.kpi .kv{font-size:18px}.kpi{padding:8px 10px}.t2{grid-template-columns:1fr !important}.sel-c{flex-direction:column;align-items:stretch}.ch-inner{height:140px}.mh{display:none !important}}
 @media(max-width:400px){.kpi-r{grid-template-columns:repeat(2,1fr)}}
 </style>
 {% endblock %}
 {% block body %}
+
+{% if not date_list %}
+<div class="empty-state">
+    <i class="fas fa-cloud-arrow-up"></i>
+    <h4>No Data Uploaded Yet</h4>
+    <p>Upload your daily active summary Excel/CSV file to see charts, analytics, and growth reports here.</p>
+    <button class="btn btn-green" onclick="oU()"><i class="fas fa-upload"></i> Upload Now</button>
+    <a href="/daily-active/template" class="btn btn-outline" style="margin-left:8px"><i class="fas fa-file-arrow-down"></i> Get Template</a>
+</div>
+{% endif %}
 
 <div class="kpi-r">
     <div class="kpi k-ka"><div class="kl">KCCL Active</div><div class="kv" id="kKA">—</div></div>
@@ -79,18 +93,18 @@ body .content{padding:12px 14px}
 <div class="ch2">
     <div class="ch-wrap">
         <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--cy)"></i> KCCL</h3><div class="lg"><span><i style="background:var(--cy)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
-        <div class="ch-scroll"><div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg"><p>No data</p></div></div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg" class="show"><p>No data</p></div></div></div>
     </div>
     <div class="ch-wrap">
         <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--gn)"></i> AROHON</h3><div class="lg"><span><i style="background:var(--gn)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
-        <div class="ch-scroll"><div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg"><p>No data</p></div></div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg" class="show"><p>No data</p></div></div></div>
     </div>
 </div>
 
 <div class="sel-c">
-    <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onDCh()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
-    <div class="fg"><label class="fl">Area</label><select id="sA" class="fs" onchange="onACh()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
-    <div class="fg"><label class="fl">Sub Dist</label><select id="sS" class="fs" onchange="onFCh()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+    <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onDistChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+    <div class="fg"><label class="fl">Area</label><select id="sA" class="fs" onchange="onAreaChange()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
+    <div class="fg"><label class="fl">Sub Dist</label><select id="sS" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">From</label><select id="dF" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">To</label><select id="dT" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">Type</label><select id="sM" class="fs"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
@@ -172,7 +186,7 @@ function makeChart(canvasId,msgId,data,actKey,deactKey,c1,c2){
         ]},
         options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
             plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}},
-            scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#999,font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:#999,font:{size:9}},beginAtZero:true}},
+            scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#999', font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:'#999',font:{size:9}},beginAtZero:true}},
             onClick:function(e,el){if(el.length>0&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank')}}
     });
     if(canvasId==='kcChart')kcChart=chart;else arChart=chart;
@@ -215,7 +229,7 @@ function gen(){
         var totalA=d.kccl_active+d.arohon_active,totalD=d.kccl_deactive+d.arohon_deactive;
         var rate=totalA>0?((totalD/totalA)*100).toFixed(1):'0.0';
         document.getElementById('kR').textContent=rate+'%';
-        var ne=document.getElementById('kN');ne.textContent=(d.net>=0?'+:'')+d.net.toLocaleString();
+        var ne=document.getElementById('kN');ne.textContent=(d.net>=0?'+':'')+d.net.toLocaleString();
         ne.style.color=d.net>0?'var(--gn)':d.net<0?'var(--rd)':'#F9A825';
         growArr=d.growth;churnArr=d.churn;
         var col=vMode==='active'?'Active':'Deactive';
@@ -239,7 +253,7 @@ function renderGC(bid,cid,btid,data,color,colName){
         h+='<td class="nm">'+r.lco+'</td>';
         h+='<td class="mh" style="font-size:9px;color:var(--grey)">'+(r.area||'—')+'</td>';
         h+='<td>'+r.prev+'</td><td style="font-weight:600">'+r.now+'</td>';
-        h+='<td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+:'')+r.change+'</td></tr>';
+        h+='<td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+':'')+r.change+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
@@ -285,7 +299,12 @@ dz.addEventListener('dragleave',function(){dz.style.borderColor=''});
 dz.addEventListener('drop',function(e){e.preventDefault();dz.style.borderColor='';if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;dl.textContent=e.dataTransfer.files[0].name}});
 fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.files[0].name});
 
-function showFlash(msg,type){var c=document.querySelector('.flashes'),d=document.createElement('div');d.className='flash '+type;d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;c.prepend(d);setTimeout(function(){d.remove()},4000)}
+function showFlash(msg,type){
+    var c=document.querySelector('.flashes');
+    if(!c) return; // Prevent crash if container missing
+    var d=document.createElement('div');d.className='flash '+type;d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;
+    c.prepend(d);setTimeout(function(){d.remove()},4000);
+}
 
 loadCharts();
 setTimeout(function(){loadSummary()},300);
