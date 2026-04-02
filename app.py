@@ -1471,8 +1471,6 @@ def export_churn_report():
     if data is None:
         flash('No churn data', 'error')
         return redirect(url_for('daily_active'))
-    return dl_excel(data, f"Churn_{mode}_{d_from}_vs_{d_to}.xlsx")
-
 
 @app.route('/daily-active/export')
 def export_daily_active():
