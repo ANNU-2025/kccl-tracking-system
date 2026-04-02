@@ -4,9 +4,8 @@
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
-:root{--cy:#00BCD4;--cy2:#00838F;--rd:#EF5350;--rd2:#C62828;--gn:#2FA360;--gd:#FFD740;--og:#FF9800;--pu:#7C4DFF}
+:root{--cy:#00BCD4;--rd:#EF5350;--gn:#2FA360;--gd:#FFD740;--og:#FF9800}
 body .content{padding:12px 14px}
-
 .kpi-r{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px}
 .kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;position:relative;overflow:hidden}
 .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
@@ -15,10 +14,11 @@ body .content{padding:12px 14px}
 .kpi .kv{font-size:20px;font-weight:800;line-height:1}
 .k-ka .kv{color:var(--cy)}.k-kd .kv{color:var(--rd)}.k-aa .kv{color:var(--gn)}.k-ad .kv{color:var(--og)}.k-rt .kv{color:#E91E63}.k-nn .kv{color:#F9A825}
 
-.ch-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px 8px;margin-bottom:10px}
+.ch2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.ch-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px 8px;overflow:hidden}
 .ch-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.ch-top h3{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
-.ch-top .lg{display:flex;gap:10px;font-size:9px;color:var(--grey);font-weight:500}
+.ch-top h3{font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px}
+.ch-top .lg{display:flex;gap:8px;font-size:9px;color:var(--grey);font-weight:500}
 .ch-top .lg i{width:8px;height:8px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px}
 .ch-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .ch-inner{height:160px;min-width:100%;position:relative}
@@ -48,15 +48,12 @@ body .content{padding:12px 14px}
 .nm{font-family:Consolas,'Segoe UI',monospace;font-weight:600}
 .pct{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:700;display:inline-block}
 .pg{background:rgba(47,163,96,.08);color:var(--gn)}.pr{background:rgba(239,83,80,.08);color:var(--rd)}.po{background:rgba(255,152,0,.08);color:var(--og)}
-
 .sd-bar{display:flex;align-items:center;gap:6px;margin-bottom:8px}
 .sd-bar label{font-size:10px;font-weight:600;color:var(--grey);white-space:nowrap}
 .sd-bar .fs{padding:5px 8px;font-size:10px;min-height:28px;width:auto;min-width:140px}
-
 .fb{background:rgba(239,83,80,.06);border:1px solid rgba(239,83,80,.15);border-radius:6px;padding:8px 12px;margin-bottom:10px;max-height:100px;overflow:auto}
 .fb .ft{font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px}
 .fb .fr{font-size:9px;color:var(--red);padding:1px 0}
-
 .uo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
 .uo.show{display:flex}
 .ub{background:var(--card);border-radius:14px;padding:22px;width:90%;max-width:360px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
@@ -67,15 +64,8 @@ body .content{padding:12px 14px}
 .ud p{font-size:10px;color:var(--grey)}
 .ua{display:flex;gap:8px;justify-content:flex-end}
 .gl{opacity:.5;pointer-events:none}
-
 @media(max-width:900px){.kpi-r{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:768px){
-    .kpi-r{grid-template-columns:repeat(3,1fr);gap:6px}.kpi .kv{font-size:18px}.kpi{padding:8px 10px}
-    .t2{grid-template-columns:1fr !important}
-    .sel-c{flex-direction:column;align-items:stretch}
-    .ch-inner{height:140px}
-    .mh{display:none !important}
-}
+@media(max-width:768px){.kpi-r{grid-template-columns:repeat(3,1fr);gap:6px}.kpi .kv{font-size:18px}.kpi{padding:8px 10px}.t2{grid-template-columns:1fr !important}.sel-c{flex-direction:column;align-items:stretch}.ch-inner{height:140px}.mh{display:none !important}}
 @media(max-width:400px){.kpi-r{grid-template-columns:repeat(2,1fr)}}
 </style>
 {% endblock %}
@@ -90,12 +80,15 @@ body .content{padding:12px 14px}
     <div class="kpi k-nn"><div class="kl">Net Change</div><div class="kv" id="kN">—</div></div>
 </div>
 
-<div class="ch-wrap">
-    <div class="ch-top">
-        <h3><i class="fas fa-chart-bar" style="color:var(--cy)"></i> Active vs Deactive</h3>
-        <div class="lg"><span><i style="background:var(--cy)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div>
+<div class="ch2">
+    <div class="ch-wrap">
+        <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--cy)"></i> KCCL</h3><div class="lg"><span><i style="background:var(--cy)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg"><p>No data</p></div></div></div>
     </div>
-    <div class="ch-scroll"><div class="ch-inner" id="chInner"><canvas id="barChart"></canvas><div id="chMsg"><p>No data — upload to get started</p></div></div></div>
+    <div class="ch-wrap">
+        <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--gn)"></i> AROHON</h3><div class="lg"><span><i style="background:var(--gn)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg"><p>No data</p></div></div></div>
+    </div>
 </div>
 
 <div class="sel-c">
@@ -114,8 +107,8 @@ body .content{padding:12px 14px}
 </div>
 
 <div class="t2">
-    <div class="tc tg"><div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none;padding:4px 8px;font-size:10px" onclick="dG()"><i class="fas fa-download"></i></button></div><div class="tsc" id="gB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div></div>
-    <div class="tc tr"><div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none;padding:4px 8px;font-size:10px" onclick="dC()"><i class="fas fa-download"></i></button></div><div class="tsc" id="cB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div></div>
+    <div class="tc tg"><div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC"></span></h4><button class="btn btn-sm" id="bEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none;padding:4px 8px;font-size:10px" onclick="dG()"><i class="fas fa-download"></i></button></div><div class="tsc" id="gB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div></div>
+    <div class="tc tr"><div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC"></span></h4><button class="btn btn-sm" id="bEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none;padding:4px 8px;font-size:10px" onclick="dC()"><i class="fas fa-download"></i></button></div><div class="tsc" id="cB"><div class="tem"><i class="fas fa-chart-line"></i><p>Generate to see data</p></div></div></div>
 </div>
 
 <div class="sd-bar">
@@ -147,59 +140,63 @@ body .content{padding:12px 14px}
 {% if session.get('user_role')=='admin' %}<div style="text-align:right;margin-bottom:12px"><button class="btn btn-red btn-sm" onclick="if(confirm('Delete ALL?')){var f=document.createElement('form');f.method='POST';f.action='/daily-active/delete-all';document.body.appendChild(f);f.submit()}" style="padding:4px 8px;font-size:10px"><i class="fas fa-trash"></i> Delete All</button></div>{% endif %}
 
 <script>
-var growArr=[],churnArr=[],myChart=null,fDates=[],vFrom='',vTo='',vMode='active';
+var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',vMode='active';
 
 function getParams(){
-    var d=document.getElementById('sD').value;
-    var a=document.getElementById('sA').value;
-    var s=document.getElementById('sS').value;
-    var p=[];
+    var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,p=[];
     if(d)p.push('distributor='+encodeURIComponent(d));
     if(a)p.push('area='+encodeURIComponent(a));
     if(s)p.push('sub_dist='+encodeURIComponent(s));
     return p.length?'?'+p.join('&'):'';
 }
 
-function safeFetch(url){
-    return fetch(url).then(function(r){
-        if(!r.ok)throw new Error('HTTP '+r.status);
-        return r.json();
+function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})}
+
+function makeChart(canvasId,msgId,data,actKey,deactKey,c1,c2){
+    var msg=document.getElementById(msgId);
+    var canvas=document.getElementById(canvasId);
+    if(!data.dates||!data.dates.length){msg.classList.add('show');return}
+    msg.classList.remove('show');
+    var oldChart=(canvasId==='kcChart')?kcChart:arChart;
+    if(oldChart){oldChart.destroy();oldChart=null}
+    var ctx=canvas.getContext('2d');
+    var gA=ctx.createLinearGradient(0,0,0,160);gA.addColorStop(0,c1+'F0');gA.addColorStop(1,c1+'90');
+    var gR=ctx.createLinearGradient(0,0,0,160);gR.addColorStop(0,c2+'F0');gR.addColorStop(1,c2+'90');
+    var chart=new Chart(ctx,{
+        type:'bar',
+        data:{labels:data.dates,datasets:[
+            {label:'Deactive',data:data[deactKey],backgroundColor:gR,borderColor:c2+'40',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.5,categoryPercentage:.6,stack:'s'},
+            {label:'Active',data:data[actKey],backgroundColor:gA,borderColor:c1+'40',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.5,categoryPercentage:.6,stack:'s'}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+            plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}}},
+            scales:{x:{grid:{display:false},stacked:true,ticks:{color:#999,font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:#999,font:{size:9}},beginAtZero:true}},
+            onClick:function(e,el){if(el.length>0&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank')}}
+    });
+    if(canvasId==='kcChart')kcChart=chart;else arChart=chart;
+}
+
+function loadCharts(){
+    safeFetch('/daily-active/chart-data'+getParams()).then(function(d){
+        fDates=d.full_dates;
+        makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,','rgba(0,188,212,');
+        makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,','rgba(47,163,96,');
+    }).catch(function(e){
+        console.error('Chart:',e);
+        document.getElementById('kcMsg').classList.add('show');
+        document.getElementById('arMsg').classList.add('show');
     });
 }
 
-function loadChart(){
-    var msg=document.getElementById('chMsg');
-    safeFetch('/daily-active/chart-data'+getParams()).then(function(d){
-        msg.classList.remove('show');
-        if(!d.dates||!d.dates.length){msg.classList.add('show');if(myChart){myChart.destroy();myChart=null}return}
-        fDates=d.full_dates;
-        var ctx=document.getElementById('barChart').getContext('2d');
-        if(myChart){myChart.destroy();myChart=null}
-        var gA=ctx.createLinearGradient(0,0,0,160);gA.addColorStop(0,'rgba(0,188,212,0.92)');gA.addColorStop(1,'rgba(0,131,143,0.92)');
-        var gR=ctx.createLinearGradient(0,0,0,160);gR.addColorStop(0,'rgba(239,83,80,0.88)');gR.addColorStop(1,'rgba(198,40,40,0.88)');
-        myChart=new Chart(ctx,{
-            type:'bar',
-            data:{labels:d.dates,datasets:[
-                {label:'Deactive',data:d.deactives,backgroundColor:gR,borderColor:'#B71C1C',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.5,categoryPercentage:.6,stack:'s'},
-                {label:'Active',data:d.actives,backgroundColor:gA,borderColor:'#004D40',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.5,categoryPercentage:.6,stack:'s'}
-            ]},
-            options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-                plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}}},
-                scales:{x:{grid:{display:false},stacked:true,ticks:{color:#999,font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:#999,font:{size:9}},beginAtZero:true}},
-                onClick:function(e,el){if(el.length>0&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank')}}
-        });
-    }).catch(function(e){console.error('Chart:',e);msg.classList.add('show')});
-}
-
-function onDistChange(){loadChart();loadSummary()}
+function onDistChange(){loadCharts();loadSummary()}
 function onAreaChange(){
     var a=document.getElementById('sA').value,d=document.getElementById('sD').value;
     var sel=document.getElementById('sS');sel.innerHTML='<option value="">All</option>';
     var p='area='+encodeURIComponent(a);if(d)p+='&distributor='+encodeURIComponent(d);
     fetch('/daily-active/sub-dists?'+p).then(function(r){return r.json()}).then(function(l){for(var i=0;i<l.length;i++){var o=document.createElement('option');o.value=l[i];o.textContent=l[i];sel.appendChild(o)}}).catch(function(){});
-    loadChart();loadSummary();
+    loadCharts();loadSummary();
 }
-function onFilterChange(){loadChart();loadSummary()}
+function onFilterChange(){loadCharts();loadSummary()}
 
 function gen(){
     vFrom=document.getElementById('dF').value;vTo=document.getElementById('dT').value;vMode=document.getElementById('sM').value;
@@ -213,8 +210,7 @@ function gen(){
         document.getElementById('kKD').textContent=d.kccl_deactive.toLocaleString();
         document.getElementById('kAA').textContent=d.arohon_active.toLocaleString();
         document.getElementById('kAD').textContent=d.arohon_deactive.toLocaleString();
-        var totalA=d.kccl_active+d.arohon_active;
-        var totalD=d.kccl_deactive+d.arohon_deactive;
+        var totalA=d.kccl_active+d.arohon_active,totalD=d.kccl_deactive+d.arohon_deactive;
         var rate=totalA>0?((totalD/totalA)*100).toFixed(1):'0.0';
         document.getElementById('kR').textContent=rate+'%';
         var ne=document.getElementById('kN');ne.textContent=(d.net>=0?'+':'')+d.net.toLocaleString();
@@ -246,13 +242,13 @@ function renderGC(bid,cid,btid,data,color,colName){
 
 function loadSummary(){
     var dt=document.getElementById('sDt').value;
-    if(!dt){renderSumT('suB',[]);renderSumT('arB',[]);return}
+    if(!dt){renderST('suB',[]);renderST('arB',[]);return}
     safeFetch('/daily-active/summary-tables?date='+dt+getParams()).then(function(d){
-        renderSumT('suB',d.subs);renderSumT('arB',d.areas);
-    }).catch(function(e){console.error('Summary:',e);renderSumT('suB',[]);renderSumT('arB',[])});
+        renderST('suB',d.subs);renderST('arB',d.areas);
+    }).catch(function(e){console.error('Summary:',e);renderST('suB',[]);renderST('arB',[])});
 }
 
-function renderSumT(bid,data){
+function renderST(bid,data){
     var el=document.getElementById(bid);
     if(!data||!data.length){el.innerHTML='<div class="tem"><p>No data</p></div>';return}
     var tA=0;for(var i=0;i<data.length;i++)tA+=data[i].active;
@@ -287,11 +283,6 @@ fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.fil
 
 function showFlash(msg,type){var c=document.querySelector('.flashes'),d=document.createElement('div');d.className='flash '+type;d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;c.prepend(d);setTimeout(function(){d.remove()},4000)}
 
-try{
-    loadChart();
-    setTimeout(function(){loadSummary()},300);
-    var dfV=document.getElementById('dF').value,dtV=document.getElementById('dT').value;
-    if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){gen()},600);
-}catch(e){console.error('Init:',e)}
+try{loadCharts();setTimeout(function(){loadSummary()},300);var dfV=document.getElementById('dF').value,dtV=document.getElementById('dT').value;if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){gen()},600)}catch(e){console.error('Init:',e)}
 </script>
 {% endblock %}
