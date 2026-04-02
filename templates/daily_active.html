@@ -2,7 +2,6 @@
 {% block title %}Daily Active Summary{% endblock %}
 {% block page_title %}Daily Active Summary{% endblock %}
 {% block head %}
-{# ★ FIX: Include Chart.js here as fallback if base.html doesn't have it #}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 :root{--cy:#00BCD4;--rd:#EF5350;--gn:#2FA360;--gd:#FFD740;--og:#FF9800;--pk:#7C4DFF}
@@ -22,8 +21,8 @@ body .content{padding:12px 14px}
 .ch-top .lg i{width:8px;height:8px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px}
 .ch-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .ch-inner{height:160px;min-width:100%;position:relative}
-#chMsg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--grey);font-size:11px;z-index:2;background:var(--card)}
-#chMsg.show{display:flex}
+.ch-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--grey);font-size:11px;z-index:2;background:var(--card)}
+.ch-msg.show{display:flex}
 .sel-c{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .sel-c .fg{margin-bottom:0;flex:1;min-width:0}
 .sel-c .fg.ff{flex:0 0 auto;min-width:85px}
@@ -46,9 +45,6 @@ body .content{padding:12px 14px}
 .nm{font-family:Consolas,'Segoe UI',monospace;font-weight:600}
 .pct{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:700;display:inline-block}
 .pg{background:rgba(47,163,96,.08);color:var(--gn)}.pr{background:rgba(239,83,80,.08);color:var(--rd)}.po{background:rgba(255,152,0,.08);color:var(--og)}
-.sd-bar{display:flex;align-items:center;gap:6px;margin-bottom:8px}
-.sd-bar label{font-size:10px;font-weight:600;color:var(--grey);white-space:nowrap}
-.sd-bar .fs{padding:5px 8px;font-size:10px;min-height:28px;width:auto;min-width:140px}
 .fb{background:rgba(239,83,80,.06);border:1px solid rgba(239,83,80,.15);border-radius:6px;padding:8px 12px;margin-bottom:10px;max-height:100px;overflow:auto}
 .fb .ft{font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px}
 .fb .fr{font-size:9px;color:var(--red);padding:1px 0}
@@ -75,7 +71,6 @@ body .content{padding:12px 14px}
 {% endblock %}
 {% block body %}
 
-{# ★ FIX: JS error banner for debugging on Render #}
 <div class="js-err" id="jsErr"><i class="fas fa-bug"></i> <span id="jsErrMsg"></span></div>
 
 {% if not date_list %}
@@ -100,11 +95,11 @@ body .content{padding:12px 14px}
 <div class="ch2">
     <div class="ch-wrap">
         <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--cy)"></i> KCCL</h3><div class="lg"><span><i style="background:var(--cy)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
-        <div class="ch-scroll"><div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg" class="show"><p>No data</p></div></div></div>
+        <div class="ch-scroll"><div class="ch-inner"><canvas id="kcChart"></canvas><div id="kcMsg" class="ch-msg show"><p>No data</p></div></div></div>
     </div>
     <div class="ch-wrap">
         <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--gn)"></i> AROHON</h3><div class="lg"><span><i style="background:var(--gn)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
-        <div class="ch-scroll"><div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg" class="show"><p>No data</p></div></div></div>
+        <div class="ch-scroll"><div class="ch-inner"><canvas id="arChart"></canvas><div id="arMsg" class="ch-msg show"><p>No data</p></div></div></div>
     </div>
 </div>
 
@@ -112,7 +107,6 @@ body .content{padding:12px 14px}
     <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onDistChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Area</label><select id="sA" class="fs" onchange="onAreaChange()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Sub Dist</label><select id="sS" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
-    {# ★ FIX: From selects latest-1, To selects latest. Works even with 1 date. #}
     <div class="fg ff"><label class="fl">From</label><select id="dF" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">To</label><select id="dT" class="fs"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">Type</label><select id="sM" class="fs"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
@@ -127,26 +121,23 @@ body .content{padding:12px 14px}
 <div class="t2">
     <div class="tc tg">
         <div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC"></span></h4><button class="btn btn-sm" id="bEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none;padding:4px 8px;font-size:10px" onclick="dG()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="gB"><div class="tem"><i class="fas fa-chart-line"></i><p>Select 2 dates & click GO</p></div></div>
+        <div class="tsc" id="gB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
     <div class="tc tr">
         <div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC"></span></h4><button class="btn btn-sm" id="bEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none;padding:4px 8px;font-size:10px" onclick="dC()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="cB"><div class="tem"><i class="fas fa-chart-line"></i><p>Select 2 dates & click GO</p></div></div>
+        <div class="tsc" id="cB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
 </div>
 
-<div class="sd-bar">
-    <label><i class="fas fa-calendar-day"></i> Summary:</label>
-    <select id="sDt" class="fs" onchange="lSum()">
-        {% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b-%Y') }}</option>{% endfor %}
-    </select>
-    <div style="flex:1"></div>
-    <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:10px" onclick="dSD()"><i class="fas fa-download"></i> Excel</button>
-</div>
-
 <div class="t2" style="margin-bottom:16px">
-    <div class="tc to"><div class="thd"><h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Distributor</h4></div><div class="tsc" id="suB"><div class="tem"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div></div></div>
-    <div class="tc tc2"><div class="thd"><h4 style="color:var(--cy)"><i class="fas fa-map-location-dot"></i> Area Wise</h4></div><div class="tsc" id="arB"><div class="tem"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div></div></div>
+    <div class="tc to">
+        <div class="thd"><h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Distributor <span id="suBadge" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bES" style="background:#E65100;color:#fff;border-color:#E65100;display:none;padding:4px 8px;font-size:10px" onclick="dSU()"><i class="fas fa-download"></i></button></div>
+        <div class="tsc" id="suB"><div class="tem"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div></div>
+    </div>
+    <div class="tc tc2">
+        <div class="thd"><h4 style="color:var(--cy)"><i class="fas fa-map-location-dot"></i> Area Wise <span id="arBadge" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bEA" style="background:#006064;color:#fff;border-color:#006064;display:none;padding:4px 8px;font-size:10px" onclick="dAR()"><i class="fas fa-download"></i></button></div>
+        <div class="tsc" id="arB"><div class="tem"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div></div>
+    </div>
 </div>
 
 <div class="uo" id="uM">
@@ -164,21 +155,14 @@ body .content{padding:12px 14px}
 {% if session.get('user_role')=='admin' %}<div style="text-align:right;margin-bottom:12px"><button class="btn btn-red btn-sm" onclick="if(confirm('Delete ALL?')){var f=document.createElement('form');f.method='POST';f.action='/daily-active/delete-all';document.body.appendChild(f);f.submit()}" style="padding:4px 8px;font-size:10px"><i class="fas fa-trash"></i> Delete All</button></div>{% endif %}
 
 <script>
-{# ★ FIX: Global error handler to catch and display JS errors instead of silent crash #}
-window.onerror=function(msg,src,line,col,err){
-    var el=document.getElementById('jsErr');
-    var em=document.getElementById('jsErrMsg');
-    if(el&&em){
-        var short=msg||'Unknown error';
-        if(short.length>150) short=short.substring(0,150)+'...';
-        em.textContent='JS Error: '+short+' (line '+line+')';
-        el.classList.add('show');
-    }
-    return true; {# prevent default browser error #}
+window.onerror=function(msg,src,line){
+    var el=document.getElementById('jsErr'),em=document.getElementById('jsErrMsg');
+    if(el&&em){var s=(msg||'').substring(0,150);em.textContent='JS: '+s+' (L'+line+')';el.classList.add('show');}
+    return true;
 };
 
 var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',vMode='active';
-var chartJSAvailable=(typeof Chart!=='undefined');
+var chartOK=(typeof Chart!=='undefined');
 
 function getParams(){
     var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,p=[];
@@ -188,73 +172,49 @@ function getParams(){
     return p.length?'?'+p.join('&'):'';
 }
 
-function safeFetch(url){
-    return fetch(url).then(function(r){
-        if(!r.ok)throw new Error('HTTP '+r.status);
-        return r.json();
-    });
+function getToDate(){
+    var v=document.getElementById('dT').value;
+    if(v)return v;
+    var sel=document.getElementById('dT');
+    if(sel&&sel.options.length>1)return sel.options[1].value;
+    return'';
 }
 
-{# ★ FIX: Wrapped in try-catch so Chart.js failure doesn't break summary tables #}
-function makeChart(canvasId,msgId,data,actKey,deactKey,c1,c2){
-    var msg=document.getElementById(msgId);
-    if(!data.dates||!data.dates.length){
-        if(msg) msg.classList.add('show');
-        return;
-    }
-    if(msg) msg.classList.remove('show');
-    if(!chartJSAvailable){
-        if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart.js not loaded</p>';}
-        return;
-    }
+function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
+
+function makeChart(cid,mid,data,ak,dk,c1,c2){
+    var msg=document.getElementById(mid);
+    if(!data.dates||!data.dates.length){if(msg)msg.classList.add('show');return;}
+    if(msg)msg.classList.remove('show');
+    if(!chartOK){if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart.js missing</p>';}return;}
     try{
-        var oldChart=(canvasId==='kcChart')?kcChart:arChart;
-        if(oldChart){oldChart.destroy();oldChart=null;}
-        var canvas=document.getElementById(canvasId);
-        if(!canvas) return;
-        var ctx=canvas.getContext('2d');
+        var old=(cid==='kcChart')?kcChart:arChart;
+        if(old){old.destroy();old=null;}
+        var cv=document.getElementById(cid);if(!cv)return;
+        var ctx=cv.getContext('2d');
         var gA=ctx.createLinearGradient(0,0,0,160);gA.addColorStop(0,c1);gA.addColorStop(1,c2);
-        var gR=ctx.createLinearGradient(0,0,0,160);gR.addColorStop(0,'rgba(239,83,80,0.7)');gR.addColorStop(1,'rgba(239,83,80,0.4)');
-        var chart=new Chart(ctx,{
-            type:'bar',
-            data:{
-                labels:data.dates,
-                datasets:[
-                    {label:'Deactive',data:data[deactKey],backgroundColor:gR,borderColor:'rgba(0,0,0,.2)',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.5,categoryPercentage:.6,stack:'s'},
-                    {label:'Active',data:data[actKey],backgroundColor:gA,borderColor:'rgba(0,0,0,.2)',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.5,categoryPercentage:.6,stack:'s'}
-                ]
-            },
-            options:{
-                responsive:true,maintainAspectRatio:false,
-                interaction:{mode:'index',intersect:false},
-                plugins:{
-                    legend:{display:false},
-                    tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()}}}
-                },
-                scales:{
-                    x:{grid:{display:false},stacked:true,ticks:{color:'#999',font:{size:8},maxRotation:50,autoSkip:false}},
-                    y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:'#999',font:{size:9}},beginAtZero:true}
-                },
-                onClick:function(e,el){if(el.length>0&&fDates&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank');}
-            }
-        });
-        if(canvasId==='kcChart')kcChart=chart;else arChart=chart;
-    }catch(chartErr){
-        console.error('[Chart render error]',chartErr);
-        if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart error</p>';}
-    }
+        var gR=ctx.createLinearGradient(0,0,0,160);gR.addColorStop(0,'rgba(239,83,80,0.7)');gR.addColorStop(1,'rgba(239,83,80,0.35)');
+        var ch=new Chart(ctx,{type:'bar',data:{labels:data.dates,datasets:[
+            {label:'Deactive',data:data[dk],backgroundColor:gR,borderColor:'rgba(0,0,0,.15)',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.5,categoryPercentage:.6,stack:'s'},
+            {label:'Active',data:data[ak],backgroundColor:gA,borderColor:'rgba(0,0,0,.15)',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.5,categoryPercentage:.6,stack:'s'}
+        ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+            plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString();}}}},
+            scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#999',font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:'#999',font:{size:9}},beginAtZero:true}},
+            onClick:function(e,el){if(el.length>0&&fDates&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank');}
+        }});
+        if(cid==='kcChart')kcChart=ch;else arChart=ch;
+    }catch(e){console.error('[ChartErr]',e);if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart error</p>';}}
 }
 
-{# ★ FIX: Separated so failure doesn't block summary #}
 function loadCharts(){
     safeFetch('/daily-active/chart-data'+getParams()).then(function(d){
         fDates=d.full_dates||[];
         makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,0.9)','rgba(0,131,143,0.9)');
         makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,0.9)','rgba(30,120,65,0.9)');
     }).catch(function(e){
-        console.error('[Chart Data Error]',e);
-        var m1=document.getElementById('kcMsg');if(m1){m1.classList.add('show');m1.innerHTML='<p>Failed to load</p>';}
-        var m2=document.getElementById('arMsg');if(m2){m2.classList.add('show');m2.innerHTML='<p>Failed to load</p>';}
+        console.error('[ChartDataErr]',e);
+        var m1=document.getElementById('kcMsg');if(m1){m1.classList.add('show');m1.innerHTML='<p>Load failed</p>';}
+        var m2=document.getElementById('arMsg');if(m2){m2.classList.add('show');m2.innerHTML='<p>Load failed</p>';}
     });
 }
 
@@ -263,9 +223,7 @@ function onAreaChange(){
     var a=document.getElementById('sA').value,d=document.getElementById('sD').value;
     var sel=document.getElementById('sS');sel.innerHTML='<option value="">All</option>';
     var p='area='+encodeURIComponent(a);if(d)p+='&distributor='+encodeURIComponent(d);
-    fetch('/daily-active/sub-dists?'+p).then(function(r){return r.json();}).then(function(l){
-        for(var i=0;i<l.length;i++){var o=document.createElement('option');o.value=l[i];o.textContent=l[i];sel.appendChild(o);}
-    }).catch(function(){});
+    fetch('/daily-active/sub-dists?'+p).then(function(r){return r.json();}).then(function(l){for(var i=0;i<l.length;i++){var o=document.createElement('option');o.value=l[i];o.textContent=l[i];sel.appendChild(o);}}).catch(function(){});
     loadCharts();loadSummary();
 }
 function onFilterChange(){loadCharts();loadSummary();}
@@ -276,38 +234,44 @@ function gen(){
     vMode=document.getElementById('sM').value;
     if(!vFrom||!vTo){showFlash('Select both dates','error');return;}
     if(vFrom===vTo){showFlash('Select two different dates','error');return;}
-    var btn=document.getElementById('bG');
-    btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
-    safeFetch('/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode).then(function(d){
+    var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
+
+    var cmpUrl='/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;
+    var sumUrl='/daily-active/summary-tables?date='+vTo+getParams();
+
+    Promise.all([safeFetch(cmpUrl),safeFetch(sumUrl)]).then(function(results){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
+        var d=results[0], sd=results[1];
+
         if(d.error){showFlash(d.error,'error');return;}
         document.getElementById('kKA').textContent=(d.kccl_active||0).toLocaleString();
         document.getElementById('kKD').textContent=(d.kccl_deactive||0).toLocaleString();
         document.getElementById('kAA').textContent=(d.arohon_active||0).toLocaleString();
         document.getElementById('kAD').textContent=(d.arohon_deactive||0).toLocaleString();
-        var totalA=(d.kccl_active||0)+(d.arohon_active||0);
-        var totalD=(d.kccl_deactive||0)+(d.arohon_deactive||0);
-        var rate=totalA>0?((totalD/totalA)*100).toFixed(1):'0.0';
-        document.getElementById('kR').textContent=rate+'%';
-        var ne=document.getElementById('kN');
-        var net=d.net||0;
+        var tA=(d.kccl_active||0)+(d.arohon_active||0),tD=(d.kccl_deactive||0)+(d.arohon_deactive||0);
+        document.getElementById('kR').textContent=(tA>0?((tD/tA)*100).toFixed(1):'0.0')+'%';
+        var ne=document.getElementById('kN'),net=d.net||0;
         ne.textContent=(net>=0?'+':'')+net.toLocaleString();
         ne.style.color=net>0?'var(--gn)':net<0?'var(--rd)':'#F9A825';
+
         growArr=d.growth||[];churnArr=d.churn||[];
         var col=vMode==='active'?'Active':'Deactive';
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
+
+        renderST('suB',sd.subs||[],true);
+        renderST('arB',sd.areas||[],false);
+
         showFlash('Report generated ('+col+')','success');
     }).catch(function(e){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
-        console.error('[Compare Error]',e);
-        showFlash('Failed to load report: '+e.message,'error');
+        console.error('[GenErr]',e);showFlash('Failed: '+e.message,'error');
     });
 }
 
 function renderGC(bid,cid,btid,data,color,colName){
     var el=document.getElementById(bid),ce=document.getElementById(cid),be=document.getElementById(btid);
-    if(!el) return;
+    if(!el)return;
     if(!data||!data.length){el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No change detected</p></div>';if(ce)ce.textContent='';if(be)be.style.display='none';return;}
     if(ce)ce.textContent='('+data.length+')';if(be)be.style.display='';
     var h='<table><thead><tr><th>#</th><th>LCO</th><th class="mh">Area</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
@@ -323,25 +287,28 @@ function renderGC(bid,cid,btid,data,color,colName){
 }
 
 function loadSummary(){
-    var dt=document.getElementById('sDt').value;
-    if(!dt){renderST('suB',[]);renderST('arB',[]);return;}
+    var dt=getToDate();
+    if(!dt){renderST('suB',[],true);renderST('arB',[],false);return;}
     safeFetch('/daily-active/summary-tables?date='+dt+getParams()).then(function(d){
-        renderST('suB',d.subs||[]);
-        renderST('arB',d.areas||[]);
-    }).catch(function(e){
-        console.error('[Summary Error]',e);
-        renderST('suB',[]);
-        renderST('arB',[]);
-    });
+        renderST('suB',d.subs||[],true);
+        renderST('arB',d.areas||[],false);
+    }).catch(function(e){console.error('[SumErr]',e);renderST('suB',[],true);renderST('arB',[],false);});
 }
 
-function renderST(bid,data){
+function renderST(bid,data,isSub){
     var el=document.getElementById(bid);
-    if(!el) return;
-    if(!data||!data.length){el.innerHTML='<div class="tem"><p>No data for this date/filter</p></div>';return;}
+    if(!el)return;
+    if(!data||!data.length){el.innerHTML='<div class="tem"><p>No data for this filter</p></div>';
+        var bId=isSub?'bES':'bEA';var bd=document.getElementById(bId);if(bd)bd.style.display='none';return;}
     var tA=0;for(var i=0;i<data.length;i++)tA+=(data[i].active||0);
-    var isSub=(bid==='suB');
-    var h='<table><thead><tr><th>#</th><th>'+(isSub?'Sub Distributor':'Area')+'</th><th>Active</th><th>Deact</th><th>LCOs</th><th>Share</th><th>Rate</th></tr></thead><tbody>';
+    var badgeId=isSub?'suBadge':'arBadge';
+    var bId=isSub?'bES':'bEA';
+    var bd=document.getElementById(bId);if(bd)bd.style.display='';
+    var bgEl=document.getElementById(badgeId);
+    if(bgEl)bgEl.textContent='('+data.length+' items)';
+
+    var label=isSub?'Sub Distributor':'Area';
+    var h='<table><thead><tr><th>#</th><th>'+label+'</th><th>Active</th><th>Deact</th><th>LCOs</th><th>Share</th><th>Rate</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
         var pc=r.rate<3?'pg':r.rate<8?'po':'pr';
@@ -358,7 +325,15 @@ function renderST(bid,data){
 
 function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
-function dSD(){var dt=document.getElementById('sDt').value;if(dt)window.open('/daily-active/date-summary?date='+dt,'_blank');}
+
+function dSU(){
+    var dt=getToDate();if(!dt){showFlash('No date selected','error');return;}
+    window.open('/daily-active/date-summary?date='+dt,'_blank');
+}
+function dAR(){
+    var dt=getToDate();if(!dt){showFlash('No date selected','error');return;}
+    window.open('/daily-active/date-summary?date='+dt,'_blank');
+}
 
 function oU(){document.getElementById('uM').classList.add('show');}
 function cU(){document.getElementById('uM').classList.remove('show');document.getElementById('uF').reset();document.getElementById('dL').textContent='Click or drag file';}
@@ -369,40 +344,26 @@ if(dz){
     dz.addEventListener('dragleave',function(){dz.style.borderColor='';});
     dz.addEventListener('drop',function(e){e.preventDefault();dz.style.borderColor='';if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;dl.textContent=e.dataTransfer.files[0].name;}});
 }
-if(fi){
-    fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.files[0].name;});
-}
+if(fi)fi.addEventListener('change',function(){if(fi.files.length)dl.textContent=fi.files[0].name;});
 
 function showFlash(msg,type){
     var c=document.querySelector('.flashes');
-    if(!c){
-        c=document.createElement('div');c.className='flashes';c.style.cssText='position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none';
-        document.body.appendChild(c);
-    }
-    var d=document.createElement('div');
-    d.className='flash '+type;
+    if(!c){c=document.createElement('div');c.className='flashes';c.style.cssText='position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none';document.body.appendChild(c);}
+    var d=document.createElement('div');d.className='flash '+type;
     d.style.cssText='pointer-events:auto;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);max-width:320px;word-break:break-word;';
     if(type==='success'){d.style.background='#E8F5E9';d.style.color='#2E7D32';d.style.border='1px solid #A5D6A7';}
     else{d.style.background='#FFEBEE';d.style.color='#C62828';d.style.border='1px solid #EF9A9A';}
     d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;
-    c.prepend(d);
-    setTimeout(function(){if(d.parentNode)d.remove();},5000);
+    c.prepend(d);setTimeout(function(){if(d.parentNode)d.remove();},5000);
 }
 
-{# ★ FIX: Load summary FIRST (always works), then charts (needs Chart.js) #}
-try{ loadSummary(); }catch(e){console.error('[Init summary error]',e);}
-try{ loadCharts(); }catch(e){console.error('[Init charts error]',e);}
-
-{# ★ FIX: Auto-gen only if 2+ dates AND both dropdowns have values #}
+try{loadSummary();}catch(e){console.error('[InitSum]',e);}
+try{loadCharts();}catch(e){console.error('[InitCh]',e);}
 try{
-    var dfV=document.getElementById('dF').value;
-    var dtV=document.getElementById('dT').value;
-    if(dfV&&dtV&&dfV!==dtV){
-        setTimeout(function(){try{gen();}catch(e){console.error('[Auto-gen error]',e);}},800);
-    }
-}catch(e){console.error('[Auto-gen setup error]',e);}
+    var dfV=document.getElementById('dF').value,dtV=document.getElementById('dT').value;
+    if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){try{gen();}catch(e){console.error('[AutoGen]',e);}},800);
+}catch(e){console.error('[AutoSetup]',e);}
 
-{# ★ DEBUG: Log what we have #}
-console.log('[DA Init] date_list count: {{ date_list|length }}, Chart.js:', chartJSAvailable);
+console.log('[DA] dates={{ date_list|length }}, Chart.js:',chartOK);
 </script>
 {% endblock %}
