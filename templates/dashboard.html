@@ -63,8 +63,8 @@
                 <table><thead><tr><th>Item Code</th><th>In Stock</th></tr></thead>
                 <tbody id="materialBody">{% for row in material_summary %}<tr>
                     <td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">{{ row[0] }}</td>
-                    <!-- NOTE: Changed row[2] to row[3] to match fixed Python data -->
-                    <td><span class="bg bg-green"><span class="bd"></span>{{ row[3] }}</span></td>
+                    <!-- CHANGED BACK TO row[2] TO MATCH YOUR ORIGINAL PYTHON CODE -->
+                    <td><span class="bg bg-green"><span class="bd"></span>{{ row[2] }}</span></td>
                 </tr>{% endfor %}</tbody></table>
             </div>
             {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-box-open"></i><h3>No Data</h3></div>{% endif %}
