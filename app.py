@@ -1576,6 +1576,8 @@ def daily_active_template():
     return send_file(output, download_name="Daily_Active_Template.xlsx", as_attachment=True)
 
 
+# ... (all your other routes) ...
+
 @app.route('/daily-active/delete-all', methods=['POST'])
 def daily_active_delete_all():
     if not is_admin(): return redirect(url_for('login'))
@@ -1589,6 +1591,7 @@ def daily_active_delete_all():
     release_db(conn)
     return redirect(url_for('daily_active'))
 
+# --- CRITICAL: Ensure this is at the very end, with NO indentation ---
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
