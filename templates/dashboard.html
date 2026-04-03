@@ -63,7 +63,7 @@
                 <table><thead><tr><th>Item Code</th><th>In Stock</th></tr></thead>
                 <tbody id="materialBody">{% for row in material_summary %}<tr>
                     <td style="font-weight:600;font-family:Consolas,monospace;font-size:11px">{{ row[0] }}</td>
-                    <!-- CHANGED BACK TO row[2] TO MATCH YOUR ORIGINAL PYTHON CODE -->
+                    <!-- FIX: Your Python code returns 3 columns. row[2] is the count. -->
                     <td><span class="bg bg-green"><span class="bd"></span>{{ row[2] }}</span></td>
                 </tr>{% endfor %}</tbody></table>
             </div>
