@@ -160,6 +160,8 @@ def logout():
 
 # ==================== DASHBOARD ====================
 
+# ==================== DASHBOARD ====================
+
 @app.route('/dashboard')
 def dashboard():
     if 'logged_user' not in session:
@@ -169,6 +171,8 @@ def dashboard():
         flash('Database connection failed', 'error')
         return redirect(url_for('login'))
     cur = conn.cursor()
+    
+    # 1. STB Stats
     cur.execute("SELECT COUNT(*) FROM stb_stock WHERE status='In Stock'")
     total_in_stock = cur.fetchone()[0] or 0
     cur.execute("SELECT COUNT(*) FROM stb_stock WHERE status='In Stock' AND stock_type='Returned'")
@@ -178,8 +182,12 @@ def dashboard():
     status_counts = dict(cur.fetchall())
     issued_c = status_counts.get('Issued', 0)
     faulty_c = status_counts.get('Faulty', 0)
+    
+    # 2. Fibre Stats
     cur.execute("SELECT COALESCE(SUM(balance_length), 0) FROM fibre_stock")
     fib_val = cur.fetchone()[0] or 0
+    
+    # 3. Material Summary (Fixed Logic)
     material_summary = []
     try:
         cur.execute("""SELECT ms.item_code,
@@ -187,11 +195,15 @@ def dashboard():
                    COUNT(*) as total_cnt,
                    SUM(CASE WHEN ms.status='In Stock' THEN 1 ELSE 0 END) as in_stock_cnt,
                    SUM(CASE WHEN ms.status='Issued' THEN 1 ELSE 0 END) as issued_cnt
-                   FROM material_serials ms LEFT JOIN material_master mm ON ms.item_code = mm.item_code
-                   GROUP BY ms.item_code ORDER BY in_stock_cnt DESC, ms.item_code""")
+                   FROM material_serials ms 
+                   LEFT JOIN material_master mm ON ms.item_code = mm.item_code
+                   GROUP BY ms.item_code 
+                   ORDER BY in_stock_cnt DESC, ms.item_code""")
         material_summary = cur.fetchall()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Material Query Error: {e}")
+
+    # 4. Consumable Summary (Fixed Logic)
     consumable_summary = []
     try:
         cur.execute("""SELECT item_code,
@@ -200,23 +212,36 @@ def dashboard():
                    SUM(used_qty) as used_qty,
                    SUM(balance_qty) as balance_qty,
                    COUNT(DISTINCT batch_id) as batches
-                   FROM consumable_stock GROUP BY item_code ORDER BY balance_qty DESC, item_code""")
+                   FROM consumable_stock 
+                   GROUP BY item_code 
+                   ORDER BY balance_qty DESC, item_code""")
         consumable_summary = cur.fetchall()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Consumable Query Error: {e}")
+
+    # 5. Dealer Data
     dealer_data = []
     try:
         cur.execute("""SELECT dealer, COUNT(*) FROM stb_stock
                    WHERE status='Issued' AND dealer IS NOT NULL AND dealer != ''
                    GROUP BY dealer ORDER BY dealer ASC""")
         dealer_data = cur.fetchall()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Dealer Query Error: {e}")
+        
     cur.close()
     release_db(conn)
-    return render_template('dashboard.html', total_in_stock=total_in_stock, fresh_c=fresh_c, ret_c=ret_c,
-        issued_c=issued_c, faulty_c=faulty_c, fib_val=fib_val, material_summary=material_summary,
-        consumable_summary=consumable_summary, dealer_data=dealer_data)
+    
+    return render_template('dashboard.html', 
+                           total_in_stock=total_in_stock, 
+                           fresh_c=fresh_c, 
+                           ret_c=ret_c,
+                           issued_c=issued_c, 
+                           faulty_c=faulty_c, 
+                           fib_val=fib_val, 
+                           material_summary=material_summary,
+                           consumable_summary=consumable_summary, 
+                           dealer_data=dealer_data)
 
 
 # ==================== STB ====================
