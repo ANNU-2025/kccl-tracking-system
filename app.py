@@ -182,17 +182,24 @@ def dashboard():
     fib_val = cur.fetchone()[0] or 0
     material_summary = []
     try:
-        cur.execute("""SELECT ms.item_code, COALESCE(mm.item_name, ms.item_code),
-                   SUM(CASE WHEN ms.status='In Stock' THEN 1 ELSE 0 END)
+        cur.execute("""SELECT ms.item_code,
+                   COALESCE(MAX(mm.item_name), MAX(ms.item_name), ms.item_code) as display_name,
+                   COUNT(*) as total_cnt,
+                   SUM(CASE WHEN ms.status='In Stock' THEN 1 ELSE 0 END) as in_stock_cnt,
+                   SUM(CASE WHEN ms.status='Issued' THEN 1 ELSE 0 END) as issued_cnt
                    FROM material_serials ms LEFT JOIN material_master mm ON ms.item_code = mm.item_code
-                   GROUP BY ms.item_code, mm.item_name ORDER BY ms.item_code""")
-        material_summary = cur.fetchall()
+                   GROUP BY ms.item_code ORDER BY in_stock_cnt DESC, ms.item_code""")
+    material_summary = cur.fetchall()
     except: pass
     consumable_summary = []
     try:
-        cur.execute("""SELECT item_code, COALESCE(NULLIF(item_name,''), item_code),
-                   SUM(total_qty), SUM(used_qty), SUM(balance_qty)
-                   FROM consumable_stock GROUP BY item_code, item_name ORDER BY item_code""")
+        cur.execute("""SELECT item_code,
+                   MAX(COALESCE(NULLIF(item_name,''), item_code)) as display_name,
+                   SUM(total_qty) as total_qty,
+                   SUM(used_qty) as used_qty,
+                   SUM(balance_qty) as balance_qty,
+                   COUNT(DISTINCT batch_id) as batches
+                   FROM consumable_stock GROUP BY item_code ORDER BY balance_qty DESC, item_code""")
         consumable_summary = cur.fetchall()
     except: pass
     dealer_data = []
