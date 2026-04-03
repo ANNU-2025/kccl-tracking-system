@@ -35,6 +35,9 @@ def _force_ensure_columns(conn):
         ("material_logs", "item_name", "TEXT"),
         ("consumable_logs", "item_name", "TEXT"),
         ("consumable_stock", "item_name", "TEXT"),
+        ("lco_master", "distributor", "TEXT"),
+        ("lco_master", "sub_distributor", "TEXT"),
+        ("lco_master", "area", "TEXT"),
     ]
     for table, col, dtype in cols:
         try:
