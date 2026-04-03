@@ -449,7 +449,6 @@ def inventory_bulk():
                                 cur.execute("UPDATE material_serials SET status='In Stock',dealer=NULL,updated_at=NOW() WHERE serial_no=%s", (r[0],))
                                 serial_nos_list.append(r[0])
 
-                    # ★ KEY FIX: if qty > 1, store blank serial_nos in log
                     serial_nos_str = ','.join(serial_nos_list) if serial_nos_list and qty <= 1 else ''
                     action_label = {'add': 'Add New', 'issue': 'Issue', 'return': 'Return'}[bulk_action]
                     try:
@@ -459,7 +458,7 @@ def inventory_bulk():
                         cur.execute("INSERT INTO material_logs (item_code,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())",
                                     (code, action_label, qty, dealer, invoice, session['logged_user'], serial_nos_str))
 
-                else:  # CONSUMABLE
+                else:
                     code = _clean(row.get('item_code', '')).upper()
                     name = _clean(row.get('item_name', '')).upper()
                     batch = _clean(row.get('batch_id', '')).upper()
@@ -643,7 +642,6 @@ def inventory():
                                 serial_nos_list.append(r[0])
                                 try: cur.execute("INSERT INTO material_stock (item_code,item_name,quantity,serial_no) VALUES (%s,%s,1,%s)", (code, name, r[0]))
                                 except: pass
-                    # ★ KEY FIX: blank serial_nos when qty > 1
                     serial_nos_str = ','.join(serial_nos_list) if serial_nos_list and qty <= 1 else ''
                     try:
                         cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())",
@@ -692,7 +690,6 @@ def inventory():
                 flash(f'Error: {str(e)}', 'error')
                 print(traceback.format_exc())
 
-    # Invoice search via GET
     if not inv_search:
         inv_search = request.args.get('inv_search', '').strip()
         if inv_search:
@@ -1043,6 +1040,7 @@ def _export_compare_base(d_from, d_to, mode, area, sub_dist, dist, is_growth):
         p = [d_from, d_to]
         if area: q += " AND lm.area=%s"; p.append(area)
         if sub_dist: q += " AND lm.sub_distributor=%s"; p.append(sub_dist)
+        if dist: q += " AND COALESCE(lm.distributor,'')=%s"; p.append(dist)
         cur.execute(q, tuple(p))
         rows = cur.fetchall()
         cur.close()
@@ -1174,8 +1172,7 @@ def da_chart_data():
                 for r in cur2.fetchall(): arohon_map[r[0].strftime('%Y-%m-%d')] = (int(r[1] or 0), int(r[2] or 0))
                 cur2.close()
             except: pass
-        # ★ FIX 1: Removed extra [] which caused ValueError
-        kccl_a, kccl_d, arohon_a, arohon_d = [], [], [], [] 
+        kccl_a, kccl_d, arohon_a, arohon_d = [], [], [], []
         for r in rows:
             dt = r[0].strftime('%Y-%m-%d')
             aa, ad = arohon_map.get(dt, (0, 0))
@@ -1205,7 +1202,6 @@ def da_compare():
     if not conn: return jsonify({'error': 'DB error'})
     cur = conn.cursor()
     try:
-        # ★ FIX 2: Index 4 replaced '' with COALESCE(lm.distributor,'')
         q = """SELECT COALESCE(t1.lco_code,t2.lco_code), COALESCE(lm.lco_name,COALESCE(t1.lco_code,t2.lco_code)),
                COALESCE(lm.area,''), COALESCE(lm.sub_distributor,''), COALESCE(lm.distributor,''),
                COALESCE(t1.active_count,0), COALESCE(t2.active_count,0),
@@ -1215,19 +1211,19 @@ def da_compare():
                ON t1.lco_code=t2.lco_code
                LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code"""
         p = [d_from, d_to]
-        if area or sub_dist:
+        if area or sub_dist or dist:
             cs = []
             if area: cs.append("lm.area=%s"); p.append(area)
             if sub_dist: cs.append("lm.sub_distributor=%s"); p.append(sub_dist)
+            if dist: cs.append("COALESCE(lm.distributor,'')=%s"); p.append(dist)
             if cs: q += " WHERE " + " AND ".join(cs)
         cur.execute(q, tuple(p))
         rows = cur.fetchall()
-        
-        # ★ FIX 3: Mapped correct indexes (6 is To-Date Active, 8 is To-Date Deactive)
+
         total_active = sum(r[6] for r in rows)
         total_deactive = sum(r[8] for r in rows)
         ka, kd, aa, ad = total_active, total_deactive, 0, 0
-        
+
         if dist and dist.upper() == 'AROHON':
             try:
                 q2 = """SELECT COALESCE(t1.active_count,0), COALESCE(t2.active_count,0), COALESCE(t1.deactive_count,0), COALESCE(t2.deactive_count,0)
@@ -1241,8 +1237,8 @@ def da_compare():
                 if sub_dist: p2.append(sub_dist); q2 += " AND lm.sub_distributor=%s"
                 cur2 = conn.cursor(); cur2.execute(q2, tuple(p2))
                 for r in cur2.fetchall():
-                    aa += r[1] # t2.active
-                    ad += r[3] # t2.deactive
+                    aa += r[1]
+                    ad += r[3]
                 cur2.close()
             except: pass
         ka = total_active - aa; kd = total_deactive - ad
@@ -1331,6 +1327,7 @@ def da_summary_tables():
         release_db(conn)
         return jsonify({'areas': [], 'subs': []})
 
+
 @app.route('/daily-active/date-summary')
 def da_date_summary():
     if 'logged_user' not in session: return redirect(url_for('login'))
@@ -1362,6 +1359,94 @@ def export_churn_report():
     if err: flash(f"Error: {err}", "error"); return redirect(url_for('daily_active'))
     if data is None: flash('No churn data', 'error'); return redirect(url_for('daily_active'))
     return dl_excel(data, f"Churn_Report_{request.args.get('from','')}.xlsx")
+
+
+@app.route('/daily-active/export-subdist')
+def export_subdist_report():
+    if 'logged_user' not in session: return redirect(url_for('login'))
+    d_from = request.args.get('from', '')
+    d_to = request.args.get('to', '')
+    area = request.args.get('area', '')
+    dist = request.args.get('distributor', '')
+    mode = request.args.get('mode', 'active')
+    if not d_from or not d_to:
+        flash('Select both dates', 'error'); return redirect(url_for('daily_active'))
+    conn = get_db()
+    if not conn: return redirect(url_for('daily_active'))
+    try:
+        fc, fp = [], []
+        if area: fc.append("m.area = %s"); fp.append(area)
+        if dist: fc.append("COALESCE(m.distributor,'') = %s"); fp.append(dist)
+        fsql = (" AND " + " AND ".join(fc)) if fc else ""
+        col = "COALESCE(m.sub_distributor,'Unassigned')"
+        q = f"""SELECT COALESCE(t1.name,t2.name),
+                   COALESCE(t1.act,0),COALESCE(t2.act,0),COALESCE(t2.act,0)-COALESCE(t1.act,0),
+                   COALESCE(t1.deact,0),COALESCE(t2.deact,0),COALESCE(t2.deact,0)-COALESCE(t1.deact,0),
+                   COALESCE(t2.lcos,0)
+                   FROM (SELECT {col} as name,SUM(d.active_count) as act,SUM(d.deactive_count) as deact,COUNT(DISTINCT d.lco_code) as lcos
+                         FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE d.report_date=%s{fsql}
+                         GROUP BY {col}) t1
+                   FULL OUTER JOIN (SELECT {col} as name,SUM(d.active_count) as act,SUM(d.deactive_count) as deact,COUNT(DISTINCT d.lco_code) as lcos
+                         FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE d.report_date=%s{fsql}
+                         GROUP BY {col}) t2 ON t1.name=t2.name"""
+        params = [d_from]+fp+[d_to]+fp
+        df = pd.read_sql(q, conn, params=params)
+        release_db(conn)
+        if mode == 'active':
+            df = df[[0,1,2,3,7]].copy()
+        else:
+            df = df[[0,4,5,6,7]].copy()
+        df.columns = ['Sub Distributor', 'Prev', 'Now', 'Change', 'LCOs']
+        df.sort_values('Change', ascending=False, inplace=True)
+        df = fix_timezone(df)
+        return dl_excel(df, f"SubDistributors_{d_from}_to_{d_to}.xlsx")
+    except Exception as e:
+        release_db(conn); flash(f"Export Error: {e}", "error")
+        return redirect(url_for('daily_active'))
+
+
+@app.route('/daily-active/export-area')
+def export_area_report():
+    if 'logged_user' not in session: return redirect(url_for('login'))
+    d_from = request.args.get('from', '')
+    d_to = request.args.get('to', '')
+    sub_dist = request.args.get('sub_dist', '')
+    dist = request.args.get('distributor', '')
+    mode = request.args.get('mode', 'active')
+    if not d_from or not d_to:
+        flash('Select both dates', 'error'); return redirect(url_for('daily_active'))
+    conn = get_db()
+    if not conn: return redirect(url_for('daily_active'))
+    try:
+        fc, fp = [], []
+        if sub_dist: fc.append("m.sub_distributor = %s"); fp.append(sub_dist)
+        if dist: fc.append("COALESCE(m.distributor,'') = %s"); fp.append(dist)
+        fsql = (" AND " + " AND ".join(fc)) if fc else ""
+        col = "COALESCE(m.area,'Unassigned')"
+        q = f"""SELECT COALESCE(t1.name,t2.name),
+                   COALESCE(t1.act,0),COALESCE(t2.act,0),COALESCE(t2.act,0)-COALESCE(t1.act,0),
+                   COALESCE(t1.deact,0),COALESCE(t2.deact,0),COALESCE(t2.deact,0)-COALESCE(t1.deact,0),
+                   COALESCE(t2.lcos,0)
+                   FROM (SELECT {col} as name,SUM(d.active_count) as act,SUM(d.deactive_count) as deact,COUNT(DISTINCT d.lco_code) as lcos
+                         FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE d.report_date=%s{fsql}
+                         GROUP BY {col}) t1
+                   FULL OUTER JOIN (SELECT {col} as name,SUM(d.active_count) as act,SUM(d.deactive_count) as deact,COUNT(DISTINCT d.lco_code) as lcos
+                         FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code WHERE d.report_date=%s{fsql}
+                         GROUP BY {col}) t2 ON t1.name=t2.name"""
+        params = [d_from]+fp+[d_to]+fp
+        df = pd.read_sql(q, conn, params=params)
+        release_db(conn)
+        if mode == 'active':
+            df = df[[0,1,2,3,7]].copy()
+        else:
+            df = df[[0,4,5,6,7]].copy()
+        df.columns = ['Area', 'Prev', 'Now', 'Change', 'LCOs']
+        df.sort_values('Change', ascending=False, inplace=True)
+        df = fix_timezone(df)
+        return dl_excel(df, f"AreaWise_{d_from}_to_{d_to}.xlsx")
+    except Exception as e:
+        release_db(conn); flash(f"Export Error: {e}", "error")
+        return redirect(url_for('daily_active'))
 
 
 @app.route('/daily-active/export')
@@ -1402,7 +1487,7 @@ def daily_active_delete_all():
         conn.rollback(); flash(f'Error: {e}', 'error')
     release_db(conn)
     return redirect(url_for('daily_active'))
-    
+
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
