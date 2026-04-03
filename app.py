@@ -1393,9 +1393,9 @@ def export_subdist_report():
         df = pd.read_sql(q, conn, params=params)
         release_db(conn)
         if mode == 'active':
-            df = df[[0,1,2,3,7]].copy()
+            df = df.iloc[:, [0,1,2,3,7]].copy()
         else:
-            df = df[[0,4,5,6,7]].copy()
+            df = df.iloc[:, [0,4,5,6,7]].copy()
         df.columns = ['Sub Distributor', 'Prev', 'Now', 'Change', 'LCOs']
         df.sort_values('Change', ascending=False, inplace=True)
         df = fix_timezone(df)
@@ -1437,9 +1437,9 @@ def export_area_report():
         df = pd.read_sql(q, conn, params=params)
         release_db(conn)
         if mode == 'active':
-            df = df[[0,1,2,3,7]].copy()
+            df = df.iloc[:, [0,1,2,3,7]].copy()
         else:
-            df = df[[0,4,5,6,7]].copy()
+            df = df.iloc[:, [0,4,5,6,7]].copy()
         df.columns = ['Area', 'Prev', 'Now', 'Change', 'LCOs']
         df.sort_values('Change', ascending=False, inplace=True)
         df = fix_timezone(df)
