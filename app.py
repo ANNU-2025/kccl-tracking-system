@@ -189,10 +189,9 @@ def dashboard():
                    SUM(CASE WHEN ms.status='Issued' THEN 1 ELSE 0 END) as issued_cnt
                    FROM material_serials ms LEFT JOIN material_master mm ON ms.item_code = mm.item_code
                    GROUP BY ms.item_code ORDER BY in_stock_cnt DESC, ms.item_code""")
-    material_summary = cur.fetchall()
-    except:
+        material_summary = cur.fetchall()
+    except Exception:
         pass
-
     consumable_summary = []
     try:
         cur.execute("""SELECT item_code,
@@ -203,7 +202,7 @@ def dashboard():
                    COUNT(DISTINCT batch_id) as batches
                    FROM consumable_stock GROUP BY item_code ORDER BY balance_qty DESC, item_code""")
         consumable_summary = cur.fetchall()
-    except:
+    except Exception:
         pass
     dealer_data = []
     try:
@@ -211,7 +210,8 @@ def dashboard():
                    WHERE status='Issued' AND dealer IS NOT NULL AND dealer != ''
                    GROUP BY dealer ORDER BY dealer ASC""")
         dealer_data = cur.fetchall()
-    except: pass
+    except Exception:
+        pass
     cur.close()
     release_db(conn)
     return render_template('dashboard.html', total_in_stock=total_in_stock, fresh_c=fresh_c, ret_c=ret_c,
