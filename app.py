@@ -43,7 +43,6 @@ def _force_ensure_columns(conn):
             if not c.fetchone():
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {dtype}")
                 conn.commit()
-                print(f"✅ Added {col} to {table}")
             c.close()
         except:
             try: conn.rollback()
@@ -116,9 +115,13 @@ def dl_excel(df, filename):
     return send_file(output, download_name=filename, as_attachment=True)
 
 
+def is_admin():
+    return session.get('user_role', '').lower() == 'admin'
+
+
 @app.context_processor
 def inject_now():
-    return {'now': datetime.now()}
+    return {'now': datetime.now(), 'is_admin': is_admin()}
 
 
 # ==================== LOGIN ====================
@@ -213,6 +216,9 @@ def stb_manager():
     if 'logged_user' not in session:
         return redirect(url_for('login'))
     if request.method == 'POST':
+        if not is_admin():
+            flash('Admin access required', 'error')
+            return redirect(url_for('stb_manager'))
         sno = request.form.get('stb_no', '').upper()
         dlr = request.form.get('dealer', '').upper()
         act = request.form.get('action')
@@ -247,6 +253,9 @@ def stb_manager():
 def stb_bulk():
     if 'logged_user' not in session:
         return redirect(url_for('login'))
+    if not is_admin():
+        flash('Admin access required', 'error')
+        return redirect(url_for('stb_manager'))
     act = request.form.get('bulk_action')
     dlr = request.form.get('bulk_dealer', '').upper()
     file = request.files.get('file')
@@ -352,6 +361,9 @@ def inventory_template(item_cat):
 def inventory_bulk():
     if 'logged_user' not in session:
         return redirect(url_for('login'))
+    if not is_admin():
+        flash('Admin access required', 'error')
+        return redirect(url_for('inventory'))
     file = request.files.get('bulk_file')
     item_cat = request.form.get('item_category', 'material')
     bulk_action = request.form.get('bulk_action', 'add')
@@ -544,6 +556,10 @@ def inventory_bulk():
 def inventory():
     if 'logged_user' not in session:
         return redirect(url_for('login'))
+    if request.method == 'POST':
+        if not is_admin():
+            flash('Admin access required', 'error')
+            return redirect(url_for('inventory'))
     conn = get_db()
     if not conn:
         flash('Database connection failed', 'error')
@@ -737,16 +753,19 @@ def inventory():
 def fibre_manager():
     if 'logged_user' not in session:
         return redirect(url_for('login'))
-    conn = get_db()
-    if not conn:
-        flash('Database connection failed', 'error')
-        return render_template('fibre.html')
-    cur = conn.cursor()
     if request.method == 'POST':
+        if not is_admin():
+            flash('Admin access required', 'error')
+            return redirect(url_for('fibre_manager'))
         did = request.form.get('drum_id', '').upper()
         lg = request.form.get('length', '0')
         dlr = request.form.get('lco_name', '').upper()
         act = request.form.get('action')
+        conn = get_db()
+        if not conn:
+            flash('Database connection failed', 'error')
+            return render_template('fibre.html')
+        cur = conn.cursor()
         try:
             lg_val = float(lg or 0)
             if act == 'Add New':
@@ -761,8 +780,9 @@ def fibre_manager():
         except Exception as e:
             conn.rollback()
             flash(f'Error: {e}', 'error')
-    cur.close()
-    release_db(conn)
+        finally:
+            cur.close()
+            release_db(conn)
     return render_template('fibre.html')
 
 
@@ -861,11 +881,11 @@ def logs():
     return render_template('logs.html', combined=combined, stb_logs=stb_logs, fibre_logs=fibre_logs, f_date=f_date, t_date=t_date, search_term=search_term)
 
 
-# ==================== EXPORTS ====================
+# ==================== EXPORTS — ADMIN ONLY ====================
 
 @app.route('/export/instock')
 def export_instock():
-    if 'logged_user' not in session: return redirect(url_for('dashboard'))
+    if not is_admin(): return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn: return redirect(url_for('dashboard'))
     output = BytesIO()
@@ -922,7 +942,7 @@ def export_instock():
 
 @app.route('/export/stb/<status>')
 def export_stb_status(status):
-    if 'logged_user' not in session: return redirect(url_for('dashboard'))
+    if not is_admin(): return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn: return redirect(url_for('dashboard'))
     try:
@@ -936,7 +956,7 @@ def export_stb_status(status):
 
 @app.route('/export/dealer/<dealer_name>')
 def export_dealer(dealer_name):
-    if 'logged_user' not in session: return redirect(url_for('dashboard'))
+    if not is_admin(): return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn: return redirect(url_for('dashboard'))
     try:
@@ -950,7 +970,7 @@ def export_dealer(dealer_name):
 
 @app.route('/export/hardware')
 def export_hardware():
-    if 'logged_user' not in session: return redirect(url_for('dashboard'))
+    if not is_admin(): return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn: return redirect(url_for('dashboard'))
     try:
@@ -978,7 +998,7 @@ def export_hardware():
 
 @app.route('/export/fibre')
 def export_fibre():
-    if 'logged_user' not in session: return redirect(url_for('dashboard'))
+    if not is_admin(): return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn: return redirect(url_for('dashboard'))
     try:
@@ -994,7 +1014,7 @@ def export_fibre():
 
 @app.route('/export/consumables')
 def export_consumables():
-    if 'logged_user' not in session: return redirect(url_for('dashboard'))
+    if not is_admin(): return redirect(url_for('dashboard'))
     conn = get_db()
     if not conn: return redirect(url_for('dashboard'))
     try:
@@ -1020,6 +1040,46 @@ def export_consumables():
         except Exception as e:
             flash(f"Export Error: {e}", "error"); release_db(conn)
             return redirect(url_for('dashboard'))
+
+
+# ==================== BONUS: DEALER SUMMARY REPORT ====================
+
+@app.route('/export/dealer-summary')
+def export_dealer_summary():
+    if not is_admin(): return redirect(url_for('dashboard'))
+    conn = get_db()
+    if not conn: return redirect(url_for('dashboard'))
+    try:
+        df_stb = pd.read_sql("""SELECT dealer as "Dealer", 
+               COUNT(*) as "STB Issued",
+               SUM(CASE WHEN stock_type='Fresh' THEN 1 ELSE 0 END) as "Fresh",
+               SUM(CASE WHEN stock_type='Returned' THEN 1 ELSE 0 END) as "Returned"
+               FROM stb_stock WHERE status='Issued' AND dealer IS NOT NULL AND dealer != ''
+               GROUP BY dealer ORDER BY dealer""", conn)
+        
+        df_hw = pd.read_sql("""SELECT dealer as "Dealer", 
+               COUNT(*) as "Hardware Issued"
+               FROM material_serials WHERE status='Issued' AND dealer IS NOT NULL AND dealer != ''
+               GROUP BY dealer ORDER BY dealer""", conn)
+        
+        df_fb = pd.read_sql("""SELECT dealer as "Dealer",
+               COALESCE(SUM(length),0) as "Fibre Used (M)"
+               FROM fibre_logs WHERE action='Issue' AND dealer IS NOT NULL AND dealer != ''
+               GROUP BY dealer ORDER BY dealer""", conn)
+
+        merged = df_stb.merge(df_hw, on='Dealer', how='outer').merge(df_fb, on='Dealer', how='outer')
+        merged = merged.fillna(0)
+        for c in ['STB Issued','Fresh','Returned','Hardware Issued','Fibre Used (M)']:
+            merged[c] = merged[c].astype(int)
+        merged = merged.sort_values('STB Issued', ascending=False)
+        merged = fix_timezone(merged)
+        release_db(conn)
+        return dl_excel(merged, "Dealer_Summary_Report.xlsx")
+    except Exception as e:
+        release_db(conn)
+        flash(f"Export Error: {e}", "error")
+        return redirect(url_for('dashboard'))
+
 
 # ==================== DAILY ACTIVE SUMMARY ====================
 
@@ -1059,6 +1119,7 @@ def _export_compare_base(d_from, d_to, mode, area, sub_dist, dist, is_growth):
         release_db(conn)
         return None, str(e)
 
+
 @app.route('/daily-active', methods=['GET', 'POST'])
 def daily_active():
     if 'logged_user' not in session: return redirect(url_for('login'))
@@ -1068,6 +1129,9 @@ def daily_active():
     if request.method == 'POST':
         form_type = request.form.get('form_type', '')
         if form_type == 'bulk':
+            if not is_admin():
+                flash('Admin access required', 'error')
+                return redirect(url_for('daily_active'))
             file = request.files.get('da_file')
             if not file: flash('Please select a file', 'error')
             else:
@@ -1328,6 +1392,8 @@ def da_summary_tables():
         return jsonify({'areas': [], 'subs': []})
 
 
+# ==================== DAILY ACTIVE EXPORTS — BOTH USER AND ADMIN ====================
+
 @app.route('/daily-active/date-summary')
 def da_date_summary():
     if 'logged_user' not in session: return redirect(url_for('login'))
@@ -1477,7 +1543,7 @@ def daily_active_template():
 
 @app.route('/daily-active/delete-all', methods=['POST'])
 def daily_active_delete_all():
-    if 'logged_user' not in session or session.get('user_role') != 'admin': return redirect(url_for('login'))
+    if not is_admin(): return redirect(url_for('login'))
     conn = get_db()
     if not conn: flash('Database connection failed', 'error'); return redirect(url_for('daily_active'))
     try:
