@@ -190,7 +190,9 @@ def dashboard():
                    FROM material_serials ms LEFT JOIN material_master mm ON ms.item_code = mm.item_code
                    GROUP BY ms.item_code ORDER BY in_stock_cnt DESC, ms.item_code""")
     material_summary = cur.fetchall()
-    except: pass
+    except:
+        pass
+
     consumable_summary = []
     try:
         cur.execute("""SELECT item_code,
@@ -201,7 +203,8 @@ def dashboard():
                    COUNT(DISTINCT batch_id) as batches
                    FROM consumable_stock GROUP BY item_code ORDER BY balance_qty DESC, item_code""")
         consumable_summary = cur.fetchall()
-    except: pass
+    except:
+        pass
     dealer_data = []
     try:
         cur.execute("""SELECT dealer, COUNT(*) FROM stb_stock
