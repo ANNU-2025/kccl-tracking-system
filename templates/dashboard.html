@@ -1,170 +1,519 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
+{% block title %}KCCL Dashboard{% endblock %}
+{% block page_title %}Executive Dashboard{% endblock %}
+
 {% block head %}
 <style>
-    .stat-card{cursor:pointer;transition:.15s;border:1px solid var(--border)}
-    .stat-card:hover{border-color:var(--blue);box-shadow:0 3px 18px rgba(48,151,209,.12);transform:translateY(-2px)}
-    .stat-card:active{transform:translateY(0)}
-    .dl-icon{position:absolute;bottom:10px;right:14px;font-size:13px;color:#C0C8D8;opacity:0;transition:.15s}
-    .stat-card:hover .dl-icon{opacity:.7}
-    .dl-row{background:none;border:1px solid var(--border);border-radius:5px;padding:4px 10px;cursor:pointer;color:var(--grey);font-size:11px;transition:.12s;display:inline-flex;align-items:center;gap:4px}
-    .dl-row:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
-    .stat-sub{display:flex;gap:18px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
-    .stat-sub div{font-size:11px}
-    .dash-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;height:calc(100vh - 260px)}
-    .dash-grid .tw{display:flex;flex-direction:column;overflow:hidden}
-    .dash-grid .tw-bar{flex-shrink:0}
-    .dash-grid .tw-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-    .dash-grid .search-box{flex-shrink:0}
-    .dash-grid .tw-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:5px;scrollbar-color:#C0C8D8;border-radius:3px}
-    .dash-grid .tw-scroll::-webkit-scrollbar{width:5px}
-    .dash-grid .tw-scroll::-webkit-scrollbar-thumb{background:#C0C8D8;border-radius:3px}
-    .dash-tbl{width:100%;border-collapse:collapse}
-    .dash-tbl thead th{padding:6px 8px;font-size:9px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.3px;background:#F8FAFC;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:2}
-    .dash-tbl tbody td{padding:5px 8px;font-size:11px;border-bottom:1px solid #F1F5F9}
-    .dash-tbl tbody tr:hover{background:#F8F9FC}
-    .dash-tbl tbody tr:last-child td{border-bottom:none}
-    .nm{font-family:Consolas,'Courier New',monospace;font-weight:600}
-    .stk-bar{background:#EEF0F2;border-radius:4px;height:6px;overflow:hidden;min-width:60px}
-    .stk-fill{height:100%;border-radius:4px;transition:width .4s ease}
-    .stk-pct{font-size:8px;color:var(--grey);margin-top:1px;text-align:right}
-    .badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;line-height:1.3}
-    .badge-green{background:#E8F5E9;color:#2E7D32}
-    .badge-red{background:#FFEBEE;color:#C62828}
-    .badge-yellow{background:#FFF8E1;color:#F57F17}
-    .badge-blue{background:#E3F2FD;color:#1565C0}
-    .badge-grey{background:#F5F5F5;color:#9E9E9E}
-    .item-name-cell{font-weight:600;font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .item-code-cell{font-family:Consolas,'Courier New',monospace;font-size:10px;color:var(--grey)}
-    .hide-m{display:table-cell}
-    @media(max-width:900px){.dash-grid{height:calc(100vh - 220px)}}
-    @media(max-width:768px){.dash-grid{height:auto;min-height:350px;grid-template-columns:1fr}.stat-sub{gap:10px}.dl-row{padding:6px 12px;font-size:12px}.hide-m{display:none !important}.stk-bar{min-width:45px}}
+    /* === PROFESSIONAL DASHBOARD OVERRIDES === */
+    :root {
+        --card-bg: #FFFFFF;
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        --card-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        --text-main: #1E293B;
+        --text-muted: #64748B;
+        --border-color: #E2E8F0;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: var(--card-shadow);
+        border: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--card-hover);
+        border-color: var(--cy);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; width: 4px; height: 100%;
+        background: var(--cy);
+        opacity: 0.5;
+    }
+    
+    .stat-card.green::before { background: var(--gn); }
+    .stat-card.blue::before { background: #3B82F6; }
+    .stat-card.red::before { background: var(--rd); }
+    .stat-card.purple::before { background: #8B5CF6; }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+
+    .stat-icon {
+        width: 40px; height: 40px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px;
+        background: #F1F5F9;
+        color: var(--text-main);
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--text-main);
+        line-height: 1.2;
+        margin-bottom: 4px;
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-sub {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--border-color);
+        display: flex;
+        gap: 12px;
+        font-size: 12px;
+    }
+    
+    .stat-sub span { color: var(--text-muted); }
+    .stat-sub strong { font-weight: 700; }
+
+    /* Main Layout Grid */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 20px;
+        height: calc(100vh - 280px);
+        min-height: 400px;
+    }
+
+    .panel {
+        background: var(--card-bg);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        box-shadow: var(--card-shadow);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .panel-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #FAFAFA;
+    }
+
+    .panel-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .panel-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .search-box {
+        padding: 10px 20px;
+        border-bottom: 1px solid var(--border-color);
+        background: #fff;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 13px;
+        background: #F8FAFC;
+        transition: all 0.2s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--cy);
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+    }
+
+    .table-container {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    thead {
+        position: sticky;
+        top: 0;
+        background: #F1F5F9;
+        z-index: 10;
+    }
+
+    th {
+        text-align: left;
+        padding: 12px 16px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #F1F5F9;
+        color: var(--text-main);
+    }
+
+    tbody tr {
+        transition: background 0.15s;
+    }
+
+    tbody tr:hover {
+        background: #F8FAFC;
+    }
+    
+    tbody tr:last-child td { border-bottom: none; }
+
+    /* Status Pills */
+    .pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+    .pill-green { background: #DCFCE7; color: #166534; }
+    .pill-blue { background: #DBEAFE; color: #1E40AF; }
+    .pill-yellow { background: #FEF3C7; color: #92400E; }
+    .pill-red { background: #FEE2E2; color: #991B1B; }
+    .pill-gray { background: #F1F5F9; color: #475569; }
+
+    /* Progress Bar */
+    .progress-wrapper {
+        width: 100%;
+        height: 6px;
+        background: #E2E8F0;
+        border-radius: 3px;
+        margin-top: 6px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+
+    /* Responsive */
+    @media(max-width: 1024px) {
+        .dashboard-grid { grid-template-columns: 1fr 1fr; height: auto; }
+        .panel { height: 400px; }
+    }
+    @media(max-width: 768px) {
+        .dashboard-grid { grid-template-columns: 1fr; }
+        .stats-grid { grid-template-columns: 1fr 1fr; }
+        .panel { height: 350px; }
+    }
 </style>
 {% endblock %}
-{% block body %}
-<script>function dl(u){window.location.href=u}</script>
 
-<div class="stats">
-    <div class="stat stat-card" onclick="dl('{{ url_for('export_instock') }}')">
-        <div class="si green"><i class="fas fa-box"></i></div>
-        <div class="sv">{{ total_in_stock }}</div><div class="sl">IN STOCK</div>
-        <div class="stat-sub"><div><span style="color:var(--grey)">Fresh:</span> <strong style="color:var(--green)">{{ fresh_c }}</strong></div><div><span style="color:var(--grey)">Returned:</span> <strong style="color:#C8960A">{{ ret_c }}</strong></div></div>
-        <i class="fas fa-download dl-icon"></i>
+{% block body %}
+
+<!-- Stats Section -->
+<div class="stats-grid">
+    <!-- STB In Stock -->
+    <div class="stat-card green" onclick="dl('{{ url_for('export_instock') }}')">
+        <div class="stat-header">
+            <div>
+                <div class="stat-value">{{ total_in_stock }}</div>
+                <div class="stat-label">Total In Stock</div>
+            </div>
+            <div class="stat-icon" style="background: #DCFCE7; color: #166534;">
+                <i class="fas fa-box"></i>
+            </div>
+        </div>
+        <div class="stat-sub">
+            <span>Fresh:</span> <strong style="color:var(--gn)">{{ fresh_c }}</strong>
+            <span>Returned:</span> <strong style="color:#D97706">{{ ret_c }}</strong>
+        </div>
+        <i class="fas fa-download" style="position:absolute; bottom:15px; right:15px; color:#CBD5E1; font-size:12px;"></i>
     </div>
-    <div class="stat stat-card" onclick="dl('{{ url_for('export_stb_status', status='Issued') }}')">
-        <div class="si blue"><i class="fas fa-share"></i></div>
-        <div class="sv">{{ issued_c }}</div><div class="sl">ISSUED</div><i class="fas fa-download dl-icon"></i>
+
+    <!-- Issued -->
+    <div class="stat-card blue" onclick="dl('{{ url_for('export_stb_status', status='Issued') }}')">
+        <div class="stat-header">
+            <div>
+                <div class="stat-value">{{ issued_c }}</div>
+                <div class="stat-label">Issued to Dealers</div>
+            </div>
+            <div class="stat-icon" style="background: #DBEAFE; color: #1E40AF;">
+                <i class="fas fa-share-nodes"></i>
+            </div>
+        </div>
+        <i class="fas fa-download" style="position:absolute; bottom:15px; right:15px; color:#CBD5E1; font-size:12px;"></i>
     </div>
-    <div class="stat stat-card" onclick="dl('{{ url_for('export_stb_status', status='Faulty') }}')">
-        <div class="si red"><i class="fas fa-triangle-exclamation"></i></div>
-        <div class="sv">{{ faulty_c }}</div><div class="sl">FAULTY</div><i class="fas fa-download dl-icon"></i>
+
+    <!-- Faulty -->
+    <div class="stat-card red" onclick="dl('{{ url_for('export_stb_status', status='Faulty') }}')">
+        <div class="stat-header">
+            <div>
+                <div class="stat-value">{{ faulty_c }}</div>
+                <div class="stat-label">Faulty / Damaged</div>
+            </div>
+            <div class="stat-icon" style="background: #FEE2E2; color: #991B1B;">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+        </div>
+        <i class="fas fa-download" style="position:absolute; bottom:15px; right:15px; color:#CBD5E1; font-size:12px;"></i>
     </div>
-    <div class="stat stat-card" onclick="dl('{{ url_for('export_fibre') }}')">
-        <div class="si purple"><i class="fas fa-network-wired"></i></div>
-        <div class="sv">{{ fib_val }}m</div><div class="sl">FIBRE STOCK</div><i class="fas fa-download dl-icon"></i>
+
+    <!-- Fibre -->
+    <div class="stat-card purple" onclick="dl('{{ url_for('export_fibre') }}')">
+        <div class="stat-header">
+            <div>
+                <div class="stat-value">{{ fib_val }}m</div>
+                <div class="stat-label">Fibre Stock</div>
+            </div>
+            <div class="stat-icon" style="background: #EDE9FE; color: #5B21B6;">
+                <i class="fas fa-network-wired"></i>
+            </div>
+        </div>
+        <i class="fas fa-download" style="position:absolute; bottom:15px; right:15px; color:#CBD5E1; font-size:12px;"></i>
     </div>
 </div>
 
-<div class="dash-grid">
+<!-- Main Dashboard Grid -->
+<div class="dashboard-grid">
 
-    <!-- MATERIAL TABLE -->
-    <div class="tw">
-        <div class="tw-bar"><div class="card-title"><i class="fas fa-microchip" style="color:var(--green)"></i> Material</div><button class="btn btn-green btn-sm" onclick="dl('{{ url_for('export_hardware') }}')"><i class="fas fa-download"></i> Export</button></div>
-        <div class="tw-body">
-            <input type="text" id="materialSearch" class="fi search-box" placeholder="Search name or code...">
-            {% if material_summary %}
-            <div class="tw-scroll">
-                <table class="dash-tbl">
-                    <thead><tr><th>Item</th><th class="hide-m">Code</th><th>Total</th><th style="color:var(--green)">Stock</th><th style="color:var(--red)">Issued</th><th class="hide-m">Level</th></tr></thead>
-                    <tbody id="materialBody">
-                    {% for row in material_summary %}
-                    {% set total = row[2]|int %}
-                    {% set instock = row[3]|int %}
-                    {% set issued = row[4]|int %}
-                    {% set pct = ((instock/total)*100)|int if total > 0 else 0 %}
-                    {% set bar_clr = 'var(--green)' if pct > 50 else ('#FF9800' if pct > 20 else 'var(--red)') %}
+    <!-- Material Panel -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title">
+                <i class="fas fa-microchip" style="color: var(--gn)"></i> Material Stock
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="dl('{{ url_for('export_hardware') }}')">
+                <i class="fas fa-file-excel"></i> Export
+            </button>
+        </div>
+        <div class="search-box">
+            <input type="text" id="matSearch" class="search-input" placeholder="Search items...">
+        </div>
+        <div class="table-container">
+            <table id="matTable">
+                <thead>
                     <tr>
-                        <td class="item-name-cell" title="{{ row[1] }}">{{ row[1] }}</td>
-                        <td class="hide-m item-code-cell">{{ row[0] }}</td>
-                        <td class="nm">{{ total }}</td>
-                        <td><span class="badge {% if instock > 0 %}badge-green{% else %}badge-red{% endif %}">{{ instock }}</span></td>
-                        <td>{% if issued > 0 %}<span class="badge badge-blue">{{ issued }}</span>{% else %}<span style="color:var(--grey);font-size:11px">0</span>{% endif %}</td>
-                        <td class="hide-m">
-                            <div class="stk-bar"><div class="stk-fill" style="width:{{ pct }}%;background:{{ bar_clr }}"></div></div>
-                            <div class="stk-pct">{{ pct }}% avail</div>
-                        </td>
+                        <th>Item Code</th>
+                        <th style="text-align:right">In Stock</th>
                     </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-box-open"></i><h3>No Data</h3></div>{% endif %}
+                </thead>
+                <tbody>
+                    {% if material_summary %}
+                        {% for row in material_summary %}
+                        <tr>
+                            <td>
+                                <div style="font-weight:600; font-family:Consolas,monospace;">{{ row[0] }}</div>
+                                <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">{{ row[1] }}</div>
+                            </td>
+                            <td style="text-align:right">
+                                <span class="pill pill-green">{{ row[3] }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="2" style="text-align:center; padding:30px; color:var(--text-muted);">
+                                <i class="fas fa-box-open" style="font-size:24px; margin-bottom:10px; opacity:0.5;"></i><br>
+                                No Material Data
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- CONSUMABLE TABLE -->
-    <div class="tw">
-        <div class="tw-bar"><div class="card-title"><i class="fas fa-flask" style="color:var(--purple)"></i> Consumable</div><button class="btn btn-purple btn-sm" onclick="dl('{{ url_for('export_consumables') }}')"><i class="fas fa-download"></i> Export</button></div>
-        <div class="tw-body">
-            <input type="text" id="consumableSearch" class="fi search-box" placeholder="Search name or code...">
-            {% if consumable_summary %}
-            <div class="tw-scroll">
-                <table class="dash-tbl">
-                    <thead><tr><th>Item</th><th class="hide-m">Code</th><th>Total</th><th>Used</th><th style="color:var(--green)">Balance</th><th class="hide-m">Batches</th><th class="hide-m">Usage</th></tr></thead>
-                    <tbody id="consumableBody">
-                    {% for row in consumable_summary %}
-                    {% set total = row[2]|float %}
-                    {% set used = row[3]|float %}
-                    {% set bal = row[4]|float %}
-                    {% set use_pct = ((used/total)*100)|int if total > 0 else 0 %}
-                    {% set bar_clr = 'var(--green)' if use_pct < 50 else ('#FF9800' if use_pct < 80 else 'var(--red)') %}
-                    {% set bal_clr = 'var(--red)' if bal <= 0 else ('#C8960A' if (bal/total*100) <= 20 else 'var(--green)') %}
+    <!-- Consumable Panel -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title">
+                <i class="fas fa-flask" style="color: var(--purple)"></i> Consumables
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="dl('{{ url_for('export_consumables') }}')">
+                <i class="fas fa-file-excel"></i> Export
+            </button>
+        </div>
+        <div class="search-box">
+            <input type="text" id="conSearch" class="search-input" placeholder="Search batches...">
+        </div>
+        <div class="table-container">
+            <table id="conTable">
+                <thead>
                     <tr>
-                        <td class="item-name-cell" title="{{ row[1] }}">{{ row[1] }}</td>
-                        <td class="hide-m item-code-cell">{{ row[0] }}</td>
-                        <td class="nm">{{ row[2] }}</td>
-                        <td><span class="badge {% if used > 0 %}badge-yellow{% else %}badge-grey{% endif %}">{{ row[3] }}</span></td>
-                        <td style="font-weight:700;color:{{ bal_clr }}">{{ row[4] }}</td>
-                        <td class="hide-m"><span class="badge badge-blue">{{ row[5] }}</span></td>
-                        <td class="hide-m">
-                            <div class="stk-bar"><div class="stk-fill" style="width:{{ use_pct }}%;background:{{ bar_clr }}"></div></div>
-                            <div class="stk-pct">{{ use_pct }}% used</div>
-                        </td>
+                        <th>Item</th>
+                        <th style="text-align:right">Bal</th>
                     </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-cubes"></i><h3>No Data</h3></div>{% endif %}
+                </thead>
+                <tbody>
+                    {% if consumable_summary %}
+                        {% for row in consumable_summary %}
+                        {% set total = row[2]|float %}
+                        {% set balance = row[4]|float %}
+                        {% set pct = (balance / total * 100) if total > 0 else 0 %}
+                        <tr>
+                            <td>
+                                <div style="font-weight:600; font-family:Consolas,monospace;">{{ row[0] }}</div>
+                                <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">{{ row[1] }}</div>
+                                <div class="progress-wrapper">
+                                    <div class="progress-fill" style="width: {{ pct }}%; background: {% if pct < 20 %}var(--rd){% elif pct < 50 %}#F59E0B{% else %}var(--gn){% endif %};"></div>
+                                </div>
+                            </td>
+                            <td style="text-align:right; vertical-align:top; padding-top:12px;">
+                                <span class="pill {% if balance <= 0 %}pill-red{% elif balance <= (total*0.2) %}pill-yellow{% else %}pill-green{% endif %}">
+                                    {{ balance }}
+                                </span>
+                                <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">/ {{ total }}</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="2" style="text-align:center; padding:30px; color:var(--text-muted);">
+                                <i class="fas fa-cubes" style="font-size:24px; margin-bottom:10px; opacity:0.5;"></i><br>
+                                No Consumable Data
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- DEALERS TABLE -->
-    <div class="tw">
-        <div class="tw-bar"><div class="card-title"><i class="fas fa-handshake" style="color:var(--red)"></i> Issued to Dealers</div></div>
-        <div class="tw-body">
-            <input type="text" id="dealerSearch" class="fi search-box" placeholder="Search dealers...">
-            {% if dealer_data %}
-            <div class="tw-scroll">
-                <table class="dash-tbl">
-                    <thead><tr><th>#</th><th>Dealer Name</th><th>Units</th><th></th></tr></thead>
-                    <tbody id="dealerBody">{% for row in dealer_data %}<tr>
-                        <td style="color:var(--grey)">{{ loop.index }}</td>
-                        <td style="font-weight:600">{{ row[0] }}</td>
-                        <td><span class="badge badge-yellow"><span class="bd"></span>{{ row[1] }}</span></td>
-                        <td><button class="dl-row" onclick="dl('{{ url_for('export_dealer', dealer_name=row[0]) }}')"><i class="fas fa-download"></i></button></td>
-                    </tr>{% endfor %}</tbody>
-                </table>
+    <!-- Dealers Panel -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title">
+                <i class="fas fa-handshake" style="color: var(--rd)"></i> Top Dealers
             </div>
-            {% else %}<div class="empty" style="padding:20px 10px"><i class="fas fa-store"></i><h3>No Data</h3></div>{% endif %}
+        </div>
+        <div class="search-box">
+            <input type="text" id="dlrSearch" class="search-input" placeholder="Search dealers...">
+        </div>
+        <div class="table-container">
+            <table id="dlrTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Dealer Name</th>
+                        <th style="text-align:right">Units</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if dealer_data %}
+                        {% for row in dealer_data %}
+                        <tr>
+                            <td style="color:var(--text-muted); width:30px;">{{ loop.index }}</td>
+                            <td>
+                                <div style="font-weight:600;">{{ row[0] }}</div>
+                            </td>
+                            <td style="text-align:right;">
+                                <span class="pill pill-yellow">{{ row[1] }}</span>
+                            </td>
+                            <td style="width:40px;">
+                                <button class="btn btn-sm" style="padding:4px 8px; color:var(--text-muted);" onclick="dl('{{ url_for('export_dealer', dealer_name=row[0]) }}')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">
+                                <i class="fas fa-store" style="font-size:24px; margin-bottom:10px; opacity:0.5;"></i><br>
+                                No Dealer Data
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
         </div>
     </div>
+
 </div>
 
 <script>
-document.getElementById('materialSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#materialBody tr').forEach(function(r){var s=(r.cells[0]&&r.cells[0].textContent||'')+' '+(r.cells[1]&&r.cells[1].textContent||'');r.style.display=s.toLowerCase().indexOf(t)!==-1?'':'none'})});
-document.getElementById('consumableSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#consumableBody tr').forEach(function(r){var s=(r.cells[0]&&r.cells[0].textContent||'')+' '+(r.cells[1]&&r.cells[1].textContent||'');r.style.display=s.toLowerCase().indexOf(t)!==-1?'':'none'})});
-document.getElementById('dealerSearch').addEventListener('input',function(){var t=this.value.toLowerCase();document.querySelectorAll('#dealerBody tr').forEach(function(r){r.style.display=(r.cells[1]&&r.cells[1].textContent||'').toLowerCase().indexOf(t)!==-1?'':'none'})});
+    // Helper function for downloads
+    function dl(url) { window.location.href = url; }
+
+    // Search Filtering Logic
+    function filterTable(tableId, inputId, colIndex) {
+        const input = document.getElementById(inputId);
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById(tableId);
+        const tr = table.getElementsByTagName('tr');
+
+        for (let i = 1; i < tr.length; i++) {
+            const td = tr[i].getElementsByTagName('td')[colIndex];
+            if (td) {
+                const txtValue = td.textContent || td.innerText;
+                if (txtValue.toLowerCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+
+    // Attach Event Listeners
+    document.getElementById('matSearch').addEventListener('keyup', function() {
+        filterTable('matTable', 'matSearch', 0);
+    });
+
+    document.getElementById('conSearch').addEventListener('keyup', function() {
+        filterTable('conTable', 'conSearch', 0);
+    });
+
+    document.getElementById('dlrSearch').addEventListener('keyup', function() {
+        filterTable('dlrTable', 'dlrSearch', 1); // Search by name (col 1)
+    });
 </script>
+
 {% endblock %}
