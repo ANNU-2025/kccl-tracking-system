@@ -43,8 +43,6 @@ body .content{padding:12px 14px}
 .tem{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;color:var(--grey)}
 .tem i{font-size:20px;opacity:.2;margin-bottom:4px}.tem p{font-size:10px}
 .nm{font-family:Consolas,'Segoe UI',monospace;font-weight:600}
-.pct{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:700;display:inline-block}
-.pg{background:rgba(47,163,96,.08);color:var(--gn)}.pr{background:rgba(239,83,80,.08);color:var(--rd)}.po{background:rgba(255,152,0,.08);color:var(--og)}
 .fb{background:rgba(239,83,80,.06);border:1px solid rgba(239,83,80,.15);border-radius:6px;padding:8px 12px;margin-bottom:10px;max-height:100px;overflow:auto}
 .fb .ft{font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px}
 .fb .fr{font-size:9px;color:var(--red);padding:1px 0}
@@ -120,11 +118,11 @@ body .content{padding:12px 14px}
 
 <div class="t2">
     <div class="tc tg">
-        <div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC"></span></h4><button class="btn btn-sm" id="bEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none;padding:4px 8px;font-size:10px" onclick="dG()"><i class="fas fa-download"></i></button></div>
+        <div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none;padding:4px 8px;font-size:10px" onclick="dG()"><i class="fas fa-download"></i></button></div>
         <div class="tsc" id="gB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
     <div class="tc tr">
-        <div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC"></span></h4><button class="btn btn-sm" id="bEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none;padding:4px 8px;font-size:10px" onclick="dC()"><i class="fas fa-download"></i></button></div>
+        <div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none;padding:4px 8px;font-size:10px" onclick="dC()"><i class="fas fa-download"></i></button></div>
         <div class="tsc" id="cB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
 </div>
@@ -164,6 +162,7 @@ window.onerror=function(msg,src,line){
 var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',vMode='active';
 var chartOK=(typeof Chart!=='undefined');
 
+/* ===== HELPERS ===== */
 function getParams(){
     var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,p=[];
     if(d)p.push('distributor='+encodeURIComponent(d));
@@ -171,6 +170,23 @@ function getParams(){
     if(s)p.push('sub_dist='+encodeURIComponent(s));
     return p.length?'&'+p.join('&'):'';
 }
+
+/* Sub Dist table: exclude sub_dist filter so all sub dists show */
+function getSubDistParams(){
+    var d=document.getElementById('sD').value,a=document.getElementById('sA').value,p=[];
+    if(d)p.push('distributor='+encodeURIComponent(d));
+    if(a)p.push('area='+encodeURIComponent(a));
+    return p.length?'&'+p.join('&'):'';
+}
+
+/* Area Wise table: exclude area filter so all areas show */
+function getAreaParams(){
+    var d=document.getElementById('sD').value,s=document.getElementById('sS').value,p=[];
+    if(d)p.push('distributor='+encodeURIComponent(d));
+    if(s)p.push('sub_dist='+encodeURIComponent(s));
+    return p.length?'&'+p.join('&'):'';
+}
+
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
 /* ===== CHARTS — STATIC ===== */
@@ -224,7 +240,7 @@ function onDateChange(){if(datesOk())gen();}
 function onAreaChange(){updateSubDists();if(datesOk())gen();}
 function onFilterChange(){if(datesOk())gen();}
 
-/* ===== GO — KPIs + ALL 4 TABLES ===== */
+/* ===== GO — 3 SEPARATE API CALLS ===== */
 function gen(){
     var dd=readDates();
     vFrom=dd.f;vTo=dd.t;vMode=document.getElementById('sM').value;
@@ -232,12 +248,16 @@ function gen(){
     if(vFrom===vTo){showFlash('Select two different dates','error');return;}
     var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
 
+    /* Growth/Churn: ALL filters */
     var cmpUrl='/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;
-    var sumUrl='/daily-active/summary-tables?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;
+    /* Sub Dist: exclude sub_dist filter */
+    var subUrl='/daily-active/summary-tables?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;
+    /* Area Wise: exclude area filter */
+    var areaUrl='/daily-active/summary-tables?from='+vFrom+'&to='+vTo+getAreaParams()+'&mode='+vMode;
 
-    Promise.all([safeFetch(cmpUrl),safeFetch(sumUrl)]).then(function(results){
+    Promise.all([safeFetch(cmpUrl),safeFetch(subUrl),safeFetch(areaUrl)]).then(function(results){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
-        var d=results[0],sd=results[1];
+        var d=results[0],sd=results[1],ar=results[2];
         if(d.error){showFlash(d.error,'error');return;}
 
         document.getElementById('kKA').textContent=(d.kccl_active||0).toLocaleString();
@@ -252,10 +272,12 @@ function gen(){
 
         growArr=d.growth||[];churnArr=d.churn||[];
         var col=vMode==='active'?'Active':'Deactive';
+        /* Growth/Churn: count without brackets */
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
+        /* Sub Dist / Area: separate filter URLs */
         renderST('suB',sd.subs||[],true,col);
-        renderST('arB',sd.areas||[],false,col);
+        renderST('arB',ar.areas||[],false,col);
 
         showFlash('Report generated ('+col+')','success');
     }).catch(function(e){
@@ -269,7 +291,9 @@ function renderGC(bid,cid,btid,data,color,colName){
     var el=document.getElementById(bid),ce=document.getElementById(cid),be=document.getElementById(btid);
     if(!el)return;
     if(!data||!data.length){el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No change detected</p></div>';if(ce)ce.textContent='';if(be)be.style.display='none';return;}
-    if(ce)ce.textContent='('+data.length+')';if(be)be.style.display='';
+    /* Count without brackets — just the number */
+    if(ce)ce.textContent=data.length;
+    if(be)be.style.display='';
     var h='<table><thead><tr><th>#</th><th>LCO</th><th class="mh">Area</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
@@ -282,7 +306,7 @@ function renderGC(bid,cid,btid,data,color,colName){
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-/* ===== SUB DIST / AREA TABLE — DATE COMPARISON FORMAT ===== */
+/* ===== SUB DIST / AREA TABLE ===== */
 function renderST(bid,data,isSub,colName){
     var el=document.getElementById(bid);
     if(!el)return;
@@ -293,7 +317,7 @@ function renderST(bid,data,isSub,colName){
         if(bd)bd.style.display='none';if(bg)bg.textContent='';return;
     }
     if(bd)bd.style.display='';
-    if(bg)bg.textContent='('+data.length+')';
+    if(bg)bg.textContent=data.length;
     var label=isSub?'Sub Distributor':'Area';
     var h='<table><thead><tr><th>#</th><th>'+label+'</th><th>Prev</th><th>Now</th><th>'+colName+'</th><th>LCOs</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
@@ -312,11 +336,17 @@ function renderST(bid,data,isSub,colName){
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-/* ===== EXPORTS ===== */
+/* ===== EXPORTS — ALL AS PER FILTRATION ===== */
 function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
-function dSU(){if(vTo)window.open('/daily-active/date-summary?date='+vTo+getParams(),'_blank');else showFlash('No To date','error');}
-function dAR(){if(vTo)window.open('/daily-active/date-summary?date='+vTo+getParams(),'_blank');else showFlash('No To date','error');}
+function dSU(){
+    if(!vFrom||!vTo){showFlash('Select dates','error');return;}
+    location.href='/daily-active/export-subdist?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;
+}
+function dAR(){
+    if(!vFrom||!vTo){showFlash('Select dates','error');return;}
+    location.href='/daily-active/export-area?from='+vFrom+'&to='+vTo+getAreaParams()+'&mode='+vMode;
+}
 
 /* ===== UPLOAD ===== */
 function oU(){document.getElementById('uM').classList.add('show');}
