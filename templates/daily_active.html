@@ -19,6 +19,9 @@ body .content{padding:12px 14px}
 .ch-top h3{font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px}
 .ch-top .lg{display:flex;gap:8px;font-size:9px;color:var(--grey);font-weight:500}
 .ch-top .lg i{width:8px;height:8px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px}
+.ch-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#C0C8D8 transparent}
+.ch-scroll::-webkit-scrollbar{height:4px}
+.ch-scroll::-webkit-scrollbar-thumb{background:#C0C8D8;border-radius:4px}
 .ch-inner{height:160px;position:relative}
 .ch-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--grey);font-size:11px;z-index:2;background:var(--card)}
 .ch-msg.show{display:flex}
@@ -98,12 +101,12 @@ body .content{padding:12px 14px}
 <div class="ch2">
     <div class="ch-wrap" onclick="dlChartDate()">
         <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--cy)"></i> KCCL</h3><div class="lg"><span><i style="background:var(--cy)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
-        <div class="ch-inner"><canvas id="kcChart"></canvas><div id="kcMsg" class="ch-msg show"><p>No data</p></div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg" class="ch-msg show"><p>No data</p></div></div></div>
         <div class="ch-dl"><i class="fas fa-download"></i> Click to download</div>
     </div>
     <div class="ch-wrap" onclick="dlChartDate()">
         <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--gn)"></i> AROHON</h3><div class="lg"><span><i style="background:var(--gn)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
-        <div class="ch-inner"><canvas id="arChart"></canvas><div id="arMsg" class="ch-msg show"><p>No data</p></div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg" class="ch-msg show"><p>No data</p></div></div></div>
         <div class="ch-dl"><i class="fas fa-download"></i> Click to download</div>
     </div>
 </div>
@@ -164,7 +167,6 @@ window.onerror=function(msg,src,line){var el=document.getElementById('jsErr'),em
 var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',vMode='active';
 var chartOK=(typeof Chart!=='undefined');
 
-/* ===== HELPERS ===== */
 function getParams(){
     var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,p=[];
     if(d)p.push('distributor='+encodeURIComponent(d));
@@ -186,7 +188,7 @@ function getAreaParams(){
 }
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
-/* ===== STATIC CHARTS — latest date only, load once, never change ===== */
+/* ===== STATIC CHARTS — all dates, scroll to show last 5 ===== */
 function makeChart(cid,mid,data,ak,dk,c1,c2){
     var msg=document.getElementById(mid);
     if(!data.dates||!data.dates.length){if(msg)msg.classList.add('show');return;}
@@ -199,11 +201,12 @@ function makeChart(cid,mid,data,ak,dk,c1,c2){
         var gA=ctx.createLinearGradient(0,0,0,160);gA.addColorStop(0,c1);gA.addColorStop(1,c2);
         var gR=ctx.createLinearGradient(0,0,0,160);gR.addColorStop(0,'rgba(239,83,80,0.7)');gR.addColorStop(1,'rgba(239,83,80,0.35)');
         var ch=new Chart(ctx,{type:'bar',data:{labels:data.dates,datasets:[
-            {label:'Deactive',data:data[dk],backgroundColor:gR,borderColor:'rgba(0,0,0,.15)',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.6,categoryPercentage:.8,stack:'s'},
-            {label:'Active',data:data[ak],backgroundColor:gA,borderColor:'rgba(0,0,0,.15)',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.6,categoryPercentage:.8,stack:'s'}
+            {label:'Deactive',data:data[dk],backgroundColor:gR,borderColor:'rgba(0,0,0,.15)',borderWidth:1,borderRadius:{topLeft:0,topRight:0,bottomLeft:3,bottomRight:3},barPercentage:.55,categoryPercentage:.65,stack:'s'},
+            {label:'Active',data:data[ak],backgroundColor:gA,borderColor:'rgba(0,0,0,.15)',borderWidth:1,borderRadius:{topLeft:3,topRight:3,bottomLeft:0,bottomRight:0},barPercentage:.55,categoryPercentage:.65,stack:'s'}
         ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
             plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A2536',titleColor:'#fff',bodyColor:'#ccc',padding:8,cornerRadius:6,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString();}}}},
-            scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#999',font:{size:10}}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:'#999',font:{size:9}},beginAtZero:true}}
+            scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#999',font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,.04)'},stacked:true,ticks:{color:'#999',font:{size:9}},beginAtZero:true}},
+            onClick:function(e,el){if(el.length>0&&fDates&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank');}
         }});
         if(cid==='kcChart')kcChart=ch;else arChart=ch;
     }catch(e){console.error('[ChartErr]',e);if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart error</p>';}}
@@ -212,13 +215,29 @@ function makeChart(cid,mid,data,ak,dk,c1,c2){
 function loadChartsOnce(){
     safeFetch('/daily-active/chart-data').then(function(d){
         fDates=d.full_dates||[];
+        var n=fDates.length;
+
+        /* Width: 55px per bar, minimum = chart container width */
+        var pxPerBar=55,chartW=Math.max(n*pxPerBar,280);
+        var kcI=document.getElementById('kcInner'),arI=document.getElementById('arInner');
+        if(kcI)kcI.style.width=chartW+'px';
+        if(arI)arI.style.width=chartW+'px';
+
         makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,0.9)','rgba(0,131,143,0.9)');
         makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,0.9)','rgba(30,120,65,0.9)');
-        /* Update KPIs from latest date */
-        if(fDates.length>0){
-            var ka=d.kccl_a[0]||0,kd=d.kccl_d[0]||0;
-            var aa=d.arohon_a[0]||0,ad=d.arohon_d[0]||0;
-            setKPI(ka,kd,aa,ad);
+
+        /* Auto-scroll to end so last 5 bars are visible */
+        setTimeout(function(){
+            var s1=document.getElementById('kcInner').parentElement;
+            var s2=document.getElementById('arInner').parentElement;
+            if(s1)s1.scrollLeft=s1.scrollWidth;
+            if(s2)s2.scrollLeft=s2.scrollWidth;
+        },150);
+
+        /* KPIs from latest date (last index) */
+        if(n>0){
+            var li=n-1;
+            setKPI(d.kccl_a[li]||0,d.kccl_d[li]||0,d.arohon_a[li]||0,d.arohon_d[li]||0);
         }
     }).catch(function(e){
         console.error('[ChartDataErr]',e);
@@ -237,7 +256,7 @@ function setKPI(ka,kd,aa,ad){
 }
 
 function dlChartDate(){
-    if(fDates&&fDates.length>0)window.open('/daily-active/date-summary?date='+fDates[0],'_blank');
+    if(fDates&&fDates.length>0)window.open('/daily-active/date-summary?date='+fDates[fDates.length-1],'_blank');
 }
 
 /* ===== FILTERS — only update tables below, NOT charts ===== */
@@ -273,7 +292,6 @@ function gen(){
         var d=results[0],sd=results[1],ar=results[2];
         if(d.error){showFlash(d.error,'error');return;}
 
-        /* Update KPIs from compare */
         setKPI(d.kccl_active||0,d.kccl_deactive||0,d.arohon_active||0,d.arohon_deactive||0);
         var tA=(d.kccl_active||0)+(d.arohon_active||0),tD=(d.kccl_deactive||0)+(d.arohon_deactive||0);
         document.getElementById('kR').textContent=(tA>0?((tD/tA)*100).toFixed(1):'0.0')+'%';
@@ -362,7 +380,7 @@ function renderST(bid,data,isSub,colName){
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-/* ===== EXPORTS — all carry current filter params ===== */
+/* ===== EXPORTS ===== */
 function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dSU(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-subdist?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;}
