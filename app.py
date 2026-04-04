@@ -36,6 +36,8 @@ def _force_ensure_columns(conn):
         ("consumable_logs", "item_name", "TEXT"),
         ("consumable_stock", "item_name", "TEXT"),
         ("lco_master", "distributor", "TEXT"),
+        ("lco_master", "sub_distributor", "TEXT"),
+        ("lco_master", "area", "TEXT"),
     ]
     for table, col, dtype in cols:
         try:
@@ -459,7 +461,7 @@ def inventory_bulk():
                         cur.execute("INSERT INTO material_logs (item_code,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())",
                                     (code, action_label, qty, dealer, invoice, session['logged_user'], serial_nos_str))
 
-                else:
+                else:  # CONSUMABLE
                     code = _clean(row.get('item_code', '')).upper()
                     name = _clean(row.get('item_name', '')).upper()
                     batch = _clean(row.get('batch_id', '')).upper()
@@ -691,6 +693,7 @@ def inventory():
                 flash(f'Error: {str(e)}', 'error')
                 print(traceback.format_exc())
 
+    # Invoice search via GET
     if not inv_search:
         inv_search = request.args.get('inv_search', '').strip()
         if inv_search:
@@ -1022,7 +1025,6 @@ def export_consumables():
             flash(f"Export Error: {e}", "error"); release_db(conn)
             return redirect(url_for('dashboard'))
 
-
 # ==================== DAILY ACTIVE SUMMARY ====================
 
 def _export_compare_base(d_from, d_to, mode, area, sub_dist, dist, is_growth):
@@ -1059,7 +1061,6 @@ def _export_compare_base(d_from, d_to, mode, area, sub_dist, dist, is_growth):
         except: pass
         release_db(conn)
         return None, str(e)
-
 
 @app.route('/daily-active', methods=['GET', 'POST'])
 def daily_active():
@@ -1100,10 +1101,12 @@ def daily_active():
                                 if cr: lco_code = cr[0]
                                 else:
                                     lco_code = lco_name.replace(' ', '_')[:50]
-                                    try: cur.execute("INSERT INTO lco_master (lco_code, lco_name, distributor) VALUES (%s, %s, %s) ON CONFLICT (lco_code) DO UPDATE SET distributor = EXCLUDED.distributor, lco_name = COALESCE(NULLIF(EXCLUDED.lco_name,''), lco_master.lco_name)", (lco_code, lco_name, dist_val)); conn.commit()
-                                    except: pass
+                                # ★ FIX: ON CONFLICT DO UPDATE so distributor always saved
                                 if dist_val:
-                                    try: cur.execute("UPDATE lco_master SET distributor = %s WHERE lco_code = %s AND (distributor IS NULL OR distributor = '')", (dist_val, lco_code)); conn.commit()
+                                    try: cur.execute("INSERT INTO lco_master (lco_code, lco_name, distributor) VALUES (%s, %s, %s) ON CONFLICT (lco_code) DO UPDATE SET distributor=EXCLUDED.distributor, lco_name=EXCLUDED.lco_name", (lco_code, lco_name, dist_val)); conn.commit()
+                                    except: pass
+                                else:
+                                    try: cur.execute("INSERT INTO lco_master (lco_code, lco_name) VALUES (%s, %s) ON CONFLICT (lco_code) DO UPDATE SET lco_name=EXCLUDED.lco_name", (lco_code, lco_name)); conn.commit()
                                     except: pass
                                 try: cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count, deactive_count) VALUES (%s,%s,%s,%s) ON CONFLICT (report_date, lco_code) DO UPDATE SET active_count=EXCLUDED.active_count, deactive_count=EXCLUDED.deactive_count", (parsed_date, lco_code, act, deact))
                                 except: cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count, deactive_count) VALUES (%s,%s,%s,%s)", (parsed_date, lco_code, act, deact))
@@ -1150,7 +1153,7 @@ def da_sub_dists():
 @app.route('/daily-active/chart-data')
 def da_chart_data():
     if 'logged_user' not in session: return jsonify({'dates': [], 'full_dates': [], 'kccl_a': [], 'kccl_d': [], 'arohon_a': [], 'arohon_d': []})
-    area = request.args.get('area', ''); sub_dist = request.args.get('sub_dist', ''); dist = request.args.get('distributor', '')
+    area = request.args.get('area', ''); sub_dist = request.args.get('sub_dist', '')
     conn = get_db()
     if not conn: return jsonify({'dates': [], 'full_dates': [], 'kccl_a': [], 'kccl_d': [], 'arohon_a': [], 'arohon_d': []})
     cur = conn.cursor()
@@ -1162,10 +1165,11 @@ def da_chart_data():
         q += " GROUP BY d.report_date ORDER BY d.report_date ASC"
         cur.execute(q, tuple(params))
         rows = cur.fetchall()
+        # ★ FIX: ALWAYS separate AROHON — no dist condition needed
         arohon_map = {}
         try:
-            q2 = "SELECT d.report_date, SUM(d.active_count) as aa, SUM(d.deactive_count) as ad FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code = m.lco_code WHERE COALESCE(m.distributor,'') = %s"
-            params2 = ['AROHON']
+            q2 = "SELECT d.report_date, SUM(d.active_count) as aa, SUM(d.deactive_count) as ad FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code = m.lco_code WHERE COALESCE(m.distributor,'') = 'AROHON'"
+            params2 = []
             if area: params2.append(area); q2 += " AND m.area = %s"
             if sub_dist: params2.append(sub_dist); q2 += " AND m.sub_distributor = %s"
             q2 += " GROUP BY d.report_date"
@@ -1219,23 +1223,31 @@ def da_compare():
             if cs: q += " WHERE " + " AND ".join(cs)
         cur.execute(q, tuple(p))
         rows = cur.fetchall()
-
+        
         total_active = sum(r[6] for r in rows)
         total_deactive = sum(r[8] for r in rows)
-        aa, ad = 0, 0
-        for r in rows:
-            if (r[4] or '').upper() == 'AROHON':
-                aa += r[6]
-                ad += r[8]
+        ka, kd, aa, ad = total_active, total_deactive, 0, 0
+        
+        # ★ FIX: ALWAYS separate AROHON — no dist condition
+        try:
+            q2 = """SELECT COALESCE(t2.active_count,0), COALESCE(t2.deactive_count,0)
+                   FROM (SELECT lco_code FROM daily_active_summary WHERE report_date=%s) t1
+                   FULL OUTER JOIN (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s) t2
+                   ON t1.lco_code=t2.lco_code
+                   LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code
+                   WHERE COALESCE(lm.distributor,'')='AROHON'"""
+            p2 = [d_from, d_to]
+            if area: p2.append(area); q2 += " AND lm.area=%s"
+            if sub_dist: p2.append(sub_dist); q2 += " AND lm.sub_distributor=%s"
+            cur2 = conn.cursor(); cur2.execute(q2, tuple(p2))
+            for r in cur2.fetchall():
+                aa += r[0]
+                ad += r[1]
+            cur2.close()
+        except: pass
         ka = total_active - aa; kd = total_deactive - ad
-
-        # Growth/Churn: distributor filter apply in Python
-        table_rows = rows
-        if dist:
-            table_rows = [r for r in rows if (r[4] or '').upper() == dist.upper()]
-
         growth, churn = [], []; tg, tc = 0, 0
-        for r in table_rows:
+        for r in rows:
             if mode == 'active': change = r[6] - r[5]; prev_v, now_v = r[5], r[6]
             else: change = r[7] - r[8]; prev_v, now_v = r[7], r[8]
             entry = {'lco': r[0], 'name': r[1], 'area': r[2], 'sub': r[3], 'dist': r[4], 'prev': prev_v, 'now': now_v, 'change': change}
@@ -1312,7 +1324,6 @@ def export_growth_report():
     if data is None: flash('No growth data', 'error'); return redirect(url_for('daily_active'))
     return dl_excel(data, f"Growth_Report_{request.args.get('from','')}.xlsx")
 
-
 @app.route('/daily-active/export-churn')
 def export_churn_report():
     if 'logged_user' not in session: return redirect(url_for('login'))
@@ -1360,8 +1371,7 @@ def daily_active_delete_all():
         conn.rollback(); flash(f'Error: {e}', 'error')
     release_db(conn)
     return redirect(url_for('daily_active'))
-
-
+    
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
