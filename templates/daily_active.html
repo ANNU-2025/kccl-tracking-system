@@ -62,8 +62,19 @@ body .content{padding:12px 14px}
 .empty-state p{font-size:11px;color:var(--grey);max-width:300px;margin-bottom:15px}
 .js-err{background:rgba(239,83,80,.08);border:1px solid rgba(239,83,80,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--rd);display:none}
 .js-err.show{display:block}
+.dist-tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.3px}
+.dist-kccl{background:rgba(0,188,212,.12);color:var(--cy)}
+.dist-arohon{background:rgba(47,163,96,.12);color:var(--gn)}
+.dist-other{background:rgba(108,117,125,.12);color:var(--grey)}
+.split-hd{display:flex;gap:0}
+.split-hd span{flex:1;text-align:center;border-right:1px solid var(--border);padding:6px 4px}
+.split-hd span:last-child{border-right:none}
+.split-hd .sh-k{color:var(--cy)}.split-hd .sh-a{color:var(--gn)}
+.split-cell{display:flex;gap:0}
+.split-cell span{flex:1;text-align:center;border-right:1px solid #F0F1F3;padding:6px 4px}
+.split-cell span:last-child{border-right:none}
 @media(max-width:900px){.kpi-r{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:768px){.kpi-r{grid-template-columns:repeat(3,1fr);gap:6px}.kpi .kv{font-size:18px}.kpi{padding:8px 10px}.t2{grid-template-columns:1fr !important}.sel-c{flex-direction:column;align-items:stretch}.ch-inner{height:140px}.mh{display:none !important}}
+@media(max-width:768px){.kpi-r{grid-template-columns:repeat(3,1fr);gap:6px}.kpi .kv{font-size:18px}.kpi{padding:8px 10px}.t2{grid-template-columns:1fr !important}.sel-c{flex-direction:column;align-items:stretch}.ch-inner{height:140px}.mh{display:none !important}.split-hd span,.split-cell span{font-size:7px;padding:5px 2px}}
 @media(max-width:400px){.kpi-r{grid-template-columns:repeat(2,1fr)}}
 </style>
 {% endblock %}
@@ -102,7 +113,7 @@ body .content{padding:12px 14px}
 </div>
 
 <div class="sel-c">
-    <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+    <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onDistChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Area</label><select id="sA" class="fs" onchange="onAreaChange()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Sub Dist</label><select id="sS" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">From</label><select id="dF" class="fs" onchange="onDateChange()"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
@@ -153,16 +164,11 @@ body .content{padding:12px 14px}
 {% if session.get('user_role')=='admin' %}<div style="text-align:right;margin-bottom:12px"><button class="btn btn-red btn-sm" onclick="if(confirm('Delete ALL?')){var f=document.createElement('form');f.method='POST';f.action='/daily-active/delete-all';document.body.appendChild(f);f.submit()}" style="padding:4px 8px;font-size:10px"><i class="fas fa-trash"></i> Delete All</button></div>{% endif %}
 
 <script>
-window.onerror=function(msg,src,line){
-    var el=document.getElementById('jsErr'),em=document.getElementById('jsErrMsg');
-    if(el&&em){em.textContent='JS: '+(msg||'').substring(0,150)+' (L'+line+')';el.classList.add('show');}
-    return true;
-};
+window.onerror=function(msg,src,line){var el=document.getElementById('jsErr'),em=document.getElementById('jsErrMsg');if(el&&em){em.textContent='JS: '+(msg||'').substring(0,150)+' (L'+line+')';el.classList.add('show');}return true;};
 
 var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',vMode='active';
 var chartOK=(typeof Chart!=='undefined');
 
-/* ===== HELPERS ===== */
 function getParams(){
     var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,p=[];
     if(d)p.push('distributor='+encodeURIComponent(d));
@@ -170,26 +176,20 @@ function getParams(){
     if(s)p.push('sub_dist='+encodeURIComponent(s));
     return p.length?'&'+p.join('&'):'';
 }
-
-/* Sub Dist table: exclude sub_dist filter so all sub dists show */
 function getSubDistParams(){
     var d=document.getElementById('sD').value,a=document.getElementById('sA').value,p=[];
     if(d)p.push('distributor='+encodeURIComponent(d));
     if(a)p.push('area='+encodeURIComponent(a));
     return p.length?'&'+p.join('&'):'';
 }
-
-/* Area Wise table: exclude area filter so all areas show */
 function getAreaParams(){
     var d=document.getElementById('sD').value,s=document.getElementById('sS').value,p=[];
     if(d)p.push('distributor='+encodeURIComponent(d));
     if(s)p.push('sub_dist='+encodeURIComponent(s));
     return p.length?'&'+p.join('&'):'';
 }
-
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
-/* ===== CHARTS — STATIC ===== */
 function makeChart(cid,mid,data,ak,dk,c1,c2){
     var msg=document.getElementById(mid);
     if(!data.dates||!data.dates.length){if(msg)msg.classList.add('show');return;}
@@ -213,6 +213,19 @@ function makeChart(cid,mid,data,ak,dk,c1,c2){
     }catch(e){console.error('[ChartErr]',e);if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart error</p>';}}
 }
 
+function reloadCharts(){
+    var params=getParams();
+    safeFetch('/daily-active/chart-data?'+params.substring(1)).then(function(d){
+        fDates=d.full_dates||[];
+        makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,0.9)','rgba(0,131,143,0.9)');
+        makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,0.9)','rgba(30,120,65,0.9)');
+    }).catch(function(e){
+        console.error('[ChartReloadErr]',e);
+        var m1=document.getElementById('kcMsg');if(m1){m1.classList.add('show');m1.innerHTML='<p>Load failed</p>';}
+        var m2=document.getElementById('arMsg');if(m2){m2.classList.add('show');m2.innerHTML='<p>Load failed</p>';}
+    });
+}
+
 function loadChartsOnce(){
     safeFetch('/daily-active/chart-data').then(function(d){
         fDates=d.full_dates||[];
@@ -225,7 +238,6 @@ function loadChartsOnce(){
     });
 }
 
-/* ===== FILTERS ===== */
 function readDates(){return{f:document.getElementById('dF').value,t:document.getElementById('dT').value};}
 function datesOk(){var d=readDates();return d.f&&d.t&&d.f!==d.t;}
 function updateSubDists(){
@@ -237,10 +249,10 @@ function updateSubDists(){
     }).catch(function(){});
 }
 function onDateChange(){if(datesOk())gen();}
-function onAreaChange(){updateSubDists();if(datesOk())gen();}
-function onFilterChange(){if(datesOk())gen();}
+function onAreaChange(){updateSubDists();reloadCharts();if(datesOk())gen();}
+function onDistChange(){reloadCharts();if(datesOk())gen();}
+function onFilterChange(){reloadCharts();if(datesOk())gen();}
 
-/* ===== GO — 3 SEPARATE API CALLS ===== */
 function gen(){
     var dd=readDates();
     vFrom=dd.f;vTo=dd.t;vMode=document.getElementById('sM').value;
@@ -248,11 +260,8 @@ function gen(){
     if(vFrom===vTo){showFlash('Select two different dates','error');return;}
     var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
 
-    /* Growth/Churn: ALL filters */
     var cmpUrl='/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;
-    /* Sub Dist: exclude sub_dist filter */
     var subUrl='/daily-active/summary-tables?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;
-    /* Area Wise: exclude area filter */
     var areaUrl='/daily-active/summary-tables?from='+vFrom+'&to='+vTo+getAreaParams()+'&mode='+vMode;
 
     Promise.all([safeFetch(cmpUrl),safeFetch(subUrl),safeFetch(areaUrl)]).then(function(results){
@@ -272,10 +281,8 @@ function gen(){
 
         growArr=d.growth||[];churnArr=d.churn||[];
         var col=vMode==='active'?'Active':'Deactive';
-        /* Growth/Churn: count without brackets */
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
-        /* Sub Dist / Area: separate filter URLs */
         renderST('suB',sd.subs||[],true,col);
         renderST('arB',ar.areas||[],false,col);
 
@@ -286,19 +293,25 @@ function gen(){
     });
 }
 
-/* ===== GROWTH / CHURN TABLE ===== */
+function distTag(dist){
+    var d=(dist||'KCCL').toUpperCase();
+    if(d==='AROHON')return '<span class="dist-tag dist-arohon">AROHON</span>';
+    if(d==='KCCL')return '<span class="dist-tag dist-kccl">KCCL</span>';
+    return '<span class="dist-tag dist-other">'+(dist||'—')+'</span>';
+}
+
 function renderGC(bid,cid,btid,data,color,colName){
     var el=document.getElementById(bid),ce=document.getElementById(cid),be=document.getElementById(btid);
     if(!el)return;
     if(!data||!data.length){el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No change detected</p></div>';if(ce)ce.textContent='';if(be)be.style.display='none';return;}
-    /* Count without brackets — just the number */
     if(ce)ce.textContent=data.length;
     if(be)be.style.display='';
-    var h='<table><thead><tr><th>#</th><th>LCO</th><th class="mh">Area</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
+    var h='<table><thead><tr><th>#</th><th>LCO</th><th>Dist</th><th class="mh">Area</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
         h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
         h+='<td class="nm">'+(r.lco||'')+'</td>';
+        h+='<td>'+distTag(r.dist)+'</td>';
         h+='<td class="mh" style="font-size:9px;color:var(--grey)">'+(r.area||'—')+'</td>';
         h+='<td>'+(r.prev||0)+'</td><td style="font-weight:600">'+(r.now||0)+'</td>';
         h+='<td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+':'')+(r.change||0)+'</td></tr>';
@@ -306,7 +319,6 @@ function renderGC(bid,cid,btid,data,color,colName){
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-/* ===== SUB DIST / AREA TABLE ===== */
 function renderST(bid,data,isSub,colName){
     var el=document.getElementById(bid);
     if(!el)return;
@@ -319,36 +331,38 @@ function renderST(bid,data,isSub,colName){
     if(bd)bd.style.display='';
     if(bg)bg.textContent=data.length;
     var label=isSub?'Sub Distributor':'Area';
-    var h='<table><thead><tr><th>#</th><th>'+label+'</th><th>Prev</th><th>Now</th><th>'+colName+'</th><th>LCOs</th></tr></thead><tbody>';
+    var h='<table><thead><tr><th>#</th><th>'+label+'</th>';
+    h+='<th colspan="3" style="text-align:center;color:var(--cy);font-size:8px">KCCL '+colName+'</th>';
+    h+='<th colspan="3" style="text-align:center;color:var(--gn);font-size:8px">AROHON '+colName+'</th>';
+    h+='<th>LCOs</th></tr>';
+    h+='<tr><th></th><th></th>';
+    h+='<th style="color:var(--cy)">Prev</th><th style="color:var(--cy)">Now</th><th style="color:var(--cy)">±</th>';
+    h+='<th style="color:var(--gn)">Prev</th><th style="color:var(--gn)">Now</th><th style="color:var(--gn)">±</th>';
+    h+='<th></th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg2=i%2!==0?'background:#FAFBFC':'';
-        var clr=r.change>0?'var(--gn)':r.change<0?'var(--rd)':'var(--grey)';
-        var sgn=r.change>=0?'+':'';
+        function chgClr(v){return v>0?'var(--gn)':v<0?'var(--rd)':'var(--grey)';}
+        function chgSgn(v){return v>=0?'+':'';}
         h+='<tr style="'+bg2+'">';
         h+='<td style="color:var(--grey)">'+(i+1)+'</td>';
-        h+='<td style="font-weight:600;font-size:10px">'+(r.name||'')+'</td>';
-        h+='<td class="nm">'+(r.prev||0).toLocaleString()+'</td>';
-        h+='<td class="nm" style="font-weight:600">'+(r.now||0).toLocaleString()+'</td>';
-        h+='<td style="font-weight:700;color:'+clr+'">'+sgn+(r.change||0)+'</td>';
+        h+='<td style="font-weight:600;font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(r.name||'')+'">'+(r.name||'')+'</td>';
+        h+='<td class="nm" style="color:var(--cy)">'+(r.kccl_prev||0).toLocaleString()+'</td>';
+        h+='<td class="nm" style="font-weight:600;color:var(--cy)">'+(r.kccl_now||0).toLocaleString()+'</td>';
+        h+='<td style="font-weight:700;color:'+chgClr(r.kccl_change)+'">'+chgSgn(r.kccl_change)+(r.kccl_change||0)+'</td>';
+        h+='<td class="nm" style="color:var(--gn)">'+(r.arohon_prev||0).toLocaleString()+'</td>';
+        h+='<td class="nm" style="font-weight:600;color:var(--gn)">'+(r.arohon_now||0).toLocaleString()+'</td>';
+        h+='<td style="font-weight:700;color:'+chgClr(r.arohon_change)+'">'+chgSgn(r.arohon_change)+(r.arohon_change||0)+'</td>';
         h+='<td class="nm">'+(r.lcos||0)+'</td>';
         h+='</tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-/* ===== EXPORTS — ALL AS PER FILTRATION ===== */
 function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
-function dSU(){
-    if(!vFrom||!vTo){showFlash('Select dates','error');return;}
-    location.href='/daily-active/export-subdist?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;
-}
-function dAR(){
-    if(!vFrom||!vTo){showFlash('Select dates','error');return;}
-    location.href='/daily-active/export-area?from='+vFrom+'&to='+vTo+getAreaParams()+'&mode='+vMode;
-}
+function dSU(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-subdist?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;}
+function dAR(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-area?from='+vFrom+'&to='+vTo+getAreaParams()+'&mode='+vMode;}
 
-/* ===== UPLOAD ===== */
 function oU(){document.getElementById('uM').classList.add('show');}
 function cU(){document.getElementById('uM').classList.remove('show');document.getElementById('uF').reset();document.getElementById('dL').textContent='Click or drag file';}
 document.getElementById('uM').addEventListener('click',function(e){if(e.target===this)cU();});
@@ -371,7 +385,6 @@ function showFlash(msg,type){
     c.prepend(d);setTimeout(function(){if(d.parentNode)d.remove();},5000);
 }
 
-/* ===== INIT ===== */
 try{loadChartsOnce();}catch(e){console.error('[InitCh]',e);}
 try{if(datesOk())setTimeout(function(){try{gen();}catch(e){console.error('[AutoGen]',e);}},600);}catch(e){console.error('[AutoSetup]',e);}
 </script>
