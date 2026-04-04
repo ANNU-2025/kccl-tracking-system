@@ -1155,26 +1155,20 @@ def da_chart_data():
     if not conn: return jsonify({'dates':[],'full_dates':[],'kccl_a':[],'kccl_d':[],'arohon_a':[],'arohon_d':[]})
     cur = conn.cursor()
     try:
-        cur.execute("SELECT report_date FROM daily_active_summary ORDER BY report_date DESC LIMIT 1")
-        row = cur.fetchone()
-        if not row:
-            cur.close(); release_db(conn)
-            return jsonify({'dates':[],'full_dates':[],'kccl_a':[],'kccl_d':[],'arohon_a':[],'arohon_d':[]})
-        latest = row[0]
-        cur.execute("""SELECT
+        cur.execute("""SELECT d.report_date,
             SUM(CASE WHEN COALESCE(m.distributor,'')!='AROHON' THEN d.active_count ELSE 0 END),
             SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.active_count ELSE 0 END),
             SUM(CASE WHEN COALESCE(m.distributor,'')!='AROHON' THEN d.deactive_count ELSE 0 END),
             SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.deactive_count ELSE 0 END)
             FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code = m.lco_code
-            WHERE d.report_date=%s""", (latest,))
-        r = cur.fetchone()
-        ka = int(r[0] or 0); aa = int(r[1] or 0)
-        kd = int(r[2] or 0); ad = int(r[3] or 0)
-        label = latest.strftime('%d-%b')
-        full = latest.strftime('%Y-%m-%d')
+            GROUP BY d.report_date ORDER BY d.report_date ASC""")
+        rows = cur.fetchall()
+        ka,kd,aa,ad = [],[],[],[]
+        for r in rows:
+            ka.append(int(r[1] or 0)); aa.append(int(r[2] or 0))
+            kd.append(int(r[3] or 0)); ad.append(int(r[4] or 0))
         cur.close(); release_db(conn)
-        return jsonify({'dates':[label],'full_dates':[full],'kccl_a':[ka],'kccl_d':[kd],'arohon_a':[aa],'arohon_d':[ad]})
+        return jsonify({'dates':[r[0].strftime('%d-%b') for r in rows],'full_dates':[r[0].strftime('%Y-%m-%d') for r in rows],'kccl_a':ka,'kccl_d':kd,'arohon_a':aa,'arohon_d':ad})
     except Exception as e:
         print('[chart-data ERR]',e)
         try: cur.close()
