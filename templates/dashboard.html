@@ -311,4 +311,66 @@ setTimeout(function(){loadSummary()},300);
 var dfV=document.getElementById('dF').value,dtV=document.getElementById('dT').value;
 if(dfV&&dtV&&dfV!==dtV)setTimeout(function(){gen()},600);
 </script>
+{% endblock %} / LOGIN.HTML= {% extends "base.html" %}
+{% block title %}KCCL Login{% endblock %}
+{% block page_title %}Login{% endblock %}
+
+{% block body %}
+<style>
+    /* Specific styles to hide sidebar on login for a cleaner look */
+    .sidebar { display: none !important; }
+    .main-wrap { margin-left: 0 !important; }
+    .login-wrap {
+        display: flex; justify-content: center; align-items: center;
+        height: 100vh; background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+    }
+    .login-box {
+        background: #fff; width: 100%; max-width: 400px;
+        padding: 40px; border-radius: 16px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        text-align: center;
+    }
+    .login-box h1 { margin: 0 0 10px; color: #1E293B; font-size: 24px; }
+    .login-box p { color: #64748B; margin-bottom: 30px; font-size: 14px; }
+    .login-box .fi { 
+        width: 100%; padding: 12px; margin-bottom: 15px; 
+        border: 1px solid #E2E8F0; border-radius: 8px; 
+        font-size: 14px; box-sizing: border-box;
+    }
+    .login-box .fi:focus { border-color: #00BCD4; outline: none; }
+    .btn-blue { width: 100%; padding: 12px; justify-content: center; }
+</style>
+
+<div class="login-wrap">
+    <div class="login-box">
+        <div style="margin-bottom:20px">
+            <!-- Placeholder Logo if image fails -->
+            <div style="width:60px; height:60px; background:#00BCD4; border-radius:50%; margin:0 auto 15px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:24px; font-weight:bold;">K</div>
+            <h1>KCCL BANGLA</h1>
+            <p>Inventory Management System</p>
+        </div>
+        
+        <form method="POST">
+            <div style="text-align:left; margin-bottom:5px; font-size:12px; font-weight:600; color:#475569;">Username</div>
+            <input type="text" name="username" class="fi" placeholder="Enter username" required autofocus>
+            
+            <div style="text-align:left; margin-bottom:5px; font-size:12px; font-weight:600; color:#475569;">Password</div>
+            <input type="password" name="password" class="fi" placeholder="Enter password" required>
+            
+            <button type="submit" class="btn btn-blue" style="margin-top:10px">
+                <i class="fas fa-right-to-bracket"></i> SIGN IN
+            </button>
+        </form>
+
+        <div style="margin-top:20px; text-align:left;">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for cat, msg in messages %}
+                <div style="padding:10px; border-radius:6px; font-size:12px; margin-bottom:5px; background:{% if cat=='error' %}#FEE2E2; color:#991B1B{% else %}#DCFCE7; color:#166534{% endif %};">
+                    <i class="fas fa-{% if cat=='error' %}exclamation-circle{% else %}check-circle{% endif %}"></i> {{ msg }}
+                </div>
+            {% endfor %}
+            {% endwith %}
+        </div>
+    </div>
+</div>
 {% endblock %}
