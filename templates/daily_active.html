@@ -137,7 +137,7 @@ body .content{padding:12px 14px}
     </div>
 </div>
 
-<div class="t2" style="margin-bottom:16px">
+<div class="t2" style="margin-bottom:10px">
     <div class="tc to">
         <div class="thd">
             <h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Distributor <span style="font-size:9px;color:var(--grey);font-weight:400">{{ subdist_data|length }} subs</span></h4>
@@ -145,16 +145,7 @@ body .content{padding:12px 14px}
         <div class="tsc">
             {% if subdist_data %}
             <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>SUB DISTRIBUTOR</th>
-                        <th>PREV</th>
-                        <th>NOW</th>
-                        <th>+/-</th>
-                        <th>DISTRIBUTOR</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>#</th><th>SUB DISTRIBUTOR</th><th>PREV</th><th>NOW</th><th>+/-</th><th>DISTRIBUTOR</th></tr></thead>
                 <tbody>
                     {% for r in subdist_data %}
                     <tr style="{% if loop.index is odd %}background:#FAFBFC{% endif %}">
@@ -162,18 +153,8 @@ body .content{padding:12px 14px}
                         <td style="font-weight:600">{{ r.sub_dist }}</td>
                         <td class="nm">{{ r.prev }}</td>
                         <td class="nm" style="font-weight:600">{{ r.now }}</td>
-                        <td style="font-weight:700;color:{% if r.diff >= 0 %}var(--gn){% else %}var(--rd){% endif %}">
-                            {% if r.diff >= 0 %}+{% endif %}{{ r.diff }}
-                        </td>
-                        <td>
-                            {% if r.distributor|lower == 'arohon' %}
-                            <span class="dist-tag dist-arohon">{{ r.distributor }}</span>
-                            {% elif r.distributor|lower == 'kccl' %}
-                            <span class="dist-tag dist-kccl">{{ r.distributor }}</span>
-                            {% else %}
-                            <span class="dist-tag dist-other">{{ r.distributor }}</span>
-                            {% endif %}
-                        </td>
+                        <td style="font-weight:700;color:{% if r.diff >= 0 %}var(--gn){% else %}var(--rd){% endif %}">{% if r.diff >= 0 %}+{% endif %}{{ r.diff }}</td>
+                        <td><span class="dist-tag dist-{{ r.distributor|lower }}">{{ r.distributor }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -190,16 +171,7 @@ body .content{padding:12px 14px}
         <div class="tsc">
             {% if area_data %}
             <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>AREA</th>
-                        <th>PREV</th>
-                        <th>NOW</th>
-                        <th>+/-</th>
-                        <th>DISTRIBUTOR</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>#</th><th>AREA</th><th>PREV</th><th>NOW</th><th>+/-</th><th>DISTRIBUTOR</th></tr></thead>
                 <tbody>
                     {% for r in area_data %}
                     <tr style="{% if loop.index is odd %}background:#FAFBFC{% endif %}">
@@ -207,18 +179,8 @@ body .content{padding:12px 14px}
                         <td style="font-weight:600">{{ r.area }}</td>
                         <td class="nm">{{ r.prev }}</td>
                         <td class="nm" style="font-weight:600">{{ r.now }}</td>
-                        <td style="font-weight:700;color:{% if r.diff >= 0 %}var(--gn){% else %}var(--rd){% endif %}">
-                            {% if r.diff >= 0 %}+{% endif %}{{ r.diff }}
-                        </td>
-                        <td>
-                            {% if r.distributor|lower == 'arohon' %}
-                            <span class="dist-tag dist-arohon">{{ r.distributor }}</span>
-                            {% elif r.distributor|lower == 'kccl' %}
-                            <span class="dist-tag dist-kccl">{{ r.distributor }}</span>
-                            {% else %}
-                            <span class="dist-tag dist-other">{{ r.distributor }}</span>
-                            {% endif %}
-                        </td>
+                        <td style="font-weight:700;color:{% if r.diff >= 0 %}var(--gn){% else %}var(--rd){% endif %}">{% if r.diff >= 0 %}+{% endif %}{{ r.diff }}</td>
+                        <td><span class="dist-tag dist-{{ r.distributor|lower }}">{{ r.distributor }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -230,12 +192,22 @@ body .content{padding:12px 14px}
     </div>
 </div>
 
+<div style="margin-bottom:16px">
+    <div class="tc" style="border-top:3px solid #9C27B0;max-height:400px">
+        <div class="thd">
+            <h4 style="color:#9C27B0"><i class="fas fa-layer-group"></i> Casewise <span id="casBadge" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4>
+            <button class="btn btn-sm" id="bECas" style="background:#6A1B9A;color:#fff;border-color:#6A1B9A;display:none;padding:4px 8px;font-size:10px" onclick="dCas()"><i class="fas fa-download"></i></button>
+        </div>
+        <div class="tsc" id="casB"><div class="tem"><i class="fas fa-layer-group"></i><p>Set dates & click GO</p></div></div>
+    </div>
+</div>
+
 <div class="uo" id="uM">
     <div class="ub">
         <h3><i class="fas fa-cloud-arrow-up" style="color:var(--cy);margin-right:6px"></i>Upload Report</h3>
         <form method="POST" enctype="multipart/form-data" id="uF"><input type="hidden" name="form_type" value="bulk">
             <div class="ud" id="dZ" onclick="document.getElementById('fI').click()"><i class="fas fa-cloud-arrow-up"></i><p id="dL">Click or drag file</p><input type="file" id="fI" name="da_file" accept=".csv,.xlsx" style="display:none" required></div>
-            <p style="font-size:9px;color:var(--grey);margin-bottom:10px"><b>report_date, lco_name, active_count, deactive_count, distributor</b></p>
+            <p style="font-size:9px;color:var(--grey);margin-bottom:10px"><b>report_date, lco_name, active_count, deactive_count, distributor, cas_type</b></p>
             <div class="ua"><button type="button" class="btn btn-outline" onclick="cU()" style="padding:6px 12px;font-size:11px">Cancel</button><button type="submit" class="btn btn-green" style="padding:6px 12px;font-size:11px"><i class="fas fa-check"></i> Upload</button></div>
         </form>
     </div>
@@ -258,7 +230,6 @@ function getParams(){
 }
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
-/* ===== STATIC CHARTS ===== */
 function makeChart(cid,mid,data,ak,dk,c1,c2){
     var msg=document.getElementById(mid);
     if(!data.dates||!data.dates.length){if(msg)msg.classList.add('show');return;}
@@ -298,10 +269,7 @@ function loadChartsOnce(){
             if(s1)s1.scrollLeft=s1.scrollWidth;
             if(s2)s2.scrollLeft=s2.scrollWidth;
         },150);
-        if(n>0){
-            var li=n-1;
-            setKPI(d.kccl_a[li]||0,d.kccl_d[li]||0,d.arohon_a[li]||0,d.arohon_d[li]||0);
-        }
+        if(n>0){var li=n-1;setKPI(d.kccl_a[li]||0,d.kccl_d[li]||0,d.arohon_a[li]||0,d.arohon_d[li]||0);}
     }).catch(function(e){
         console.error('[ChartDataErr]',e);
         var m1=document.getElementById('kcMsg');if(m1){m1.classList.add('show');m1.innerHTML='<p>Load failed</p>';}
@@ -322,7 +290,6 @@ function dlChartDate(){
     if(fDates&&fDates.length>0)window.open('/daily-active/date-summary?date='+fDates[fDates.length-1],'_blank');
 }
 
-/* ===== FILTERS ===== */
 function readDates(){return{f:document.getElementById('dF').value,t:document.getElementById('dT').value};}
 function datesOk(){var d=readDates();return d.f&&d.t&&d.f!==d.t;}
 function updateSubDists(){
@@ -338,32 +305,27 @@ function onAreaChange(){updateSubDists();if(datesOk())gen();}
 function onDistChange(){updateSubDists();if(datesOk())gen();}
 function onFilterChange(){if(datesOk())gen();}
 
-/* ===== GO — only growth/churn via AJAX ===== */
 function gen(){
     var dd=readDates();
     vFrom=dd.f;vTo=dd.t;vMode=document.getElementById('sM').value;
     if(!vFrom||!vTo){showFlash('Select both dates','error');return;}
     if(vFrom===vTo){showFlash('Select two different dates','error');return;}
     var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
-
     var cmpUrl='/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;
-
     safeFetch(cmpUrl).then(function(d){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
         if(d.error){showFlash(d.error,'error');return;}
-
         setKPI(d.kccl_active||0,d.kccl_deactive||0,d.arohon_active||0,d.arohon_deactive||0);
         var tA=(d.kccl_active||0)+(d.arohon_active||0),tD=(d.kccl_deactive||0)+(d.arohon_deactive||0);
         document.getElementById('kR').textContent=(tA>0?((tD/tA)*100).toFixed(1):'0.0')+'%';
         var ne=document.getElementById('kN'),net=d.net||0;
         ne.textContent=(net>=0?'+':'')+net.toLocaleString();
         ne.style.color=net>0?'var(--gn)':net<0?'var(--rd)':'#F9A825';
-
         growArr=d.growth||[];churnArr=d.churn||[];
         var col=vMode==='active'?'Active':'Deactive';
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
-
+        renderCasewise(d.casewise||[]);
         showFlash('Report generated ('+col+')','success');
     }).catch(function(e){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
@@ -371,38 +333,51 @@ function gen(){
     });
 }
 
-/* ===== GROWTH / CHURN TABLE ===== */
 function distTag(dist){
     var d=(dist||'KCCL').toUpperCase();
     if(d==='AROHON')return '<span class="dist-tag dist-arohon">AROHON</span>';
     if(d==='KCCL')return '<span class="dist-tag dist-kccl">KCCL</span>';
     return '<span class="dist-tag dist-other">'+(dist||'—')+'</span>';
 }
-
 function renderGC(bid,cid,btid,data,color,colName){
     var el=document.getElementById(bid),ce=document.getElementById(cid),be=document.getElementById(btid);
     if(!el)return;
     if(!data||!data.length){el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No change detected</p></div>';if(ce)ce.textContent='';if(be)be.style.display='none';return;}
-    if(ce)ce.textContent=data.length;
-    if(be)be.style.display='';
+    if(ce)ce.textContent=data.length;if(be)be.style.display='';
     var h='<table><thead><tr><th>#</th><th>LCO</th><th>Dist</th><th class="mh">Area</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
-        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
-        h+='<td class="nm">'+(r.lco||'')+'</td>';
-        h+='<td>'+distTag(r.dist)+'</td>';
-        h+='<td class="mh" style="font-size:9px;color:var(--grey)">'+(r.area||'—')+'</td>';
-        h+='<td>'+(r.prev||0)+'</td><td style="font-weight:600">'+(r.now||0)+'</td>';
-        h+='<td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+':'')+(r.change||0)+'</td></tr>';
+        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td><td class="nm">'+(r.lco||'')+'</td><td>'+distTag(r.dist)+'</td><td class="mh" style="font-size:9px;color:var(--grey)">'+(r.area||'—')+'</td><td>'+(r.prev||0)+'</td><td style="font-weight:600">'+(r.now||0)+'</td><td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+':'')+(r.change||0)+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-/* ===== EXPORTS ===== */
+function renderCasewise(data){
+    var el=document.getElementById('casB'),ce=document.getElementById('casBadge'),be=document.getElementById('bECas');
+    if(!el)return;
+    if(!data||!data.length){el.innerHTML='<div class="tem"><p>No data for selected filters</p></div>';if(ce)ce.textContent='';if(be)be.style.display='none';return;}
+    if(ce)ce.textContent=data.length;if(be)be.style.display='';
+    var h='<table><thead><tr><th>#</th><th>CAS TYPE</th><th>PREV</th><th>NOW</th><th>+/-</th><th>DISTRIBUTOR</th></tr></thead><tbody>';
+    for(var i=0;i<data.length;i++){
+        var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
+        var dc=r.diff>0?'var(--gn)':r.diff<0?'var(--rd)':'var(--grey)';
+        var dp=r.diff>=0?'+':'';
+        var dl=(r.distributor||'').toLowerCase();
+        var ds=dl==='arohon'?'dist-arohon':dl==='kccl'?'dist-kccl':'dist-other';
+        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
+        h+='<td style="font-weight:600">'+(r.name||'')+'</td>';
+        h+='<td class="nm">'+(r.prev||0)+'</td>';
+        h+='<td class="nm" style="font-weight:600">'+(r.now||0)+'</td>';
+        h+='<td style="font-weight:700;color:'+dc+'">'+dp+(r.diff||0)+'</td>';
+        h+='<td><span class="dist-tag '+ds+'">'+(r.distributor||'')+'</span></td></tr>';
+    }
+    h+='</tbody></table>';el.innerHTML=h;
+}
+
 function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
+function dCas(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-casewise?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 
-/* ===== UPLOAD ===== */
 function oU(){document.getElementById('uM').classList.add('show');}
 function cU(){document.getElementById('uM').classList.remove('show');document.getElementById('uF').reset();document.getElementById('dL').textContent='Click or drag file';}
 document.getElementById('uM').addEventListener('click',function(e){if(e.target===this)cU();});
@@ -425,7 +400,6 @@ function showFlash(msg,type){
     c.prepend(d);setTimeout(function(){if(d.parentNode)d.remove();},5000);
 }
 
-/* ===== INIT ===== */
 try{loadChartsOnce();}catch(e){console.error('[InitCh]',e);}
 try{if(datesOk())setTimeout(function(){try{gen();}catch(e){console.error('[AutoGen]',e);}},600);}catch(e){console.error('[AutoSetup]',e);}
 </script>
