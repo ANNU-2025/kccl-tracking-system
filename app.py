@@ -1127,8 +1127,9 @@ def daily_active():
     cur.execute("SELECT DISTINCT report_date FROM daily_active_summary ORDER BY report_date DESC")
     date_list = [r[0] for r in cur.fetchall()]
 
-    # ===== AREA DATA: last 2 dates, grouped by area + distributor =====
+    # ===== Build static summary data from last 2 dates =====
     area_data = []
+    subdist_data = []
     try:
         cur.execute("SELECT DISTINCT report_date FROM daily_active_summary ORDER BY report_date DESC LIMIT 2")
         last_two = cur.fetchall()
@@ -1136,6 +1137,7 @@ def daily_active():
             prev_date = last_two[1][0]
             now_date = last_two[0][0]
 
+            # ---- Area data ----
             cur.execute("""
                 SELECT COALESCE(m.area,'Unassigned'), COALESCE(m.distributor,'KCCL'), SUM(d.active_count)
                 FROM daily_active_summary d
@@ -1143,7 +1145,7 @@ def daily_active():
                 WHERE d.report_date = %s
                 GROUP BY COALESCE(m.area,'Unassigned'), COALESCE(m.distributor,'KCCL')
             """, (prev_date,))
-            prev_map = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
+            prev_area = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
 
             cur.execute("""
                 SELECT COALESCE(m.area,'Unassigned'), COALESCE(m.distributor,'KCCL'), SUM(d.active_count)
@@ -1152,26 +1154,43 @@ def daily_active():
                 WHERE d.report_date = %s
                 GROUP BY COALESCE(m.area,'Unassigned'), COALESCE(m.distributor,'KCCL')
             """, (now_date,))
-            now_map = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
+            now_area = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
 
-            all_keys = sorted(set(prev_map.keys()) | set(now_map.keys()))
-            for (area_name, dist_name) in all_keys:
-                pv = prev_map.get((area_name, dist_name), 0)
-                nw = now_map.get((area_name, dist_name), 0)
-                area_data.append({
-                    'area': area_name,
-                    'distributor': dist_name,
-                    'prev': pv,
-                    'now': nw,
-                    'diff': nw - pv
-                })
-            area_data.sort(key=lambda x: x['area'])
+            for (aname, dname) in sorted(set(prev_area.keys()) | set(now_area.keys())):
+                pv = prev_area.get((aname, dname), 0)
+                nw = now_area.get((aname, dname), 0)
+                area_data.append({'area': aname, 'distributor': dname, 'prev': pv, 'now': nw, 'diff': nw - pv})
+
+            # ---- Sub Distributor data ----
+            cur.execute("""
+                SELECT COALESCE(m.sub_distributor,'Unassigned'), COALESCE(m.distributor,'KCCL'), SUM(d.active_count)
+                FROM daily_active_summary d
+                LEFT JOIN lco_master m ON d.lco_code = m.lco_code
+                WHERE d.report_date = %s
+                GROUP BY COALESCE(m.sub_distributor,'Unassigned'), COALESCE(m.distributor,'KCCL')
+            """, (prev_date,))
+            prev_sub = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
+
+            cur.execute("""
+                SELECT COALESCE(m.sub_distributor,'Unassigned'), COALESCE(m.distributor,'KCCL'), SUM(d.active_count)
+                FROM daily_active_summary d
+                LEFT JOIN lco_master m ON d.lco_code = m.lco_code
+                WHERE d.report_date = %s
+                GROUP BY COALESCE(m.sub_distributor,'Unassigned'), COALESCE(m.distributor,'KCCL')
+            """, (now_date,))
+            now_sub = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
+
+            for (sname, dname) in sorted(set(prev_sub.keys()) | set(now_sub.keys())):
+                pv = prev_sub.get((sname, dname), 0)
+                nw = now_sub.get((sname, dname), 0)
+                subdist_data.append({'sub_dist': sname, 'distributor': dname, 'prev': pv, 'now': nw, 'diff': nw - pv})
     except Exception as e:
-        print('[area_data ERR]', e)
+        print('[static_data ERR]', e)
 
     bulk_failures = session.pop('da_failures', [])
     cur.close(); release_db(conn)
-    return render_template('daily_active.html', areas=areas, sub_dists=sub_dists, distributors=distributors, date_list=date_list, bulk_failures=bulk_failures, area_data=area_data)
+    return render_template('daily_active.html', areas=areas, sub_dists=sub_dists, distributors=distributors,
+        date_list=date_list, bulk_failures=bulk_failures, area_data=area_data, subdist_data=subdist_data)
 
 
 @app.route('/daily-active/sub-dists')
@@ -1273,64 +1292,6 @@ def da_compare():
         except: pass
         release_db(conn)
         return jsonify({'error': 'Query failed: ' + str(e)})
-
-
-@app.route('/daily-active/summary-tables')
-def da_summary_tables():
-    if 'logged_user' not in session: return jsonify({'areas': [], 'subs': []})
-    d_from = request.args.get('from', ''); d_to = request.args.get('to', '')
-    area = request.args.get('area', ''); sub_dist = request.args.get('sub_dist', '')
-    dist = request.args.get('distributor', ''); mode = request.args.get('mode', 'active')
-    if not d_from or not d_to: return jsonify({'areas': [], 'subs': []})
-    conn = get_db()
-    if not conn: return jsonify({'areas': [], 'subs': []})
-    cur = conn.cursor()
-    try:
-        fc = []; fp = []
-        if area: fc.append("m.area = %s"); fp.append(area)
-        if sub_dist: fc.append("m.sub_distributor = %s"); fp.append(sub_dist)
-        if dist: fc.append("COALESCE(m.distributor,'') = %s"); fp.append(dist)
-        fsql = (" AND " + " AND ".join(fc)) if fc else ""
-
-        col_expr = "COALESCE(m.sub_distributor,'Unassigned')"
-        inner = f"""SELECT {col_expr} as name,
-            SUM(CASE WHEN COALESCE(m.distributor,'')!='AROHON' THEN d.active_count ELSE 0 END) as ka,
-            SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.active_count ELSE 0 END) as aa,
-            SUM(CASE WHEN COALESCE(m.distributor,'')!='AROHON' THEN d.deactive_count ELSE 0 END) as kd,
-            SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.deactive_count ELSE 0 END) as ad,
-            COUNT(DISTINCT d.lco_code) as lcos
-            FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code
-            WHERE d.report_date=%s{fsql} GROUP BY {col_expr}"""
-        q = f"""SELECT COALESCE(t1.name,t2.name),
-            COALESCE(t1.ka,0),COALESCE(t2.ka,0),
-            COALESCE(t1.aa,0),COALESCE(t2.aa,0),
-            COALESCE(t1.kd,0),COALESCE(t2.kd,0),
-            COALESCE(t1.ad,0),COALESCE(t2.ad,0),
-            COALESCE(t2.lcos,0)
-            FROM ({inner}) t1 FULL OUTER JOIN ({inner}) t2 ON t1.name=t2.name"""
-        sp = [d_from]+fp+[d_to]+fp
-        cur.execute(q, sp); sub_rows = cur.fetchall()
-        cur.close(); release_db(conn)
-
-        def fmt(rows, mv):
-            res = []
-            for r in rows:
-                if mv == 'active':
-                    kp, kn, ap2, an2 = int(r[1] or 0), int(r[2] or 0), int(r[3] or 0), int(r[4] or 0)
-                else:
-                    kp, kn, ap2, an2 = int(r[5] or 0), int(r[6] or 0), int(r[7] or 0), int(r[8] or 0)
-                res.append({'name': r[0], 'kccl_prev': kp, 'kccl_now': kn, 'kccl_change': kn - kp,
-                    'arohon_prev': ap2, 'arohon_now': an2, 'arohon_change': an2 - ap2,
-                    'total_change': (kn - kp) + (an2 - ap2), 'lcos': int(r[9] or 0)})
-            res.sort(key=lambda x: x['total_change'], reverse=True)
-            return res
-        return jsonify({'areas': [], 'subs': fmt(sub_rows, mode)})
-    except Exception as e:
-        print('[summary ERR]', e)
-        try: cur.close()
-        except: pass
-        release_db(conn)
-        return jsonify({'areas': [], 'subs': []})
 
 
 @app.route('/daily-active/date-summary')
