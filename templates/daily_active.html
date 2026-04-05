@@ -143,8 +143,49 @@ body .content{padding:12px 14px}
         <div class="tsc" id="suB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
     <div class="tc tc2">
-        <div class="thd"><h4 style="color:var(--cy)"><i class="fas fa-map-location-dot"></i> Area Wise <span id="arBadge" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bEA" style="background:#006064;color:#fff;border-color:#006064;display:none;padding:4px 8px;font-size:10px" onclick="dAR()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="arB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
+        <div class="thd">
+            <h4 style="color:var(--cy)"><i class="fas fa-map-marker-alt"></i> Area Wise <span style="font-size:9px;color:var(--grey);font-weight:400">{{ area_data|length }} areas</span></h4>
+        </div>
+        <div class="tsc">
+            {% if area_data %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>AREA</th>
+                        <th>PREV</th>
+                        <th>NOW</th>
+                        <th>+/-</th>
+                        <th>DISTRIBUTOR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in area_data %}
+                    <tr style="{% if loop.index is odd %}background:#FAFBFC{% endif %}">
+                        <td style="color:var(--grey)">{{ loop.index }}</td>
+                        <td style="font-weight:600">{{ r.area }}</td>
+                        <td class="nm">{{ r.prev }}</td>
+                        <td class="nm" style="font-weight:600">{{ r.now }}</td>
+                        <td style="font-weight:700;color:{% if r.diff >= 0 %}var(--gn){% else %}var(--rd){% endif %}">
+                            {% if r.diff >= 0 %}+{% endif %}{{ r.diff }}
+                        </td>
+                        <td>
+                            {% if r.distributor|lower == 'arohon' %}
+                            <span class="dist-tag dist-arohon">{{ r.distributor }}</span>
+                            {% elif r.distributor|lower == 'kccl' %}
+                            <span class="dist-tag dist-kccl">{{ r.distributor }}</span>
+                            {% else %}
+                            <span class="dist-tag dist-other">{{ r.distributor }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="tem"><i class="fas fa-map-marker-alt"></i><p>No area data available</p></div>
+            {% endif %}
+        </div>
     </div>
 </div>
 
@@ -180,12 +221,6 @@ function getSubDistParams(){
     if(a)p.push('area='+encodeURIComponent(a));
     return p.length?'&'+p.join('&'):'';
 }
-function getAreaParams(){
-    var d=document.getElementById('sD').value,s=document.getElementById('sS').value,p=[];
-    if(d)p.push('distributor='+encodeURIComponent(d));
-    if(s)p.push('sub_dist='+encodeURIComponent(s));
-    return p.length?'&'+p.join('&'):'';
-}
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
 /* ===== STATIC CHARTS — all dates, scroll to show last 5 ===== */
@@ -216,25 +251,18 @@ function loadChartsOnce(){
     safeFetch('/daily-active/chart-data').then(function(d){
         fDates=d.full_dates||[];
         var n=fDates.length;
-
-        /* Width: 55px per bar, minimum = chart container width */
         var pxPerBar=55,chartW=Math.max(n*pxPerBar,280);
         var kcI=document.getElementById('kcInner'),arI=document.getElementById('arInner');
         if(kcI)kcI.style.width=chartW+'px';
         if(arI)arI.style.width=chartW+'px';
-
         makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,0.9)','rgba(0,131,143,0.9)');
         makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,0.9)','rgba(30,120,65,0.9)');
-
-        /* Auto-scroll to end so last 5 bars are visible */
         setTimeout(function(){
             var s1=document.getElementById('kcInner').parentElement;
             var s2=document.getElementById('arInner').parentElement;
             if(s1)s1.scrollLeft=s1.scrollWidth;
             if(s2)s2.scrollLeft=s2.scrollWidth;
         },150);
-
-        /* KPIs from latest date (last index) */
         if(n>0){
             var li=n-1;
             setKPI(d.kccl_a[li]||0,d.kccl_d[li]||0,d.arohon_a[li]||0,d.arohon_d[li]||0);
@@ -259,7 +287,7 @@ function dlChartDate(){
     if(fDates&&fDates.length>0)window.open('/daily-active/date-summary?date='+fDates[fDates.length-1],'_blank');
 }
 
-/* ===== FILTERS — only update tables below, NOT charts ===== */
+/* ===== FILTERS ===== */
 function readDates(){return{f:document.getElementById('dF').value,t:document.getElementById('dT').value};}
 function datesOk(){var d=readDates();return d.f&&d.t&&d.f!==d.t;}
 function updateSubDists(){
@@ -275,7 +303,7 @@ function onAreaChange(){updateSubDists();if(datesOk())gen();}
 function onDistChange(){updateSubDists();if(datesOk())gen();}
 function onFilterChange(){if(datesOk())gen();}
 
-/* ===== GO — update KPIs + tables only ===== */
+/* ===== GO — update KPIs + growth/churn/subdist tables only ===== */
 function gen(){
     var dd=readDates();
     vFrom=dd.f;vTo=dd.t;vMode=document.getElementById('sM').value;
@@ -285,11 +313,10 @@ function gen(){
 
     var cmpUrl='/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;
     var subUrl='/daily-active/summary-tables?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;
-    var areaUrl='/daily-active/summary-tables?from='+vFrom+'&to='+vTo+getAreaParams()+'&mode='+vMode;
 
-    Promise.all([safeFetch(cmpUrl),safeFetch(subUrl),safeFetch(areaUrl)]).then(function(results){
+    Promise.all([safeFetch(cmpUrl),safeFetch(subUrl)]).then(function(results){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
-        var d=results[0],sd=results[1],ar=results[2];
+        var d=results[0],sd=results[1];
         if(d.error){showFlash(d.error,'error');return;}
 
         setKPI(d.kccl_active||0,d.kccl_deactive||0,d.arohon_active||0,d.arohon_deactive||0);
@@ -303,8 +330,7 @@ function gen(){
         var col=vMode==='active'?'Active':'Deactive';
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
-        renderST('suB',sd.subs||[],true,col);
-        renderST('arB',ar.areas||[],false,col);
+        renderST('suB','suBadge','bES',sd.subs||[],true,col);
 
         showFlash('Report generated ('+col+')','success');
     }).catch(function(e){
@@ -340,12 +366,11 @@ function renderGC(bid,cid,btid,data,color,colName){
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-/* ===== SUB DIST / AREA TABLE ===== */
-function renderST(bid,data,isSub,colName){
+/* ===== SUB DIST TABLE ===== */
+function renderST(bid,bdId,beId,data,isSub,colName){
     var el=document.getElementById(bid);
     if(!el)return;
-    var bId=isSub?'bES':'bEA',bdId=isSub?'suBadge':'arBadge';
-    var bd=document.getElementById(bId),bg=document.getElementById(bdId);
+    var bd=document.getElementById(beId),bg=document.getElementById(bdId);
     if(!data||!data.length){
         el.innerHTML='<div class="tem"><p>No data for this filter</p></div>';
         if(bd)bd.style.display='none';if(bg)bg.textContent='';return;
@@ -384,7 +409,6 @@ function renderST(bid,data,isSub,colName){
 function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dSU(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-subdist?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;}
-function dAR(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-area?from='+vFrom+'&to='+vTo+getAreaParams()+'&mode='+vMode;}
 
 /* ===== UPLOAD ===== */
 function oU(){document.getElementById('uM').classList.add('show');}
