@@ -139,8 +139,49 @@ body .content{padding:12px 14px}
 
 <div class="t2" style="margin-bottom:16px">
     <div class="tc to">
-        <div class="thd"><h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Distributor <span id="suBadge" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bES" style="background:#E65100;color:#fff;border-color:#E65100;display:none;padding:4px 8px;font-size:10px" onclick="dSU()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="suB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
+        <div class="thd">
+            <h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Distributor <span style="font-size:9px;color:var(--grey);font-weight:400">{{ subdist_data|length }} subs</span></h4>
+        </div>
+        <div class="tsc">
+            {% if subdist_data %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>SUB DISTRIBUTOR</th>
+                        <th>PREV</th>
+                        <th>NOW</th>
+                        <th>+/-</th>
+                        <th>DISTRIBUTOR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in subdist_data %}
+                    <tr style="{% if loop.index is odd %}background:#FAFBFC{% endif %}">
+                        <td style="color:var(--grey)">{{ loop.index }}</td>
+                        <td style="font-weight:600">{{ r.sub_dist }}</td>
+                        <td class="nm">{{ r.prev }}</td>
+                        <td class="nm" style="font-weight:600">{{ r.now }}</td>
+                        <td style="font-weight:700;color:{% if r.diff >= 0 %}var(--gn){% else %}var(--rd){% endif %}">
+                            {% if r.diff >= 0 %}+{% endif %}{{ r.diff }}
+                        </td>
+                        <td>
+                            {% if r.distributor|lower == 'arohon' %}
+                            <span class="dist-tag dist-arohon">{{ r.distributor }}</span>
+                            {% elif r.distributor|lower == 'kccl' %}
+                            <span class="dist-tag dist-kccl">{{ r.distributor }}</span>
+                            {% else %}
+                            <span class="dist-tag dist-other">{{ r.distributor }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="tem"><i class="fas fa-truck"></i><p>No sub distributor data</p></div>
+            {% endif %}
+        </div>
     </div>
     <div class="tc tc2">
         <div class="thd">
@@ -215,15 +256,9 @@ function getParams(){
     if(s)p.push('sub_dist='+encodeURIComponent(s));
     return p.length?'&'+p.join('&'):'';
 }
-function getSubDistParams(){
-    var d=document.getElementById('sD').value,a=document.getElementById('sA').value,p=[];
-    if(d)p.push('distributor='+encodeURIComponent(d));
-    if(a)p.push('area='+encodeURIComponent(a));
-    return p.length?'&'+p.join('&'):'';
-}
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
-/* ===== STATIC CHARTS — all dates, scroll to show last 5 ===== */
+/* ===== STATIC CHARTS ===== */
 function makeChart(cid,mid,data,ak,dk,c1,c2){
     var msg=document.getElementById(mid);
     if(!data.dates||!data.dates.length){if(msg)msg.classList.add('show');return;}
@@ -303,7 +338,7 @@ function onAreaChange(){updateSubDists();if(datesOk())gen();}
 function onDistChange(){updateSubDists();if(datesOk())gen();}
 function onFilterChange(){if(datesOk())gen();}
 
-/* ===== GO — update KPIs + growth/churn/subdist tables only ===== */
+/* ===== GO — only growth/churn via AJAX ===== */
 function gen(){
     var dd=readDates();
     vFrom=dd.f;vTo=dd.t;vMode=document.getElementById('sM').value;
@@ -312,11 +347,9 @@ function gen(){
     var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
 
     var cmpUrl='/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;
-    var subUrl='/daily-active/summary-tables?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;
 
-    Promise.all([safeFetch(cmpUrl),safeFetch(subUrl)]).then(function(results){
+    safeFetch(cmpUrl).then(function(d){
         btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
-        var d=results[0],sd=results[1];
         if(d.error){showFlash(d.error,'error');return;}
 
         setKPI(d.kccl_active||0,d.kccl_deactive||0,d.arohon_active||0,d.arohon_deactive||0);
@@ -330,7 +363,6 @@ function gen(){
         var col=vMode==='active'?'Active':'Deactive';
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
-        renderST('suB','suBadge','bES',sd.subs||[],true,col);
 
         showFlash('Report generated ('+col+')','success');
     }).catch(function(e){
@@ -366,49 +398,9 @@ function renderGC(bid,cid,btid,data,color,colName){
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-/* ===== SUB DIST TABLE ===== */
-function renderST(bid,bdId,beId,data,isSub,colName){
-    var el=document.getElementById(bid);
-    if(!el)return;
-    var bd=document.getElementById(beId),bg=document.getElementById(bdId);
-    if(!data||!data.length){
-        el.innerHTML='<div class="tem"><p>No data for this filter</p></div>';
-        if(bd)bd.style.display='none';if(bg)bg.textContent='';return;
-    }
-    if(bd)bd.style.display='';
-    if(bg)bg.textContent=data.length;
-    var label=isSub?'Sub Distributor':'Area';
-    var h='<table><thead><tr><th>#</th><th>'+label+'</th>';
-    h+='<th colspan="3" style="text-align:center;color:var(--cy);font-size:8px">KCCL '+colName+'</th>';
-    h+='<th colspan="3" style="text-align:center;color:var(--gn);font-size:8px">AROHON '+colName+'</th>';
-    h+='<th>LCOs</th></tr>';
-    h+='<tr><th></th><th></th>';
-    h+='<th style="color:var(--cy)">Prev</th><th style="color:var(--cy)">Now</th><th style="color:var(--cy)">±</th>';
-    h+='<th style="color:var(--gn)">Prev</th><th style="color:var(--gn)">Now</th><th style="color:var(--gn)">±</th>';
-    h+='<th></th></tr></thead><tbody>';
-    for(var i=0;i<data.length;i++){
-        var r=data[i],bg2=i%2!==0?'background:#FAFBFC':'';
-        function cc(v){return v>0?'var(--gn)':v<0?'var(--rd)':'var(--grey)';}
-        function cs(v){return v>=0?'+':'';}
-        h+='<tr style="'+bg2+'">';
-        h+='<td style="color:var(--grey)">'+(i+1)+'</td>';
-        h+='<td style="font-weight:600;font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(r.name||'')+'">'+(r.name||'')+'</td>';
-        h+='<td class="nm" style="color:var(--cy)">'+(r.kccl_prev||0).toLocaleString()+'</td>';
-        h+='<td class="nm" style="font-weight:600;color:var(--cy)">'+(r.kccl_now||0).toLocaleString()+'</td>';
-        h+='<td style="font-weight:700;color:'+cc(r.kccl_change)+'">'+cs(r.kccl_change)+(r.kccl_change||0)+'</td>';
-        h+='<td class="nm" style="color:var(--gn)">'+(r.arohon_prev||0).toLocaleString()+'</td>';
-        h+='<td class="nm" style="font-weight:600;color:var(--gn)">'+(r.arohon_now||0).toLocaleString()+'</td>';
-        h+='<td style="font-weight:700;color:'+cc(r.arohon_change)+'">'+cs(r.arohon_change)+(r.arohon_change||0)+'</td>';
-        h+='<td class="nm">'+(r.lcos||0)+'</td>';
-        h+='</tr>';
-    }
-    h+='</tbody></table>';el.innerHTML=h;
-}
-
 /* ===== EXPORTS ===== */
 function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
-function dSU(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-subdist?from='+vFrom+'&to='+vTo+getSubDistParams()+'&mode='+vMode;}
 
 /* ===== UPLOAD ===== */
 function oU(){document.getElementById('uM').classList.add('show');}
