@@ -34,15 +34,16 @@ body .content{padding:12px 14px}
 .sel-c .fs{padding:6px 8px;font-size:11px;min-height:30px}
 .sel-c .acts{display:flex;gap:4px;align-items:center;flex-shrink:0}
 .t2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.tc{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;max-height:340px}
-.tc.tg{border-top:3px solid var(--gn)}.tc.tr{border-top:3px solid var(--rd)}.tc.to{border-top:3px solid var(--og)}.tc.tc2{border-top:3px solid var(--cy)}
+.t3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
+.tc{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;max-height:360px}
+.tc.tg{border-top:3px solid var(--gn)}.tc.tr{border-top:3px solid var(--rd)}.tc.to{border-top:3px solid var(--og)}.tc.tc2{border-top:3px solid var(--cy)}.tc.tcas{border-top:3px solid #9C27B0}
 .thd{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .thd h4{font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px}
 .tsc{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
 .tsc table{margin:0;width:100%;border-collapse:collapse}
 .tsc thead{position:sticky;top:0;z-index:2}
 .tsc th{padding:6px 8px;font-size:8px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.3px;background:#F7F8FA;border-bottom:1px solid var(--border)}
-.tsc td{padding:6px 8px;font-size:10px;border-bottom:1px solid #F0F1F3;color:var(--primary)}
+.tsc td{padding:5px 7px;font-size:10px;border-bottom:1px solid #F0F1F3;color:var(--primary)}
 .tsc tbody tr:hover{background:#F8F9FB}.tsc tbody tr:last-child td{border-bottom:none}
 .tem{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;color:var(--grey)}
 .tem i{font-size:20px;opacity:.2;margin-bottom:4px}.tem p{font-size:10px}
@@ -70,10 +71,11 @@ body .content{padding:12px 14px}
 .dist-kccl{background:rgba(0,188,212,.12);color:var(--cy)}
 .dist-arohon{background:rgba(47,163,96,.12);color:var(--gn)}
 .dist-other{background:rgba(108,117,125,.12);color:var(--grey)}
-.xs-btn{background:none;border:1px solid var(--border);color:var(--grey);border-radius:4px;padding:3px 6px;font-size:9px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:3px}
+.xs-btn{background:none;border:1px solid var(--border);color:var(--grey);border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:3px}
 .xs-btn:hover{background:var(--cy);color:#fff;border-color:var(--cy)}
+.tb{font-size:9px;color:var(--grey);font-weight:400}
 @media(max-width:900px){.kpi-r{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:768px){.kpi-r{grid-template-columns:repeat(3,1fr);gap:6px}.kpi .kv{font-size:18px}.kpi{padding:8px 10px}.t2{grid-template-columns:1fr !important}.sel-c{flex-direction:column;align-items:stretch}.ch-inner{height:140px}.mh{display:none !important}}
+@media(max-width:768px){.kpi-r{grid-template-columns:repeat(3,1fr);gap:6px}.kpi .kv{font-size:18px}.kpi{padding:8px 10px}.t2{grid-template-columns:1fr !important}.t3{grid-template-columns:1fr !important}.sel-c{flex-direction:column;align-items:stretch}.ch-inner{height:140px}.mh{display:none !important}}
 @media(max-width:400px){.kpi-r{grid-template-columns:repeat(2,1fr)}}
 </style>
 {% endblock %}
@@ -117,6 +119,7 @@ body .content{padding:12px 14px}
     <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onDistChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Area</label><select id="sA" class="fs" onchange="onAreaChange()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
     <div class="fg"><label class="fl">Sub Dist</label><select id="sS" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+    <div class="fg ff"><label class="fl">CAS</label><select id="sC" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for c in cas_types %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">From</label><select id="dF" class="fs" onchange="onDateChange()"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">To</label><select id="dT" class="fs" onchange="onDateChange()"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
     <div class="fg ff"><label class="fl">Type</label><select id="sM" class="fs" onchange="onFilterChange()"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
@@ -130,79 +133,36 @@ body .content{padding:12px 14px}
 
 <div class="t2">
     <div class="tc tg">
-        <div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bEG" style="background:#1B5E20;color:#fff;border-color:#1B5E20;display:none;padding:4px 8px;font-size:10px" onclick="dG()"><i class="fas fa-download"></i></button></div>
+        <div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC" class="tb"></span></h4><button class="xs-btn" id="bEG" style="display:none" onclick="dG()"><i class="fas fa-download"></i></button></div>
         <div class="tsc" id="gB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
     <div class="tc tr">
-        <div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4><button class="btn btn-sm" id="bEC" style="background:#B71C1C;color:#fff;border-color:#B71C1C;display:none;padding:4px 8px;font-size:10px" onclick="dC()"><i class="fas fa-download"></i></button></div>
+        <div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC" class="tb"></span></h4><button class="xs-btn" id="bEC" style="display:none" onclick="dC()"><i class="fas fa-download"></i></button></div>
         <div class="tsc" id="cB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
 </div>
 
-<div class="t2" style="margin-bottom:10px">
-    <div class="tc to">
+<div class="t3" id="t3Wrap">
+    <div class="tc to" id="subWrap">
         <div class="thd">
-            <h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Distributor <span style="font-size:9px;color:var(--grey);font-weight:400">{{ subdist_data|length }} subs</span></h4>
-            {% if subdist_data %}<button class="xs-btn" onclick="dSubStatic()" title="Export"><i class="fas fa-download"></i></button>{% endif %}
+            <h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Dist <span id="subBadge" class="tb"></span></h4>
+            <button class="xs-btn" id="bESub" style="display:none" onclick="dSub()"><i class="fas fa-download"></i></button>
         </div>
-        <div class="tsc">
-            {% if subdist_data %}
-            <table>
-                <thead><tr><th>#</th><th>SUB DISTRIBUTOR</th><th>PREV</th><th>NOW</th><th>+/-</th><th>DISTRIBUTOR</th></tr></thead>
-                <tbody>
-                    {% for r in subdist_data %}
-                    <tr style="{% if loop.index is odd %}background:#FAFBFC{% endif %}">
-                        <td style="color:var(--grey)">{{ loop.index }}</td>
-                        <td style="font-weight:600">{{ r.sub_dist }}</td>
-                        <td class="nm">{{ r.prev }}</td>
-                        <td class="nm" style="font-weight:600">{{ r.now }}</td>
-                        <td style="font-weight:700;color:{% if r.diff >= 0 %}var(--gn){% else %}var(--rd){% endif %}">{% if r.diff >= 0 %}+{% endif %}{{ r.diff }}</td>
-                        <td><span class="dist-tag dist-{{ r.distributor|lower }}">{{ r.distributor }}</span></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="tem"><i class="fas fa-truck"></i><p>No sub distributor data</p></div>
-            {% endif %}
-        </div>
+        <div class="tsc" id="subB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
-    <div class="tc tc2">
+    <div class="tc tc2" id="areaWrap">
         <div class="thd">
-            <h4 style="color:var(--cy)"><i class="fas fa-map-marker-alt"></i> Area Wise <span style="font-size:9px;color:var(--grey);font-weight:400">{{ area_data|length }} areas</span></h4>
-            {% if area_data %}<button class="xs-btn" onclick="dAreaStatic()" title="Export"><i class="fas fa-download"></i></button>{% endif %}
+            <h4 style="color:var(--cy)"><i class="fas fa-map-marker-alt"></i> Area <span id="areaBadge" class="tb"></span></h4>
+            <button class="xs-btn" id="bEArea" style="display:none" onclick="dArea()"><i class="fas fa-download"></i></button>
         </div>
-        <div class="tsc">
-            {% if area_data %}
-            <table>
-                <thead><tr><th>#</th><th>AREA</th><th>PREV</th><th>NOW</th><th>+/-</th><th>DISTRIBUTOR</th></tr></thead>
-                <tbody>
-                    {% for r in area_data %}
-                    <tr style="{% if loop.index is odd %}background:#FAFBFC{% endif %}">
-                        <td style="color:var(--grey)">{{ loop.index }}</td>
-                        <td style="font-weight:600">{{ r.area }}</td>
-                        <td class="nm">{{ r.prev }}</td>
-                        <td class="nm" style="font-weight:600">{{ r.now }}</td>
-                        <td style="font-weight:700;color:{% if r.diff >= 0 %}var(--gn){% else %}var(--rd){% endif %}">{% if r.diff >= 0 %}+{% endif %}{{ r.diff }}</td>
-                        <td><span class="dist-tag dist-{{ r.distributor|lower }}">{{ r.distributor }}</span></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="tem"><i class="fas fa-map-marker-alt"></i><p>No area data available</p></div>
-            {% endif %}
-        </div>
+        <div class="tsc" id="areaB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
-</div>
-
-<div style="margin-bottom:16px">
-    <div class="tc" style="border-top:3px solid #9C27B0;max-height:400px">
+    <div class="tc tcas" id="casWrap">
         <div class="thd">
-            <h4 style="color:#9C27B0"><i class="fas fa-layer-group"></i> Casewise <span id="casBadge" style="font-size:9px;color:var(--grey);font-weight:400"></span></h4>
-            <button class="btn btn-sm" id="bECas" style="background:#6A1B9A;color:#fff;border-color:#6A1B9A;display:none;padding:4px 8px;font-size:10px" onclick="dCas()"><i class="fas fa-download"></i></button>
+            <h4 style="color:#9C27B0"><i class="fas fa-layer-group"></i> CAS <span id="casBadge" class="tb"></span></h4>
+            <button class="xs-btn" id="bECas" style="display:none" onclick="dCas()"><i class="fas fa-download"></i></button>
         </div>
-        <div class="tsc" id="casB"><div class="tem"><i class="fas fa-layer-group"></i><p>Set dates & click GO</p></div></div>
+        <div class="tsc" id="casB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
     </div>
 </div>
 
@@ -226,21 +186,16 @@ var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',v
 var chartOK=(typeof Chart!=='undefined');
 
 function getParams(){
-    var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,p=[];
+    var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,c=document.getElementById('sC').value,p=[];
     if(d)p.push('distributor='+encodeURIComponent(d));
     if(a)p.push('area='+encodeURIComponent(a));
     if(s)p.push('sub_dist='+encodeURIComponent(s));
+    if(c)p.push('cas='+encodeURIComponent(c));
     return p.length?'&'+p.join('&'):'';
 }
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
-function getLast2(){
-    var opts=document.getElementById('dF').options,dates=[];
-    for(var i=0;i<opts.length&&dates.length<2;i++){if(opts[i].value)dates.push(opts[i].value);}
-    return dates;
-}
-function dSubStatic(){var d=getLast2();if(d.length>=2)location.href='/daily-active/export-subdist?from='+d[1]+'&to='+d[0]+'&mode=active';else showFlash('Not enough dates','error');}
-function dAreaStatic(){var d=getLast2();if(d.length>=2)location.href='/daily-active/export-area?from='+d[1]+'&to='+d[0]+'&mode=active';else showFlash('Not enough dates','error');}
+function showHide(id,hasData){var el=document.getElementById(id);if(el)el.style.display=hasData?'':'none';}
 
 function makeChart(cid,mid,data,ak,dk,c1,c2){
     var msg=document.getElementById(mid);
@@ -269,7 +224,7 @@ function loadChartsOnce(){
     safeFetch('/daily-active/chart-data').then(function(d){
         fDates=d.full_dates||[];
         var n=fDates.length;
-        var pxPerBar=55,chartW=Math.max(n*pxPerBar,280);
+        var pxPerBar=110,chartW=Math.max(n*pxPerBar,280);
         var kcI=document.getElementById('kcInner'),arI=document.getElementById('arInner');
         if(kcI)kcI.style.width=chartW+'px';
         if(arI)arI.style.width=chartW+'px';
@@ -337,6 +292,8 @@ function gen(){
         var col=vMode==='active'?'Active':'Deactive';
         renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
         renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
+        renderAgg('subB','subBadge','bESub','subWrap',d.subdistwise||[]);
+        renderAgg('areaB','areaBadge','bEArea','areaWrap',d.areawise||[]);
         renderCasewise(d.casewise||[]);
         showFlash('Report generated ('+col+')','success');
     }).catch(function(e){
@@ -364,30 +321,62 @@ function renderGC(bid,cid,btid,data,color,colName){
     h+='</tbody></table>';el.innerHTML=h;
 }
 
-function renderCasewise(data){
-    var el=document.getElementById('casB'),ce=document.getElementById('casBadge'),be=document.getElementById('bECas');
+function renderAgg(bid,badgeId,btnId,wrapId,data){
+    var el=document.getElementById(bid),be=document.getElementById(badgeId),btn=document.getElementById(btnId),wrap=document.getElementById(wrapId);
     if(!el)return;
-    if(!data||!data.length){el.innerHTML='<div class="tem"><p>No data for selected filters</p></div>';if(ce)ce.textContent='';if(be)be.style.display='none';return;}
-    if(ce)ce.textContent=data.length;if(be)be.style.display='';
-    var h='<table><thead><tr><th>#</th><th>CAS TYPE</th><th>PREV</th><th>NOW</th><th>+/-</th><th>DISTRIBUTOR</th></tr></thead><tbody>';
+    if(!data||!data.length){
+        el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No data</p></div>';
+        if(be)be.textContent='';if(btn)btn.style.display='none';
+        if(wrap)wrap.style.display='none';
+        return;
+    }
+    if(wrap)wrap.style.display='';
+    if(be)be.textContent=data.length;if(btn)btn.style.display='';
+    var h='<table><thead><tr><th>#</th><th>NAME</th><th class="mh">DIST</th><th>PREV</th><th>NOW</th><th>+/-</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
         var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
         var dc=r.diff>0?'var(--gn)':r.diff<0?'var(--rd)':'var(--grey)';
         var dp=r.diff>=0?'+':'';
-        var dl=(r.distributor||'').toLowerCase();
-        var ds=dl==='arohon'?'dist-arohon':dl==='kccl'?'dist-kccl':'dist-other';
         h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
         h+='<td style="font-weight:600">'+(r.name||'')+'</td>';
+        h+='<td class="mh">'+distTag(r.distributor)+'</td>';
         h+='<td class="nm">'+(r.prev||0)+'</td>';
         h+='<td class="nm" style="font-weight:600">'+(r.now||0)+'</td>';
-        h+='<td style="font-weight:700;color:'+dc+'">'+dp+(r.diff||0)+'</td>';
-        h+='<td><span class="dist-tag '+ds+'">'+(r.distributor||'')+'</span></td></tr>';
+        h+='<td style="font-weight:700;color:'+dc+'">'+dp+(r.diff||0)+'</td></tr>';
+    }
+    h+='</tbody></table>';el.innerHTML=h;
+}
+
+function renderCasewise(data){
+    var el=document.getElementById('casB'),ce=document.getElementById('casBadge'),be=document.getElementById('bECas'),wrap=document.getElementById('casWrap');
+    if(!el)return;
+    if(!data||!data.length){
+        el.innerHTML='<div class="tem"><p>No data for selected filters</p></div>';
+        if(ce)ce.textContent='';if(be)be.style.display='none';
+        if(wrap)wrap.style.display='none';
+        return;
+    }
+    if(wrap)wrap.style.display='';
+    if(ce)ce.textContent=data.length;if(be)be.style.display='';
+    var h='<table><thead><tr><th>#</th><th>CAS TYPE</th><th class="mh">DIST</th><th>PREV</th><th>NOW</th><th>+/-</th></tr></thead><tbody>';
+    for(var i=0;i<data.length;i++){
+        var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
+        var dc=r.diff>0?'var(--gn)':r.diff<0?'var(--rd)':'var(--grey)';
+        var dp=r.diff>=0?'+':'';
+        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
+        h+='<td style="font-weight:600">'+(r.name||'')+'</td>';
+        h+='<td class="mh">'+distTag(r.distributor)+'</td>';
+        h+='<td class="nm">'+(r.prev||0)+'</td>';
+        h+='<td class="nm" style="font-weight:600">'+(r.now||0)+'</td>';
+        h+='<td style="font-weight:700;color:'+dc+'">'+dp+(r.diff||0)+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
 
 function dG(){if(vFrom&&vTo)location.href='/daily-active/export-growth?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dC(){if(vFrom&&vTo)location.href='/daily-active/export-churn?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
+function dSub(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-subdist?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
+function dArea(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-area?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 function dCas(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-casewise?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 
 function oU(){document.getElementById('uM').classList.add('show');}
