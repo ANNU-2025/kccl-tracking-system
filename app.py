@@ -48,6 +48,41 @@ def _force_ensure_columns(conn):
         except:
             try: conn.rollback()
             except: pass
+    # Ensure unique constraint for daily_active_summary to prevent duplicates
+    try:
+        c = conn.cursor()
+        c.execute("UPDATE daily_active_summary SET cas_type = '' WHERE cas_type IS NULL")
+        conn.commit()
+        c.execute("""
+            SELECT 1 FROM information_schema.table_constraints tc
+            JOIN information_schema.constraint_column_usage ccu
+            ON tc.constraint_name = ccu.constraint_name
+            WHERE tc.constraint_type = 'UNIQUE'
+            AND tc.table_name = 'daily_active_summary'
+            AND ccu.column_name IN ('report_date','lco_code','cas_type')
+            GROUP BY tc.constraint_name HAVING COUNT(DISTINCT ccu.column_name) = 3
+        """)
+        if not c.fetchone():
+            c.execute("""
+                DELETE FROM daily_active_summary a USING daily_active_summary b
+                WHERE a.report_date = b.report_date
+                AND a.lco_code = b.lco_code
+                AND a.cas_type = b.cas_type
+                AND a.id > b.id
+            """)
+            conn.commit()
+            c.execute("""
+                ALTER TABLE daily_active_summary
+                ADD CONSTRAINT IF NOT EXISTS das_unique_report_lco_cas
+                UNIQUE (report_date, lco_code, cas_type)
+            """)
+            conn.commit()
+            print("✅ Unique constraint created on daily_active_summary")
+        c.close()
+    except Exception as e:
+        print('[UniqueConstraint ERR]', e)
+        try: conn.rollback()
+        except: pass
 
 
 def init_db():
@@ -830,8 +865,8 @@ def _export_compare_base(d_from, d_to, mode, area, sub_dist, dist, is_growth, ca
                COALESCE(lm.area,''), COALESCE(lm.sub_distributor,''), COALESCE(lm.distributor,''),
                COALESCE(t1.active_count,0), COALESCE(t2.active_count,0),
                COALESCE(t1.deactive_count,0), COALESCE(t2.deactive_count,0)
-               FROM (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s{cas_c1}) t1
-               FULL OUTER JOIN (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s{cas_c2}) t2
+               FROM (SELECT lco_code, SUM(active_count) as active_count, SUM(deactive_count) as deactive_count FROM daily_active_summary WHERE report_date=%s{cas_c1} GROUP BY lco_code) t1
+               FULL OUTER JOIN (SELECT lco_code, SUM(active_count) as active_count, SUM(deactive_count) as deactive_count FROM daily_active_summary WHERE report_date=%s{cas_c2} GROUP BY lco_code) t2
                ON t1.lco_code=t2.lco_code
                LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code"""
         p = [d_from]
@@ -913,9 +948,9 @@ def daily_active():
                                         conn.commit()
                                     except: pass
                                 try:
-                                    cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count, deactive_count, cas_type) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (report_date, lco_code, cas_type) DO UPDATE SET active_count=EXCLUDED.active_count, deactive_count=EXCLUDED.deactive_count", (parsed_date, lco_code, act, deact, cas_val or None))
+                                    cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count, deactive_count, cas_type) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (report_date, lco_code, cas_type) DO UPDATE SET active_count=EXCLUDED.active_count, deactive_count=EXCLUDED.deactive_count", (parsed_date, lco_code, act, deact, cas_val))
                                 except:
-                                    cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count, deactive_count, cas_type) VALUES (%s,%s,%s,%s,%s)", (parsed_date, lco_code, act, deact, cas_val or None))
+                                    cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count, deactive_count, cas_type) VALUES (%s,%s,%s,%s,%s)", (parsed_date, lco_code, act, deact, cas_val))
                                 conn.commit(); count += 1
                             except Exception as e:
                                 try: conn.rollback()
@@ -1007,8 +1042,8 @@ def da_compare():
                COALESCE(lm.area,''), COALESCE(lm.sub_distributor,''), COALESCE(lm.distributor,''),
                COALESCE(t1.active_count,0), COALESCE(t2.active_count,0),
                COALESCE(t1.deactive_count,0), COALESCE(t2.deactive_count,0)
-               FROM (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s{cas_t1}) t1
-               FULL OUTER JOIN (SELECT lco_code,active_count,deactive_count FROM daily_active_summary WHERE report_date=%s{cas_t2}) t2
+               FROM (SELECT lco_code, SUM(active_count) as active_count, SUM(deactive_count) as deactive_count FROM daily_active_summary WHERE report_date=%s{cas_t1} GROUP BY lco_code) t1
+               FULL OUTER JOIN (SELECT lco_code, SUM(active_count) as active_count, SUM(deactive_count) as deactive_count FROM daily_active_summary WHERE report_date=%s{cas_t2} GROUP BY lco_code) t2
                ON t1.lco_code=t2.lco_code
                LEFT JOIN lco_master lm ON COALESCE(t1.lco_code,t2.lco_code)=lm.lco_code"""
         p = [d_from]
@@ -1042,7 +1077,6 @@ def da_compare():
             elif change < 0: churn.append(entry); tc += change
         growth.sort(key=lambda x: x['change'], reverse=True); churn.sort(key=lambda x: x['change'])
 
-        # Common filter parts for subdist/area/cas
         val_col = "d.active_count" if mode == 'active' else "d.deactive_count"
         extra_where = ""
         ep = []
@@ -1051,7 +1085,6 @@ def da_compare():
         if dist: extra_where += " AND COALESCE(lm.distributor,'')=%s"; ep.append(dist)
         if cas: extra_where += " AND d.cas_type=%s"; ep.append(cas)
 
-        # Casewise
         casewise = []
         try:
             gc_cas = "COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL')"
@@ -1068,7 +1101,6 @@ def da_compare():
         except Exception as e:
             print('[casewise ERR]', e)
 
-        # Sub Distributor wise
         subdistwise = []
         try:
             gc_sub = "COALESCE(lm.sub_distributor,'Unassigned'), COALESCE(lm.distributor,'KCCL')"
@@ -1085,7 +1117,6 @@ def da_compare():
         except Exception as e:
             print('[subdistwise ERR]', e)
 
-        # Area wise
         areawise = []
         try:
             gc_area = "COALESCE(lm.area,'Unassigned'), COALESCE(lm.distributor,'KCCL')"
@@ -1221,18 +1252,15 @@ def export_subdist_summary():
             FROM ({inner}) t1 FULL OUTER JOIN ({inner}) t2 ON t1.name=t2.name"""
         params = [d_from]+fp+[d_to]+fp
         df = pd.read_sql(q, conn, params=params)
-        cols_active = ['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
-        cols_deact = ['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
         if mode == 'active':
             df = df.iloc[:, [0, 1, 2, 3, 4, 9]]
-            df.columns = cols_active
+            df.columns = ['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
         else:
             df = df.iloc[:, [0, 5, 6, 7, 8, 9]]
-            df.columns = cols_deact
+            df.columns = ['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
         df['KCCL Change'] = (df['KCCL Now'] - df['KCCL Prev']).fillna(0).astype(int)
         df['AROHON Change'] = (df['AROHON Now'] - df['AROHON Prev']).fillna(0).astype(int)
-        col_order = ['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'KCCL Change', 'AROHON Prev', 'AROHON Now', 'AROHON Change', 'LCOs']
-        df = df[col_order]
+        df = df[['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'KCCL Change', 'AROHON Prev', 'AROHON Now', 'AROHON Change', 'LCOs']]
         df = fix_timezone(df); release_db(conn)
         return dl_excel(df, f"SubDist_Summary_{d_from}_to_{d_to}.xlsx")
     except Exception as e:
@@ -1272,18 +1300,15 @@ def export_area_summary():
             FROM ({inner}) t1 FULL OUTER JOIN ({inner}) t2 ON t1.name=t2.name"""
         params = [d_from]+fp+[d_to]+fp
         df = pd.read_sql(q, conn, params=params)
-        cols_active = ['Area', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
-        cols_deact = ['Area', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
         if mode == 'active':
             df = df.iloc[:, [0, 1, 2, 3, 4, 9]]
-            df.columns = cols_active
+            df.columns = ['Area', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
         else:
             df = df.iloc[:, [0, 5, 6, 7, 8, 9]]
-            df.columns = cols_deact
+            df.columns = ['Area', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
         df['KCCL Change'] = (df['KCCL Now'] - df['KCCL Prev']).fillna(0).astype(int)
         df['AROHON Change'] = (df['AROHON Now'] - df['AROHON Prev']).fillna(0).astype(int)
-        col_order = ['Area', 'KCCL Prev', 'KCCL Now', 'KCCL Change', 'AROHON Prev', 'AROHON Now', 'AROHON Change', 'LCOs']
-        df = df[col_order]
+        df = df[['Area', 'KCCL Prev', 'KCCL Now', 'KCCL Change', 'AROHON Prev', 'AROHON Now', 'AROHON Change', 'LCOs']]
         df = fix_timezone(df); release_db(conn)
         return dl_excel(df, f"Area_Summary_{d_from}_to_{d_to}.xlsx")
     except Exception as e:
