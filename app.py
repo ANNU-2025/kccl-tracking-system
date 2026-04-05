@@ -462,7 +462,7 @@ def inventory_bulk():
                     try:
                         cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, batch, action_label, qty, dealer, invoice, session['logged_user']))
                     except:
-                        cur.execute("INSERT INTO consumable_logs (item_code,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())", (code, batch, action_label, qty, dealer, invoice, session['logged_user']))
+                        cur.execute("INSERT INTO consumable_logs (item_code,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, batch, action_label, qty, dealer, invoice, session['logged_user']))
                 conn.commit()
                 count += 1
             except Exception as e:
@@ -551,9 +551,9 @@ def inventory():
                                 serial_nos_list.append(r[0])
                     serial_nos_str = ','.join(serial_nos_list) if serial_nos_list and qty <= 1 else ''
                     try:
-                        cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
+                        cur.execute("INSERT INTO material_logs (item_code,item_name,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, name, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
                     except:
-                        cur.execute("INSERT INTO material_logs (item_code,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())", (code, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
+                        cur.execute("INSERT INTO material_logs (item_code,action,quantity,dealer,invoice_no,done_by,serial_nos,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (code, act, qty, dlr, inv, session['logged_user'], serial_nos_str))
                     conn.commit()
                     flash('Hardware Transaction Successful!', 'success')
                 elif form_type == 'consumable':
@@ -580,14 +580,15 @@ def inventory():
                         stock_row = cur.fetchone()
                         if stock_row and stock_row[0]: item_name = stock_row[0]
                     try:
-                        cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (item, item_name, batch, act, qty, dlr, inv, session['logged_user']))
+                        cur.execute("INSERT INTO consumable_logs (item_code,item_name,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (item, item_name, batch, act, qty, dlr, inv, session['logged_user']))
                     except:
-                        cur.execute("INSERT INTO consumable_logs (item_code,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())", (item, batch, act, qty, dlr, inv, session['logged_user']))
+                        cur.execute("INSERT INTO consumable_logs (item_code,batch_id,action,qty,dealer,invoice_no,done_by,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())", (item, batch, act, qty, dlr, inv, session['logged_user']))
                     conn.commit()
                     flash('Consumable Transaction Successful!', 'success')
             except Exception as e:
                 conn.rollback()
                 flash(f'Error: {str(e)}', 'error')
+                print(traceback.format_exc())
     if not inv_search:
         inv_search = request.args.get('inv_search', '').strip()
         if inv_search:
@@ -730,8 +731,8 @@ def export_instock():
             except: pass
             try:
                 df = pd.read_sql("""SELECT cl.item_code as "Item Code", COALESCE(NULLIF(cl.item_name,''), cl.item_code) as "Item Name",
-                       cl.batch_id as "Batch ID", cl.qty as "Quantity", cs.unit as "Unit", cl.dealer as "Dealer",
-                       cl.invoice_no as "Invoice", cl.action as "Action", cl.created_at as "Date"
+                       cl.batch_id as "Batch ID", cl.qty as "Quantity", cs.unit as "Unit", cl.dealer as "Dealer", cl.invoice_no as "Invoice", cl.action as "Action",
+                       cl.created_at as "Date"
                        FROM consumable_logs cl LEFT JOIN consumable_stock cs ON cl.batch_id=cs.batch_id ORDER BY cl.created_at DESC""", conn)
                 if not df.empty: df = fix_timezone(df); df.to_excel(writer, sheet_name="Consumable Log", index=False)
             except: pass
@@ -897,10 +898,14 @@ def daily_active():
                                 if cr: lco_code = cr[0]
                                 else:
                                     lco_code = lco_name.replace(' ', '_')[:50]
-                                    try: cur.execute("INSERT INTO lco_master (lco_code, lco_name, distributor) VALUES (%s, %s, %s) ON CONFLICT (lco_code) DO NOTHING", (lco_code, lco_name, dist_val)); conn.commit()
+                                    try:
+                                        cur.execute("INSERT INTO lco_master (lco_code, lco_name, distributor) VALUES (%s, %s, %s) ON CONFLICT (lco_code) DO NOTHING", (lco_code, lco_name, dist_val))
+                                        conn.commit()
                                     except: pass
                                 if dist_val:
-                                    try: cur.execute("UPDATE lco_master SET distributor = %s WHERE lco_code = %s AND (distributor IS NULL OR distributor = '')", (dist_val, lco_code)); conn.commit()
+                                    try:
+                                        cur.execute("UPDATE lco_master SET distributor = %s WHERE lco_code = %s AND (distributor IS NULL OR distributor = '')", (dist_val, lco_code))
+                                        conn.commit()
                                     except: pass
                                 try:
                                     cur.execute("INSERT INTO daily_active_summary (report_date, lco_code, active_count, deactive_count, cas_type) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (report_date, lco_code, cas_type) DO UPDATE SET active_count=EXCLUDED.active_count, deactive_count=EXCLUDED.deactive_count", (parsed_date, lco_code, act, deact, cas_val or None))
@@ -994,7 +999,7 @@ def da_chart_data():
             FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code = m.lco_code
             GROUP BY d.report_date ORDER BY d.report_date ASC""")
         rows = cur.fetchall()
-        ka, kd, aa, ad = [], [], [], []
+        ka, kd, aa, ad = [], [], [], [], []
         for r in rows:
             ka.append(int(r[1] or 0)); aa.append(int(r[2] or 0))
             kd.append(int(r[3] or 0)); ad.append(int(r[4] or 0))
@@ -1038,7 +1043,9 @@ def da_compare():
         rows = cur.fetchall()
         if not rows:
             cur.close(); release_db(conn)
-            return jsonify({'kccl_active': 0, 'kccl_deactive': 0, 'arohon_active': 0, 'arohon_deactive': 0, 'total_active': 0, 'total_deactive': 0, 'total_growth': 0, 'total_churn': 0, 'net': 0, 'growth': [], 'churn': [], 'casewise': [], 'd_from': d_from, 'd_to': d_to, 'mode': mode})
+            return jsonify({'kccl_active': 0, 'kccl_deactive': 0, 'arohon_active': 0, 'arohon_deactive': 0,
+                'total_active': 0, 'total_deactive': 0, 'total_growth': 0, 'total_churn': 0, 'net': 0,
+                'growth': [], 'churn': [], 'casewise': [], 'd_from': d_from, 'd_to': d_to, 'mode': mode})
         total_active = sum(r[6] for r in rows)
         total_deactive = sum(r[8] for r in rows)
         aa = sum(r[6] for r in rows if (r[4] or '').upper() == 'AROHON')
@@ -1052,37 +1059,31 @@ def da_compare():
             if change > 0: growth.append(entry); tg += change
             elif change < 0: churn.append(entry); tc += change
         growth.sort(key=lambda x: x['change'], reverse=True); churn.sort(key=lambda x: x['change'])
-
-        # ===== CASEWISE =====
         cas_col = "d.active_count" if mode == 'active' else "d.deactive_count"
-        cas_filter_prev = ""
-        cas_params_prev = [d_from]
-        cas_filter_now = ""
-        cas_params_now = [d_to]
-        if area: cas_filter_prev += " AND lm.area=%s"; cas_params_prev.append(area)
-        if sub_dist: cas_filter_prev += " AND lm.sub_distributor=%s"; cas_params_prev.append(sub_dist)
-        if dist: cas_filter_prev += " AND COALESCE(lm.distributor,'')=%s"; cas_params_prev.append(dist)
-        if area: cas_filter_now += " AND lm.area=%s"; cas_params_now.append(area)
-        if sub_dist: cas_filter_now += " AND lm.sub_distributor=%s"; cas_params_now.append(sub_dist)
-        if dist: cas_filter_now += " AND COALESCE(lm.distributor,'')=%s"; cas_params_now.append(dist)
-        cas_prev_q = f"""SELECT COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL'), SUM({cas_col})
+        cas_filter = ""
+        cas_params = []
+        if area: cas_filter += " AND lm.area=%s"; cas_params.append(area)
+        if sub_dist: cas_filter += " AND lm.sub_distributor=%s"; cas_params.append(sub_dist)
+        if dist: cas_filter += " AND COALESCE(lm.distributor,'')=%s"; cas_params.append(dist)
+        cas_q_prev = f"""SELECT COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL'), SUM({cas_col})
             FROM daily_active_summary d LEFT JOIN lco_master lm ON d.lco_code = lm.lco_code
-            WHERE d.report_date = %s{cas_filter_prev}
-            GROUP BY COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL')"""
-        cas_now_q = f"""SELECT COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL'), SUM({cas_col})
+            WHERE d.report_date = %s{cas_filter} GROUP BY COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL')"""
+        cas_q_now = f"""SELECT COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL'), SUM({cas_col})
             FROM daily_active_summary d LEFT JOIN lco_master lm ON d.lco_code = lm.lco_code
-            WHERE d.report_date = %s{cas_filter_now}
-            GROUP BY COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL')"""
-        cur.execute(cas_prev_q, tuple(cas_params_prev))
-        cas_prev_map = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
-        cur.execute(cas_now_q, tuple(cas_params_now))
-        cas_now_map = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
-        casewise = []
-        for (cn, dn) in sorted(set(cas_prev_map.keys()) | set(cas_now_map.keys())):
-            pv = cas_prev_map.get((cn, dn), 0); nw = cas_now_map.get((cn, dn), 0)
-            casewise.append({'name': cn, 'distributor': dn, 'prev': pv, 'now': nw, 'diff': nw - pv})
-        casewise.sort(key=lambda x: abs(x['diff']), reverse=True)
-
+            WHERE d.report_date = %s{cas_filter} GROUP BY COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL')"""
+        try:
+            cur.execute(cas_q_prev, [prev_date] + cas_params)
+            cas_prev_map = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
+            cur.execute(cas_q_now, [now_date] + cas_params)
+            cas_now_map = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
+            casewise = []
+            for (cn, dn) in sorted(set(cas_prev_map.keys()) | set(cas_now_map.keys())):
+                pv = cas_prev_map.get((cn, dn), 0); nw = cas_now_map.get((cn, dn), 0)
+                casewise.append({'name': cn, 'distributor': dn, 'prev': pv, 'now': nw, 'diff': nw - pv})
+            casewise.sort(key=lambda x: abs(x['diff']), reverse=True)
+        except Exception as e:
+            print('[casewise ERR]', e)
+            casewise = []
         cur.close(); release_db(conn)
         return jsonify({'kccl_active': ka, 'kccl_deactive': kd, 'arohon_active': aa, 'arohon_deactive': ad,
             'total_active': total_active, 'total_deactive': total_deactive, 'total_growth': tg,
@@ -1132,7 +1133,6 @@ def export_churn_report():
     data, err = _export_compare_base(request.args.get('from', ''), request.args.get('to', ''), request.args.get('mode', 'active'), request.args.get('area', ''), request.args.get('sub_dist', ''), request.args.get('distributor', ''), False)
     if err: flash(f"Error: {err}", "error"); return redirect(url_for('daily_active'))
     if data is None: flash('No churn data', 'error'); return redirect(url_for('daily_active'))
-    return dl_excel(data, f"Churn_Report_{request.args.get('from','')}.xlsx")
 
 
 @app.route('/daily-active/export')
@@ -1199,18 +1199,23 @@ def export_subdist_summary():
             FROM ({inner}) t1 FULL OUTER JOIN ({inner}) t2 ON t1.name=t2.name"""
         params = [d_from]+fp+[d_to]+fp
         df = pd.read_sql(q, conn, params=params)
+        cols_active = ['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
+        cols_deact = ['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
         if mode == 'active':
-            df.columns = ['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', '_', '_', '_', '_', 'LCOs']
+            df = df.iloc[:, [0, 1, 2, 3, 4, 9]]
+            df.columns = cols_active
         else:
-            df.columns = ['Sub Distributor', '_', '_', '_', '_', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
+            df = df.iloc[:, [0, 5, 6, 7, 8, 9]]
+            df.columns = cols_deact
         df['KCCL Change'] = (df['KCCL Now'] - df['KCCL Prev']).fillna(0).astype(int)
         df['AROHON Change'] = (df['AROHON Now'] - df['AROHON Prev']).fillna(0).astype(int)
-        df = df[['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'KCCL Change', 'AROHON Prev', 'AROHON Now', 'AROHON Change', 'LCOs']]
+        col_order = ['Sub Distributor', 'KCCL Prev', 'KCCL Now', 'KCCL Change', 'AROHON Prev', 'AROHON Now', 'AROHON Change', 'LCOs']
+        df = df[col_order]
         df = fix_timezone(df); release_db(conn)
         return dl_excel(df, f"SubDist_Summary_{d_from}_to_{d_to}.xlsx")
     except Exception as e:
         flash(f"Export Error: {e}", "error"); release_db(conn)
-        return redirect(url_for('daily_active'))
+        return redirect(url_for('daily-active'))
 
 
 @app.route('/daily-active/export-area')
@@ -1243,13 +1248,18 @@ def export_area_summary():
             FROM ({inner}) t1 FULL OUTER JOIN ({inner}) t2 ON t1.name=t2.name"""
         params = [d_from]+fp+[d_to]+fp
         df = pd.read_sql(q, conn, params=params)
+        cols_active = ['Area', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
+        cols_deact = ['Area', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
         if mode == 'active':
-            df.columns = ['Area', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', '_', '_', '_', '_', 'LCOs']
+            df = df.iloc[:, [0, 1, 2, 3, 4, 9]]
+            df.columns = cols_active
         else:
-            df.columns = ['Area', '_', '_', '_', '_', 'KCCL Prev', 'KCCL Now', 'AROHON Prev', 'AROHON Now', 'LCOs']
+            df = df.iloc[:, [0, 5, 6, 7, 8, 9]]
+            df.columns = cols_deact
         df['KCCL Change'] = (df['KCCL Now'] - df['KCCL Prev']).fillna(0).astype(int)
         df['AROHON Change'] = (df['AROHON Now'] - df['AROHON Prev']).fillna(0).astype(int)
-        df = df[['Area', 'KCCL Prev', 'KCCL Now', 'KCCL Change', 'AROHON Prev', 'AROHON Now', 'AROHON Change', 'LCOs']]
+        col_order = ['Area', 'KCCL Prev', 'KCCL Now', 'KCCL Change', 'AROHON Prev', 'AROHON Now', 'AROHON Change', 'LCOs']
+        df = df[col_order]
         df = fix_timezone(df); release_db(conn)
         return dl_excel(df, f"Area_Summary_{d_from}_to_{d_to}.xlsx")
     except Exception as e:
@@ -1277,7 +1287,7 @@ def export_casewise():
             COALESCE(lm.distributor,'KCCL') as "Distributor",
             SUM({cas_col}) as "Previous", COUNT(DISTINCT d.lco_code) as "LCOs"
             FROM daily_active_summary d LEFT JOIN lco_master lm ON d.lco_code = lm.lco_code
-            WHERE d.report_date=%s{fsql} GROUP BY COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL')"""
+            WHERE d.report_date = %s{fsql} GROUP BY COALESCE(d.cas_type,'Unknown'), COALESCE(lm.distributor,'KCCL')"""
         q = f"""SELECT COALESCE(t1."CAS Type",t2."CAS Type"),
             COALESCE(t1."Distributor",t2."Distributor"),
             COALESCE(t1."Previous",0), COALESCE(t2."Previous",0),
@@ -1285,9 +1295,15 @@ def export_casewise():
             FROM ({inner}) t1 FULL OUTER JOIN ({inner}) t2 ON t1."CAS Type"=t2."CAS Type" AND t1."Distributor"=t2."Distributor\""""
         params = [d_from]+fp+[d_to]+fp
         df = pd.read_sql(q, conn, params=params)
-        df.columns = ['CAS Type', 'Distributor', 'Previous', 'Current', 'LCOs']
-        df['Change'] = (df['Current'] - df['Previous']).fillna(0).astype(int)
-        df = df[['CAS Type', 'Distributor', 'Previous', 'Current', 'Change', 'LCOs']]
+        res = pd.DataFrame({
+            'CAS Type': df.iloc[:, 0],
+            'Distributor': df.iloc[:, 1],
+            'Previous': df.iloc[:, 2].astype(int),
+            'Current': df.iloc[:, 3].astype(int),
+            'LCOs': df.iloc[:, 5].astype(int)
+        })
+        res['Change'] = (res['Current'] - res['Previous']).fillna(0).astype(int)
+        res = res[['CAS Type', 'Distributor', 'Previous', 'Current', 'Change', 'LCOs']]
         df = fix_timezone(df); release_db(conn)
         return dl_excel(df, f"Casewise_{d_from}_to_{d_to}.xlsx")
     except Exception as e:
