@@ -1062,6 +1062,7 @@ def _export_compare_base(d_from, d_to, mode, area, sub_dist, dist, is_growth):
         release_db(conn)
         return None, str(e)
 
+
 @app.route('/daily-active', methods=['GET', 'POST'])
 def daily_active():
     if 'logged_user' not in session: return redirect(url_for('login'))
@@ -1125,9 +1126,52 @@ def daily_active():
     distributors = [r[0] for r in cur.fetchall()]
     cur.execute("SELECT DISTINCT report_date FROM daily_active_summary ORDER BY report_date DESC")
     date_list = [r[0] for r in cur.fetchall()]
+
+    # ===== AREA DATA: last 2 dates, grouped by area + distributor =====
+    area_data = []
+    try:
+        cur.execute("SELECT DISTINCT report_date FROM daily_active_summary ORDER BY report_date DESC LIMIT 2")
+        last_two = cur.fetchall()
+        if len(last_two) >= 2:
+            prev_date = last_two[1][0]
+            now_date = last_two[0][0]
+
+            cur.execute("""
+                SELECT COALESCE(m.area,'Unassigned'), COALESCE(m.distributor,'KCCL'), SUM(d.active_count)
+                FROM daily_active_summary d
+                LEFT JOIN lco_master m ON d.lco_code = m.lco_code
+                WHERE d.report_date = %s
+                GROUP BY COALESCE(m.area,'Unassigned'), COALESCE(m.distributor,'KCCL')
+            """, (prev_date,))
+            prev_map = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
+
+            cur.execute("""
+                SELECT COALESCE(m.area,'Unassigned'), COALESCE(m.distributor,'KCCL'), SUM(d.active_count)
+                FROM daily_active_summary d
+                LEFT JOIN lco_master m ON d.lco_code = m.lco_code
+                WHERE d.report_date = %s
+                GROUP BY COALESCE(m.area,'Unassigned'), COALESCE(m.distributor,'KCCL')
+            """, (now_date,))
+            now_map = {(r[0], r[1]): int(r[2] or 0) for r in cur.fetchall()}
+
+            all_keys = sorted(set(prev_map.keys()) | set(now_map.keys()))
+            for (area_name, dist_name) in all_keys:
+                pv = prev_map.get((area_name, dist_name), 0)
+                nw = now_map.get((area_name, dist_name), 0)
+                area_data.append({
+                    'area': area_name,
+                    'distributor': dist_name,
+                    'prev': pv,
+                    'now': nw,
+                    'diff': nw - pv
+                })
+            area_data.sort(key=lambda x: x['area'])
+    except Exception as e:
+        print('[area_data ERR]', e)
+
     bulk_failures = session.pop('da_failures', [])
     cur.close(); release_db(conn)
-    return render_template('daily_active.html', areas=areas, sub_dists=sub_dists, distributors=distributors, date_list=date_list, bulk_failures=bulk_failures)
+    return render_template('daily_active.html', areas=areas, sub_dists=sub_dists, distributors=distributors, date_list=date_list, bulk_failures=bulk_failures, area_data=area_data)
 
 
 @app.route('/daily-active/sub-dists')
@@ -1248,30 +1292,24 @@ def da_summary_tables():
         if dist: fc.append("COALESCE(m.distributor,'') = %s"); fp.append(dist)
         fsql = (" AND " + " AND ".join(fc)) if fc else ""
 
-        def build_q(group_col):
-            col_expr = f"COALESCE(m.{group_col},'Unassigned')"
-            inner = f"""SELECT {col_expr} as name,
-                SUM(CASE WHEN COALESCE(m.distributor,'')!='AROHON' THEN d.active_count ELSE 0 END) as ka,
-                SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.active_count ELSE 0 END) as aa,
-                SUM(CASE WHEN COALESCE(m.distributor,'')!='AROHON' THEN d.deactive_count ELSE 0 END) as kd,
-                SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.deactive_count ELSE 0 END) as ad,
-                COUNT(DISTINCT d.lco_code) as lcos
-                FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code
-                WHERE d.report_date=%s{fsql} GROUP BY {col_expr}"""
-            return f"""SELECT COALESCE(t1.name,t2.name),
-                COALESCE(t1.ka,0),COALESCE(t2.ka,0),
-                COALESCE(t1.aa,0),COALESCE(t2.aa,0),
-                COALESCE(t1.kd,0),COALESCE(t2.kd,0),
-                COALESCE(t1.ad,0),COALESCE(t2.ad,0),
-                COALESCE(t2.lcos,0)
-                FROM ({inner}) t1 FULL OUTER JOIN ({inner}) t2 ON t1.name=t2.name"""
-
-        a_q = build_q('area')
-        s_q = build_q('sub_distributor')
-        ap = [d_from]+fp+[d_to]+fp
+        col_expr = "COALESCE(m.sub_distributor,'Unassigned')"
+        inner = f"""SELECT {col_expr} as name,
+            SUM(CASE WHEN COALESCE(m.distributor,'')!='AROHON' THEN d.active_count ELSE 0 END) as ka,
+            SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.active_count ELSE 0 END) as aa,
+            SUM(CASE WHEN COALESCE(m.distributor,'')!='AROHON' THEN d.deactive_count ELSE 0 END) as kd,
+            SUM(CASE WHEN COALESCE(m.distributor,'')='AROHON' THEN d.deactive_count ELSE 0 END) as ad,
+            COUNT(DISTINCT d.lco_code) as lcos
+            FROM daily_active_summary d LEFT JOIN lco_master m ON d.lco_code=m.lco_code
+            WHERE d.report_date=%s{fsql} GROUP BY {col_expr}"""
+        q = f"""SELECT COALESCE(t1.name,t2.name),
+            COALESCE(t1.ka,0),COALESCE(t2.ka,0),
+            COALESCE(t1.aa,0),COALESCE(t2.aa,0),
+            COALESCE(t1.kd,0),COALESCE(t2.kd,0),
+            COALESCE(t1.ad,0),COALESCE(t2.ad,0),
+            COALESCE(t2.lcos,0)
+            FROM ({inner}) t1 FULL OUTER JOIN ({inner}) t2 ON t1.name=t2.name"""
         sp = [d_from]+fp+[d_to]+fp
-        cur.execute(a_q, ap); area_rows = cur.fetchall()
-        cur.execute(s_q, sp); sub_rows = cur.fetchall()
+        cur.execute(q, sp); sub_rows = cur.fetchall()
         cur.close(); release_db(conn)
 
         def fmt(rows, mv):
@@ -1286,13 +1324,14 @@ def da_summary_tables():
                     'total_change': (kn - kp) + (an2 - ap2), 'lcos': int(r[9] or 0)})
             res.sort(key=lambda x: x['total_change'], reverse=True)
             return res
-        return jsonify({'areas': fmt(area_rows, mode), 'subs': fmt(sub_rows, mode)})
+        return jsonify({'areas': [], 'subs': fmt(sub_rows, mode)})
     except Exception as e:
         print('[summary ERR]', e)
         try: cur.close()
         except: pass
         release_db(conn)
         return jsonify({'areas': [], 'subs': []})
+
 
 @app.route('/daily-active/date-summary')
 def da_date_summary():
@@ -1317,6 +1356,7 @@ def export_growth_report():
     if err: flash(f"Error: {err}", "error"); return redirect(url_for('daily_active'))
     if data is None: flash('No growth data', 'error'); return redirect(url_for('daily_active'))
     return dl_excel(data, f"Growth_Report_{request.args.get('from','')}.xlsx")
+
 
 @app.route('/daily-active/export-churn')
 def export_churn_report():
