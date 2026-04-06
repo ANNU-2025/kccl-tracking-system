@@ -11,40 +11,39 @@ body .content{padding:14px 20px 36px;max-width:1480px;margin:0 auto}
 
 .pg-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .pg-hd-left{display:flex;align-items:center;gap:12px}
-.pg-icon{width:36px;height:36px;border-radius:var(--radius);background:linear-gradient(135deg,#3B82F6 0%,#6366F1 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;box-shadow:0 4px 12px rgba(59,130,246,.35)}
+.pg-icon{width:36px;height:36px;border-radius:var(--radius);background:linear-gradient(135deg,#06B6D4,#8B5CF6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;box-shadow:0 4px 14px rgba(6,182,212,.4)}
 .pg-hd h2{font-size:17px;font-weight:900;color:var(--primary);letter-spacing:-.4px}
 .pg-hd p{font-size:10px;color:var(--muted);margin-top:1px;font-weight:500}
-.pg-hd-right{display:flex;gap:6px}
-.btn-icon{width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);background:var(--card);border:1px solid var(--border);color:var(--secondary);cursor:pointer;transition:all .15s;font-size:12px}
-.btn-icon:hover{background:var(--surface);color:var(--primary);border-color:#CBD5E1;transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.06)}
 
 .kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px}
 .kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .kpi-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2.5px;border-radius:0 0 0 0}
-.kpi-kccl-a::after{background:linear-gradient(90deg,#3B82F6,#60A5FA)}.kpi-kccl-d::after{background:linear-gradient(90deg,#EF4444,#F87171)}
-.kpi-arohon-a::after{background:linear-gradient(90deg,#10B981,#34D399)}.kpi-arohon-d::after{background:linear-gradient(90deg,#F59E0B,#FBBF24)}
-.kpi-rate::after{background:linear-gradient(90deg,#8B5CF6,#A78BFA)}.kpi-net::after{background:linear-gradient(90deg,#06B6D4,#22D3EE)}
+.kpi-kccl-a::after{background:linear-gradient(90deg,#06B6D4,#22D3EE)}.kpi-kccl-d::after{background:linear-gradient(90deg,#F43F5E,#FB923C)}
+.kpi-arohon-a::after{background:linear-gradient(90deg,#10B981,#34D399)}.kpi-arohon-d::after{background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.kpi-rate::after{background:linear-gradient(90deg,#A855F7,#C084FC)}.kpi-net::after{background:linear-gradient(90deg,#06B6D4,#22D3EE)}
 .kpi-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;display:flex;align-items:center;gap:4px}
 .kpi-label .dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
 .kpi-val{font-size:20px;font-weight:900;line-height:1;letter-spacing:-.6px}
-.kpi-kccl-a .kpi-val{color:#3B82F6}.kpi-kccl-d .kpi-val{color:#EF4444}
-.kpi-arohon-a .kpi-val{color:#10B981}.kpi-arohon-d .kpi-val{color:#F59E0B}
-.kpi-rate .kpi-val{color:#8B5CF6}.kpi-net .kpi-val{color:#06B6D4}
+.kpi-kccl-a .kpi-val{color:#0891B2}.kpi-kccl-d .kpi-val{color:#E11D48}
+.kpi-arohon-a .kpi-val{color:#059669}.kpi-arohon-d .kpi-val{color:#D97706}
+.kpi-rate .kpi-val{color:#7C3AED}.kpi-net .kpi-val{color:#0891B2}
 
 .ch-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .ch-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 18px 10px;position:relative;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
 .ch-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2.5px}
-.ch-card.ch-kccl::before{background:linear-gradient(90deg,#3B82F6,#818CF8)}
+.ch-card.ch-kccl::before{background:linear-gradient(90deg,#06B6D4,#67E8F9)}
 .ch-card.ch-arohon::before{background:linear-gradient(90deg,#10B981,#6EE7B7)}
 .ch-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .ch-title{display:flex;align-items:center;gap:7px}
 .ch-title h3{font-size:12px;font-weight:700;color:var(--primary)}
 .ch-title .badge{font-size:8px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.3px}
-.badge-kccl{background:#EFF6FF;color:#3B82F6}.badge-arohon{background:#ECFDF5;color:#059669}
+.badge-kccl{background:#ECFEFF;color:#0369A1}.badge-arohon{background:#ECFDF5;color:#047857}
 .ch-legend{display:flex;gap:14px}
 .ch-legend span{font-size:9px;color:var(--muted);display:flex;align-items:center;gap:4px;font-weight:500}
 .ch-legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
-.ch-inner{height:165px;position:relative}
+.ch-scroll{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;scroll-behavior:smooth;-ms-overflow-style:none}
+.ch-scroll::-webkit-scrollbar{display:none}
+.ch-inner{height:165px;position:relative;min-width:300px}
 .ch-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:12px;z-index:2;background:var(--card);border-radius:var(--radius-sm)}
 .ch-msg.show{display:flex}
 
@@ -57,9 +56,9 @@ body .content{padding:14px 20px 36px;max-width:1480px;margin:0 auto}
 .fg-select:hover{border-color:#94A3B8}.fg-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.08)}
 .filter-actions{display:flex;gap:5px;margin-left:auto;align-items:center}
 .btn{display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:11px;border-radius:5px;padding:0 12px;height:30px;cursor:pointer;transition:all .15s;border:none;white-space:nowrap}
-.btn-primary{background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.3)}.btn-primary:hover{box-shadow:0 4px 12px rgba(59,130,246,.4);transform:translateY(-1px)}
+.btn-primary{background:linear-gradient(135deg,#06B6D4,#0891B2);color:#fff;box-shadow:0 2px 8px rgba(6,182,212,.3)}.btn-primary:hover{box-shadow:0 4px 14px rgba(6,182,212,.4);transform:translateY(-1px)}
 .btn-ghost{background:var(--card);color:var(--secondary);border:1px solid var(--border)}.btn-ghost:hover{background:var(--surface)}
-.btn-success{background:linear-gradient(135deg,#10B981,#059669);color:#fff;box-shadow:0 2px 8px rgba(16,185,129,.3)}.btn-success:hover{box-shadow:0 4px 12px rgba(16,185,129,.4);transform:translateY(-1px)}
+.btn-success{background:linear-gradient(135deg,#10B981,#059669);color:#fff;box-shadow:0 2px 8px rgba(16,185,129,.3)}.btn-success:hover{box-shadow:0 4px 14px rgba(16,185,129,.4);transform:translateY(-1px)}
 
 .panels-gc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .panels-sac{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
@@ -79,16 +78,16 @@ body .content{padding:14px 20px 36px;max-width:1480px;margin:0 auto}
 .dtable td{padding:4px 8px;font-size:10px;color:var(--primary);border-bottom:1px solid #F1F5F9;font-weight:400}
 .dtable tbody tr:hover{background:#F8FAFC}
 .mono{font-family:'SF Mono','Fira Code',Consolas,monospace;font-weight:600;font-size:9.5px;letter-spacing:-.2px}
-.val-pos{color:var(--success);font-weight:700}.val-neg{color:var(--danger);font-weight:700}.val-zero{color:var(--muted);font-weight:500}
+.val-pos{color:#059669;font-weight:700}.val-neg{color:#DC2626;font-weight:700}.val-zero{color:var(--muted);font-weight:500}
 .tag{display:inline-flex;align-items:center;padding:1px 7px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.2px;text-transform:uppercase}
-.tag-kccl{background:#EFF6FF;color:#3B82F6}.tag-arohon{background:#ECFDF5;color:#059669}.tag-other{background:#F1F5F9;color:var(--secondary)}
+.tag-kccl{background:#ECFEFF;color:#0369A1}.tag-arohon{background:#ECFDF5;color:#047857}.tag-other{background:#F1F5F9;color:var(--secondary)}
 
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
 .modal-bg.show{display:flex}
 .modal{background:var(--card);border-radius:var(--radius-lg);padding:28px;width:90%;max-width:420px;box-shadow:0 20px 40px rgba(0,0,0,.12)}
 .modal h3{font-size:16px;font-weight:900;color:var(--primary);margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:32px 16px;text-align:center;cursor:pointer;transition:all .25s;margin-bottom:14px}
-.upload-zone:hover{border-color:var(--accent);background:rgba(59,130,246,.03)}
+.upload-zone:hover{border-color:var(--accent);background:rgba(6,182,212,.03)}
 .upload-zone i{font-size:28px;color:var(--accent);margin-bottom:6px;display:block}
 .upload-zone p{font-size:11px;color:var(--muted);font-weight:500}
 .upload-hint{font-size:9px;color:var(--muted);margin-bottom:14px;line-height:1.6;padding:8px 12px;background:var(--surface);border-radius:var(--radius-sm)}
@@ -140,36 +139,31 @@ body .content{padding:14px 20px 36px;max-width:1480px;margin:0 auto}
         <div class="pg-icon"><i class="fas fa-chart-bar"></i></div>
         <div><h2>Daily Active Analytics</h2><p>CAS-wise distributor performance tracking</p></div>
     </div>
-    <div class="pg-hd-right">
-        <button class="btn-icon" title="Upload" onclick="oU()"><i class="fas fa-cloud-arrow-up"></i></button>
-        <button class="btn-icon" title="Template" onclick="location.href='/daily-active/template'"><i class="fas fa-file-arrow-down"></i></button>
-        <button class="btn-icon" title="Export All" onclick="location.href='/daily-active/export'"><i class="fas fa-download"></i></button>
-    </div>
 </div>
 
 <div class="kpi-strip">
-    <div class="kpi-card kpi-kccl-a"><div class="kpi-label"><span class="dot" style="background:#3B82F6"></span>KCCL Active</div><div class="kpi-val" id="kKA">—</div></div>
-    <div class="kpi-card kpi-kccl-d"><div class="kpi-label"><span class="dot" style="background:#EF4444"></span>KCCL Deactive</div><div class="kpi-val" id="kKD">—</div></div>
-    <div class="kpi-card kpi-arohon-a"><div class="kpi-label"><span class="dot" style="background:#10B981"></span>AROHON Active</div><div class="kpi-val" id="kAA">—</div></div>
-    <div class="kpi-card kpi-arohon-d"><div class="kpi-label"><span class="dot" style="background:#F59E0B"></span>AROHON Deactive</div><div class="kpi-val" id="kAD">—</div></div>
-    <div class="kpi-card kpi-rate"><div class="kpi-label"><span class="dot" style="background:#8B5CF6"></span>Deact Rate</div><div class="kpi-val" id="kR">—</div></div>
-    <div class="kpi-card kpi-net"><div class="kpi-label"><span class="dot" style="background:#06B6D4"></span>Net Change</div><div class="kpi-val" id="kN">—</div></div>
+    <div class="kpi-card kpi-kccl-a"><div class="kpi-label"><span class="dot" style="background:#0891B2"></span>KCCL Active</div><div class="kpi-val" id="kKA">—</div></div>
+    <div class="kpi-card kpi-kccl-d"><div class="kpi-label"><span class="dot" style="background:#E11D48"></span>KCCL Deactive</div><div class="kpi-val" id="kKD">—</div></div>
+    <div class="kpi-card kpi-arohon-a"><div class="kpi-label"><span class="dot" style="background:#059669"></span>AROHON Active</div><div class="kpi-val" id="kAA">—</div></div>
+    <div class="kpi-card kpi-arohon-d"><div class="kpi-label"><span class="dot" style="background:#D97706"></span>AROHON Deactive</div><div class="kpi-val" id="kAD">—</div></div>
+    <div class="kpi-card kpi-rate"><div class="kpi-label"><span class="dot" style="background:#7C3AED"></span>Deact Rate</div><div class="kpi-val" id="kR">—</div></div>
+    <div class="kpi-card kpi-net"><div class="kpi-label"><span class="dot" style="background:#0891B2"></span>Net Change</div><div class="kpi-val" id="kN">—</div></div>
 </div>
 
-<div class="ch-grid">
+<div class="ch-grid" id="chGrid">
     <div class="ch-card ch-kccl" onclick="dlChartDate()" style="cursor:pointer">
         <div class="ch-head">
             <div class="ch-title"><h3>KCCL Overview</h3><span class="badge badge-kccl">DISTRIBUTOR</span></div>
-            <div class="ch-legend"><span><i style="background:#3B82F6"></i>Active</span><span><i style="background:#EF4444"></i>Deactive</span></div>
+            <div class="ch-legend"><span><i style="background:#06B6D4"></i>Active</span><span><i style="background:#F43F5E"></i>Deactive</span></div>
         </div>
-        <div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg" class="ch-msg show">No data</div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg" class="ch-msg show">No data</div></div></div>
     </div>
     <div class="ch-card ch-arohon" onclick="dlChartDate()" style="cursor:pointer">
         <div class="ch-head">
             <div class="ch-title"><h3>AROHON Overview</h3><span class="badge badge-arohon">DISTRIBUTOR</span></div>
             <div class="ch-legend"><span><i style="background:#10B981"></i>Active</span><span><i style="background:#F59E0B"></i>Deactive</span></div>
         </div>
-        <div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg" class="ch-msg show">No data</div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg" class="ch-msg show">No data</div></div></div>
     </div>
 </div>
 
@@ -183,9 +177,7 @@ body .content{padding:14px 20px 36px;max-width:1480px;margin:0 auto}
     <div class="fg compact"><label class="fg-label">Type</label><select id="sM" class="fg-select" onchange="onFilterChange()"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
     <div class="filter-actions">
         <button class="btn btn-primary" id="bG" onclick="gen()"><i class="fas fa-bolt"></i> Generate</button>
-        <button class="btn-icon" title="Upload" onclick="oU()"><i class="fas fa-cloud-arrow-up"></i></button>
-        <button class="btn-icon" title="Template" onclick="location.href='/daily-active/template'"><i class="fas fa-file-arrow-down"></i></button>
-        <button class="btn-icon" title="Export All" onclick="location.href='/daily-active/export'"><i class="fas fa-download"></i></button>
+        <button class="btn btn-success" onclick="oU()" style="height:30px;padding:0 10px"><i class="fas fa-cloud-arrow-up"></i></button>
     </div>
 </div>
 
@@ -260,7 +252,21 @@ function getParams(){
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 function showHide(id,hasData){var el=document.getElementById(id);if(el)el.style.display=hasData?'':'none';}
 
-function makeChart(cid,mid,data,ak,dk,c1,c2,c3,c4){
+function resizeCharts(){
+    if(!fDates.length)return;
+    try{
+        var grid=document.getElementById('chGrid');
+        if(!grid)return;
+        var cw=grid.clientWidth-38;
+        var barW=Math.max(56,Math.min(96,cw/fDates.length));
+        var totalW=Math.max(fDates.length*barW,200);
+        var kcI=document.getElementById('kcInner'),arI=document.getElementById('arInner');
+        if(kcI)kcI.style.width=totalW+'px';
+        if(arI)arI.style.width=totalW+'px';
+    }catch(e){}
+}
+
+function makeChart(cid,mid,data,ak,dk,lineData,lineColor,lineBorder,barColors){
     var msg=document.getElementById(mid);
     if(!data.dates||!data.dates.length){if(msg)msg.classList.add('show');return;}
     if(msg)msg.classList.remove('show');
@@ -269,12 +275,17 @@ function makeChart(cid,mid,data,ak,dk,c1,c2,c3,c4){
         var old=(cid==='kcChart')?kcChart:arChart;if(old){old.destroy();old=null;}
         var cv=document.getElementById(cid);if(!cv)return;
         var ctx=cv.getContext('2d');
-        var gA=ctx.createLinearGradient(0,0,0,165);gA.addColorStop(0,c1);gA.addColorStop(1,c2);
-        var gR=ctx.createLinearGradient(0,0,0,165);gR.addColorStop(0,c3);gR.addColorStop(1,c4);
-        var ch=new Chart(ctx,{type:'bar',data:{labels:data.dates,datasets:[
-            {label:'Deactive',data:data[dk],backgroundColor:gR,borderWidth:0,borderRadius:{topLeft:0,topRight:0,bottomLeft:4,bottomRight:4},borderSkipped:'bottom',barPercentage:.85,categoryPercentage:.9,stack:'s'},
-            {label:'Active',data:data[ak],backgroundColor:gA,borderWidth:0,borderRadius:{topLeft:4,topRight:4,bottomLeft:0,bottomRight:0},borderSkipped:'top',barPercentage:.85,categoryPercentage:.9,stack:'s'}
-        ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+        var bc=barColors;
+        var gA=ctx.createLinearGradient(0,0,0,165);gA.addColorStop(0,bc.activeTop);gA.addColorStop(1,bc.activeBot);
+        var gR=ctx.createLinearGradient(0,0,0,165);gR.addColorStop(0,bc.deactTop);gR.addColorStop(1,bc.deactBot);
+        var gL=ctx.createLinearGradient(0,0,0,0);gL.addColorStop(0,bc.lineTop);gL.addColorStop(1,bc.lineBot);
+        var datasets=[
+            {type:'line',label:'Active Trend',data:lineData,borderColor:lineBorder,backgroundColor:gL,borderWidth:2.5,pointRadius:3.5,pointBackgroundColor:'#FFFFFF',pointBorderColor:lineBorder,pointHoverRadius:5,tension:.35,fill:false,order:1,zIndex:10},
+            {label:'Deactive',data:data[dk],backgroundColor:gR,borderWidth:0,borderRadius:{topLeft:0,topRight:0,bottomLeft:4,bottomRight:4},borderSkipped:'bottom',barPercentage:.85,categoryPercentage:.9,stack:'s',order:2},
+            {label:'Active',data:data[ak],backgroundColor:gA,borderWidth:0,borderRadius:{topLeft:4,topRight:4,bottomLeft:0,bottomRight:0},borderSkipped:'top',barPercentage:.85,categoryPercentage:.9,stack:'s',order:3}
+        ];
+        var ch=new Chart(ctx,{type:'bar',data:{labels:data.dates,datasets:datasets},options:{
+            responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
             plugins:{legend:{display:false},tooltip:{
                 backgroundColor:'rgba(15,23,42,.94)',titleColor:'#F1F5F9',bodyColor:'#CBD5E1',
                 padding:{top:10,bottom:10,left:14,right:14},cornerRadius:8,
@@ -283,12 +294,12 @@ function makeChart(cid,mid,data,ak,dk,c1,c2,c3,c4){
                 callbacks:{
                     title:function(c){return c[0].label;},
                     label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString();},
-                    afterBody:function(c){var total=0;for(var i=0;i<c.length;i++)total+=c[i].parsed.y;return['Total: '+total.toLocaleString()];}
+                    afterBody:function(c){var total=0;for(var i=0;i<c.length;i++)total+=c[i].parsed.y;return['  Total: '+total.toLocaleString()];}
                 }
             }},
             scales:{
                 x:{grid:{display:false},stacked:true,ticks:{color:'#94A3B8',font:{size:8,weight:'600',family:'Inter'},maxRotation:0,autoSkip:false,padding:6},border:{display:false}},
-                y:{grid:{color:'rgba(226,232,240,.35)',drawBorder:false},stacked:true,ticks:{color:'#94A3B8',font:{size:9,family:'Inter'},padding:8,callback:function(v){return v>=1000?(v/1000)+'K':v;}},border:{display:false},beginAtZero:true}
+                y:{grid:{color:'rgba(226,232,240,.3)',drawBorder:false},stacked:true,ticks:{color:'#94A3B8',font:{size:9,family:'Inter'},padding:8,callback:function(v){return v>=1000?(v/1000)+'K':v;}},border:{display:false},beginAtZero:true}
             },
             animation:{duration:700,easing:'easeOutQuart'},
             onClick:function(e,el){if(el.length>0&&fDates&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank');}
@@ -297,17 +308,18 @@ function makeChart(cid,mid,data,ak,dk,c1,c2,c3,c4){
     }catch(e){console.error('[ChartErr]',e);if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--danger)">Chart error</p>';}}
 }
 
+var kcColors={activeTop:'rgba(6,182,212,.92)',activeBot:'rgba(6,182,212,.3)',deactTop:'rgba(244,63,94,.82)',deactBot:'rgba(244,63,94,.25)',lineTop:'rgba(6,182,212,.15)',lineBot:'rgba(6,182,212,.02)',lineBorder:'#0891B2'};
+var arColors={activeTop:'rgba(16,185,129,.92)',activeBot:'rgba(16,185,129,.3)',deactTop:'rgba(245,158,11,.82)',deactBot:'rgba(245,158,11,.25)',lineTop:'rgba(16,185,129,.15)',lineBot:'rgba(16,185,129,.02)',lineBorder:'#059669'};
+
 function loadChartsOnce(){
     safeFetch('/daily-active/chart-data').then(function(d){
         fDates=d.full_dates||[];
         var n=fDates.length;
         if(n>0){var li=n-1;setKPI(d.kccl_a[li]||0,d.kccl_d[li]||0,d.arohon_a[li]||0,d.arohon_d[li]||0);}
-        makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d',
-            'rgba(59,130,246,.9)','rgba(59,130,246,.35)',
-            'rgba(239,68,68,.82)','rgba(239,68,68,.3)');
-        makeChart('arChart','arMsg',d,'arohon_a','arohon_d',
-            'rgba(16,185,129,.9)','rgba(16,185,129,.35)',
-            'rgba(245,158,11,.82)','rgba(245,158,11,.3)');
+        resizeCharts();
+        makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d',d.kccl_a,kcColors);
+        makeChart('arChart','arMsg',d,'arohon_a','arohon_d',d.arohon_a,arColors);
+        window.addEventListener('resize',resizeCharts);
     }).catch(function(e){
         console.error('[ChartDataErr]',e);
         var m1=document.getElementById('kcMsg');if(m1){m1.classList.add('show');m1.innerHTML='<p>Load failed</p>';}
@@ -356,8 +368,8 @@ function gen(){
         ne.style.color=net>0?'var(--success)':net<0?'var(--danger)':'var(--info)';
         growArr=d.growth||[];churnArr=d.churn||[];
         var col=vMode==='active'?'Active':'Deactive';
-        renderGC('gB','gC','bEG',growArr,'var(--success)',col);
-        renderGC('cB','cC','bEC',churnArr,'var(--danger)',col);
+        renderGC('gB','gC','bEG',growArr,'#059669',col);
+        renderGC('cB','cC','bEC',churnArr,'#DC2626',col);
         renderAgg('subB','subBadge','bESub','subWrap',d.subdistwise||[]);
         renderAgg('areaB','areaBadge','bEArea','areaWrap',d.areawise||[]);
         renderCasewise(d.casewise||[]);
@@ -427,7 +439,7 @@ function cU(){document.getElementById('uM').classList.remove('show');document.ge
 document.getElementById('uM').addEventListener('click',function(e){if(e.target===this)cU();});
 var dz=document.getElementById('dZ'),fi=document.getElementById('fI'),dlabel=document.getElementById('dL');
 if(dz){
-    dz.addEventListener('dragover',function(e){e.preventDefault();dz.style.borderColor='var(--accent)';dz.style.background='rgba(59,130,246,.03)';});
+    dz.addEventListener('dragover',function(e){e.preventDefault();dz.style.borderColor='var(--accent)';dz.style.background='rgba(6,182,212,.03)';});
     dz.addEventListener('dragleave',function(){dz.style.borderColor='';dz.style.background='';});
     dz.addEventListener('drop',function(e){e.preventDefault();dz.style.borderColor='';dz.style.background='';if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;dlabel.textContent=e.dataTransfer.files[0].name;}});
 }
