@@ -250,7 +250,6 @@ function getParams(){
     return p.length?'&'+p.join('&'):'';
 }
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
-function showHide(id,hasData){var el=document.getElementById(id);if(el)el.style.display=hasData?'':'none';}
 
 function resizeCharts(){
     if(!fDates.length)return;
@@ -278,11 +277,10 @@ function makeChart(cid,mid,data,ak,dk,lineData,lineColor,lineBorder,barColors){
         var bc=barColors;
         var gA=ctx.createLinearGradient(0,0,0,165);gA.addColorStop(0,bc.activeTop);gA.addColorStop(1,bc.activeBot);
         var gR=ctx.createLinearGradient(0,0,0,165);gR.addColorStop(0,bc.deactTop);gR.addColorStop(1,bc.deactBot);
-        var gL=ctx.createLinearGradient(0,0,0,0);gL.addColorStop(0,bc.lineTop);gL.addColorStop(1,bc.lineBot);
         var datasets=[
-            {type:'line',label:'Active Trend',data:lineData,borderColor:lineBorder,backgroundColor:gL,borderWidth:2.5,pointRadius:3.5,pointBackgroundColor:'#FFFFFF',pointBorderColor:lineBorder,pointHoverRadius:5,tension:.35,fill:false,order:1,zIndex:10},
-            {label:'Deactive',data:data[dk],backgroundColor:gR,borderWidth:0,borderRadius:{topLeft:0,topRight:0,bottomLeft:4,bottomRight:4},borderSkipped:'bottom',barPercentage:.85,categoryPercentage:.9,stack:'s',order:2},
-            {label:'Active',data:data[ak],backgroundColor:gA,borderWidth:0,borderRadius:{topLeft:4,topRight:4,bottomLeft:0,bottomRight:0},borderSkipped:'top',barPercentage:.85,categoryPercentage:.9,stack:'s',order:3}
+            {type:'line',label:'Active Trend',data:lineData,borderColor:lineBorder,backgroundColor:'transparent',borderWidth:2.5,pointRadius:3.5,pointBackgroundColor:'#FFFFFF',pointBorderColor:lineBorder,pointHoverRadius:5,tension:.35,fill:false,order:1,stack:'__line__'},
+            {label:'Deactive',data:data[dk],backgroundColor:gR,borderWidth:0,borderRadius:3,borderSkipped:'top',barPercentage:.85,categoryPercentage:.9,stack:'bars',order:2},
+            {label:'Active',data:data[ak],backgroundColor:gA,borderWidth:0,borderRadius:3,borderSkipped:'bottom',barPercentage:.85,categoryPercentage:.9,stack:'bars',order:3}
         ];
         var ch=new Chart(ctx,{type:'bar',data:{labels:data.dates,datasets:datasets},options:{
             responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
@@ -293,13 +291,13 @@ function makeChart(cid,mid,data,ak,dk,lineData,lineColor,lineBorder,barColors){
                 displayColors:true,boxWidth:8,boxHeight:8,boxPadding:4,usePointStyle:true,
                 callbacks:{
                     title:function(c){return c[0].label;},
-                    label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString();},
-                    afterBody:function(c){var total=0;for(var i=0;i<c.length;i++)total+=c[i].parsed.y;return['  Total: '+total.toLocaleString()];}
+                    label:function(c){if(c.dataset.type==='line')return null;return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString();},
+                    afterBody:function(c){var total=0;for(var i=0;i<c.length;i++){if(c[i].dataset.type!=='line')total+=c[i].parsed.y;}return['  Total: '+total.toLocaleString()];}
                 }
             }},
             scales:{
                 x:{grid:{display:false},stacked:true,ticks:{color:'#94A3B8',font:{size:8,weight:'600',family:'Inter'},maxRotation:0,autoSkip:false,padding:6},border:{display:false}},
-                y:{grid:{color:'rgba(226,232,240,.3)',drawBorder:false},stacked:true,ticks:{color:'#94A3B8',font:{size:9,family:'Inter'},padding:8,callback:function(v){return v>=1000?(v/1000)+'K':v;}},border:{display:false},beginAtZero:true}
+                y:{grid:{color:'rgba(226,232,240,.3)'},stacked:true,ticks:{color:'#94A3B8',font:{size:9,family:'Inter'},padding:8,callback:function(v){return v>=1000?(v/1000)+'K':v;}},border:{display:false},beginAtZero:true}
             },
             animation:{duration:700,easing:'easeOutQuart'},
             onClick:function(e,el){if(el.length>0&&fDates&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank');}
@@ -308,8 +306,8 @@ function makeChart(cid,mid,data,ak,dk,lineData,lineColor,lineBorder,barColors){
     }catch(e){console.error('[ChartErr]',e);if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--danger)">Chart error</p>';}}
 }
 
-var kcColors={activeTop:'rgba(6,182,212,.92)',activeBot:'rgba(6,182,212,.3)',deactTop:'rgba(244,63,94,.82)',deactBot:'rgba(244,63,94,.25)',lineTop:'rgba(6,182,212,.15)',lineBot:'rgba(6,182,212,.02)',lineBorder:'#0891B2'};
-var arColors={activeTop:'rgba(16,185,129,.92)',activeBot:'rgba(16,185,129,.3)',deactTop:'rgba(245,158,11,.82)',deactBot:'rgba(245,158,11,.25)',lineTop:'rgba(16,185,129,.15)',lineBot:'rgba(16,185,129,.02)',lineBorder:'#059669'};
+var kcColors={activeTop:'rgba(6,182,212,.92)',activeBot:'rgba(6,182,212,.3)',deactTop:'rgba(244,63,94,.82)',deactBot:'rgba(244,63,94,.25)',lineBorder:'#0891B2'};
+var arColors={activeTop:'rgba(16,185,129,.92)',activeBot:'rgba(16,185,129,.3)',deactTop:'rgba(245,158,11,.82)',deactBot:'rgba(245,158,11,.25)',lineBorder:'#059669'};
 
 function loadChartsOnce(){
     safeFetch('/daily-active/chart-data').then(function(d){
