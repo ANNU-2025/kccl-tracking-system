@@ -1,183 +1,278 @@
 {% extends "base.html" %}
 {% block title %}Daily Active Summary{% endblock %}
-{% block page_title %}Daily Active Summary{% endblock %}
+{% block page_title %}{% endblock %}
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--cy:#00BCD4;--rd:#EF5350;--gn:#2FA360;--gd:#FFD740;--og:#FF9800}
-body .content{padding:12px 14px}
-.kpi-r{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px}
-.kpi{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;position:relative;overflow:hidden}
-.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
-.k-ka::before{background:var(--cy)}.k-kd::before{background:var(--rd)}.k-aa::before{background:var(--gn)}.k-ad::before{background:var(--og)}.k-rt::before{background:#E91E63}.k-nn::before{background:var(--gd)}
-.kpi .kl{font-size:8px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
-.kpi .kv{font-size:20px;font-weight:800;line-height:1}
-.k-ka .kv{color:var(--cy)}.k-kd .kv{color:var(--rd)}.k-aa .kv{color:var(--gn)}.k-ad .kv{color:var(--og)}.k-rt .kv{color:#E91E63}.k-nn .kv{color:#F9A825}
-.ch2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.ch-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px 10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.06)}
-.ch-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.ch-top h3{font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px}
-.ch-top .lg{display:flex;gap:8px;font-size:9px;color:var(--grey);font-weight:500}
-.ch-top .lg i{width:8px;height:8px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:2px}
-.ch-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#C0C8D8 transparent}
-.ch-scroll::-webkit-scrollbar{height:4px}
-.ch-scroll::-webkit-scrollbar-thumb{background:#C0C8D8;border-radius:4px}
-.ch-inner{height:170px;position:relative}
-.ch-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--grey);font-size:11px;z-index:2;background:var(--card)}
+:root{--surface:#F4F6FA;--card:#FFFFFF;--border:#E2E8F0;--primary:#0F172A;--secondary:#475569;--muted:#94A3B8;--accent:#3B82F6;--accent2:#6366F1;--success:#10B981;--danger:#EF4444;--warning:#F59E0B;--info:#06B6D4;--purple:#8B5CF6;--shadow-sm:0 1px 2px rgba(15,23,42,.04);--shadow:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);--shadow-md:0 4px 6px -1px rgba(15,23,42,.07),0 2px 4px -2px rgba(15,23,42,.05);--shadow-lg:0 10px 15px -3px rgba(15,23,42,.08),0 4px 6px -4px rgba(15,23,42,.04);--radius:10px;--radius-sm:6px;--radius-lg:14px}
+*{font-family:'Inter',system-ui,-apple-system,sans-serif;box-sizing:border-box}
+body .content{padding:20px 24px 40px;max-width:1440px;margin:0 auto}
+
+/* Page Header */
+.pg-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.pg-hd-left{display:flex;align-items:center;gap:14px}
+.pg-icon{width:42px;height:42px;border-radius:var(--radius);background:linear-gradient(135deg,#3B82F6,#6366F1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;box-shadow:0 4px 12px rgba(59,130,246,.3)}
+.pg-hd h2{font-size:20px;font-weight:800;color:var(--primary);letter-spacing:-.3px}
+.pg-hd p{font-size:12px;color:var(--muted);margin-top:1px}
+.pg-hd-right{display:flex;gap:8px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px;border-radius:var(--radius-sm);padding:8px 14px;cursor:pointer;transition:all .2s;border:none;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.25)}.btn-primary:hover{background:#2563EB;box-shadow:0 4px 12px rgba(59,130,246,.35);transform:translateY(-1px)}
+.btn-ghost{background:var(--card);color:var(--secondary);border:1px solid var(--border)}.btn-ghost:hover{background:var(--surface);border-color:#CBD5E1}
+.btn-success{background:var(--success);color:#fff;box-shadow:0 2px 8px rgba(16,185,129,.25)}.btn-success:hover{background:#059669}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:5px}
+.btn-icon{width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);background:var(--card);border:1px solid var(--border);color:var(--secondary);cursor:pointer;transition:all .15s;font-size:13px}
+.btn-icon:hover{background:var(--surface);color:var(--primary);border-color:#CBD5E1}
+
+/* KPI Strip */
+.kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;position:relative;overflow:hidden;transition:all .2s}
+.kpi-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.kpi-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px}
+.kpi-kccl-a::after{background:linear-gradient(90deg,#3B82F6,#60A5FA)}
+.kpi-kccl-d::after{background:linear-gradient(90deg,#EF4444,#F87171)}
+.kpi-arohon-a::after{background:linear-gradient(90deg,#10B981,#34D399)}
+.kpi-arohon-d::after{background:linear-gradient(90deg,#F59E0B,#FBBF24)}
+.kpi-rate::after{background:linear-gradient(90deg,#8B5CF6,#A78BFA)}
+.kpi-net::after{background:linear-gradient(90deg,#06B6D4,#22D3EE)}
+.kpi-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.kpi-label .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.kpi-val{font-size:24px;font-weight:900;line-height:1;letter-spacing:-.5px}
+.kpi-kccl-a .kpi-val{color:#3B82F6}.kpi-kccl-d .kpi-val{color:#EF4444}
+.kpi-arohon-a .kpi-val{color:#10B981}.kpi-arohon-d .kpi-val{color:#F59E0B}
+.kpi-rate .kpi-val{color:#8B5CF6}.kpi-net .kpi-val{color:#06B6D4}
+
+/* Charts */
+.ch-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.ch-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px 14px;transition:all .2s;position:relative;overflow:hidden}
+.ch-card:hover{box-shadow:var(--shadow-md)}
+.ch-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.ch-card.ch-kccl::before{background:linear-gradient(90deg,#3B82F6,#6366F1)}
+.ch-card.ch-arohon::before{background:linear-gradient(90deg,#10B981,#06B6D4)}
+.ch-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.ch-title{display:flex;align-items:center;gap:8px}
+.ch-title h3{font-size:13px;font-weight:700;color:var(--primary)}
+.ch-title .badge{font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;letter-spacing:.3px}
+.badge-kccl{background:#EFF6FF;color:#3B82F6}.badge-arohon{background:#ECFDF5;color:#10B981}
+.ch-legend{display:flex;gap:12px}
+.ch-legend span{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.ch-legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.ch-scroll{overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:#CBD5E1 transparent}
+.ch-scroll::-webkit-scrollbar{height:3px}.ch-scroll::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:4px}
+.ch-inner{height:180px;position:relative}
+.ch-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:12px;z-index:2;background:var(--card);border-radius:var(--radius-sm)}
 .ch-msg.show{display:flex}
-.ch-dl{position:absolute;bottom:6px;right:10px;font-size:9px;color:var(--grey);opacity:0;transition:.15s;pointer-events:none}
-.ch-wrap:hover .ch-dl{opacity:.7}
-.sel-c{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.sel-c .fg{margin-bottom:0;flex:1;min-width:0}
-.sel-c .fg.ff{flex:0 0 auto;min-width:85px}
-.sel-c .fl{font-size:9px;margin-bottom:2px}
-.sel-c .fs{padding:6px 8px;font-size:11px;min-height:30px}
-.sel-c .acts{display:flex;gap:4px;align-items:center;flex-shrink:0}
-.t2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.t3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
-.tc{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;max-height:360px}
-.tc.tg{border-top:3px solid var(--gn)}.tc.tr{border-top:3px solid var(--rd)}.tc.to{border-top:3px solid var(--og)}.tc.tc2{border-top:3px solid var(--cy)}.tc.tcas{border-top:3px solid #9C27B0}
-.thd{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.thd h4{font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px}
-.tsc{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
-.tsc table{margin:0;width:100%;border-collapse:collapse}
-.tsc thead{position:sticky;top:0;z-index:2}
-.tsc th{padding:6px 8px;font-size:8px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.3px;background:#F7F8FA;border-bottom:1px solid var(--border)}
-.tsc td{padding:5px 7px;font-size:10px;border-bottom:1px solid #F0F1F3;color:var(--primary)}
-.tsc tbody tr:hover{background:#F8F9FB}.tsc tbody tr:last-child td{border-bottom:none}
-.tem{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;color:var(--grey)}
-.tem i{font-size:20px;opacity:.2;margin-bottom:4px}.tem p{font-size:10px}
-.nm{font-family:Consolas,'Segoe UI',monospace;font-weight:600}
-.fb{background:rgba(239,83,80,.06);border:1px solid rgba(239,83,80,.15);border-radius:6px;padding:8px 12px;margin-bottom:10px;max-height:100px;overflow:auto}
-.fb .ft{font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px}
-.fb .fr{font-size:9px;color:var(--red);padding:1px 0}
-.uo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
-.uo.show{display:flex}
-.ub{background:var(--card);border-radius:14px;padding:22px;width:90%;max-width:360px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
-.ub h3{font-size:15px;font-weight:700;margin-bottom:14px}
-.ud{border:2px dashed var(--border);border-radius:10px;padding:24px 12px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:12px}
-.ud:hover{border-color:var(--cy);background:rgba(0,188,212,.03)}
-.ud i{font-size:24px;color:var(--cy);margin-bottom:4px;display:block}
-.ud p{font-size:10px;color:var(--grey)}
-.ua{display:flex;gap:8px;justify-content:flex-end}
-.gl{opacity:.5;pointer-events:none}
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;background:var(--card);border:1px dashed var(--border);border-radius:12px;margin-bottom:14px;text-align:center}
-.empty-state i{font-size:40px;color:var(--cy);margin-bottom:12px;opacity:.6}
-.empty-state h4{font-size:16px;margin-bottom:6px}
-.empty-state p{font-size:11px;color:var(--grey);max-width:300px;margin-bottom:15px}
-.js-err{background:rgba(239,83,80,.08);border:1px solid rgba(239,83,80,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--rd);display:none}
-.js-err.show{display:block}
-.dist-tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.3px}
-.dist-kccl{background:rgba(0,188,212,.12);color:var(--cy)}
-.dist-arohon{background:rgba(47,163,96,.12);color:var(--gn)}
-.dist-other{background:rgba(108,117,125,.12);color:var(--grey)}
-.xs-btn{background:none;border:1px solid var(--border);color:var(--grey);border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:3px}
-.xs-btn:hover{background:var(--cy);color:#fff;border-color:var(--cy)}
-.tb{font-size:9px;color:var(--grey);font-weight:400}
-@media(max-width:900px){.kpi-r{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:768px){.kpi-r{grid-template-columns:repeat(3,1fr);gap:6px}.kpi .kv{font-size:18px}.kpi{padding:8px 10px}.t2{grid-template-columns:1fr !important}.t3{grid-template-columns:1fr !important}.sel-c{flex-direction:column;align-items:stretch}.ch-inner{height:140px}.mh{display:none !important}}
-@media(max-width:400px){.kpi-r{grid-template-columns:repeat(2,1fr)}}
+
+/* Filter Bar */
+.filter-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 18px;margin-bottom:20px;display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.fg{display:flex;flex-direction:column;gap:3px}
+.fg.fluid{flex:1;min-width:120px}
+.fg.compact{min-width:100px;flex:0 0 auto}
+.fg-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.fg-select{height:34px;padding:0 10px;font-size:12px;font-weight:500;color:var(--primary);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);transition:all .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394A3B8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:26px;cursor:pointer}
+.fg-select:hover{border-color:#94A3B8}.fg-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.filter-actions{display:flex;gap:6px;margin-left:auto;align-items:flex-end}
+
+/* Data Panels */
+.panels-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.panels-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);display:flex;flex-direction:column;max-height:380px;transition:all .2s}
+.panel:hover{box-shadow:var(--shadow)}
+.panel-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.panel-title{display:flex;align-items:center;gap:8px}
+.panel-title h4{font-size:12px;font-weight:700;color:var(--primary)}
+.panel-title .count{font-size:10px;font-weight:600;color:var(--muted);background:var(--surface);padding:2px 8px;border-radius:20px}
+.panel-accent{position:absolute;top:0;left:0;right:0;height:2px}
+.panel-body{flex:1;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:#E2E8F0 transparent}
+.panel-body::-webkit-scrollbar{width:4px}.panel-body::-webkit-scrollbar-thumb{background:#E2E8F0;border-radius:4px}
+.panel-grow{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:var(--muted)}
+.panel-grow i{font-size:28px;opacity:.15;margin-bottom:8px}.panel-grow p{font-size:11px;font-weight:500}
+
+/* Tables */
+.dtable{width:100%;border-collapse:collapse}
+.dtable thead{position:sticky;top:0;z-index:2}
+.dtable th{padding:8px 10px;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F8FAFC;border-bottom:1px solid var(--border);text-align:left}
+.dtable td{padding:7px 10px;font-size:11px;color:var(--primary);border-bottom:1px solid #F1F5F9;font-weight:400}
+.dtable tbody tr{transition:background .1s}.dtable tbody tr:hover{background:#F8FAFC}
+.dtable tbody tr:last-child td{border-bottom:none}
+.mono{font-family:'SF Mono','Fira Code',Consolas,monospace;font-weight:600;font-size:10.5px;letter-spacing:-.2px}
+.val-pos{color:var(--success);font-weight:700}.val-neg{color:var(--danger);font-weight:700}.val-zero{color:var(--muted);font-weight:500}
+
+/* Tags */
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+.tag-kccl{background:#EFF6FF;color:#3B82F6}.tag-arohon{background:#ECFDF5;color:#059669}.tag-other{background:#F1F5F9;color:var(--secondary)}
+
+/* Upload Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-bg.show{display:flex}
+.modal{background:var(--card);border-radius:var(--radius-lg);padding:28px;width:90%;max-width:420px;box-shadow:var(--shadow-lg)}
+.modal h3{font-size:16px;font-weight:800;color:var(--primary);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:32px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.upload-zone:hover{border-color:var(--accent);background:rgba(59,130,246,.02)}
+.upload-zone i{font-size:28px;color:var(--accent);margin-bottom:6px;display:block}
+.upload-zone p{font-size:11px;color:var(--muted);font-weight:500}
+.upload-hint{font-size:10px;color:var(--muted);margin-bottom:14px;line-height:1.6;padding:8px 12px;background:var(--surface);border-radius:var(--radius-sm)}
+.upload-hint b{color:var(--secondary)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* Empty State */
+.empty-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;background:var(--card);border:1px dashed var(--border);border-radius:var(--radius-lg);text-align:center}
+.empty-wrap i{font-size:48px;color:var(--accent);margin-bottom:16px;opacity:.5}
+.empty-wrap h4{font-size:18px;font-weight:800;color:var(--primary);margin-bottom:6px}
+.empty-wrap p{font-size:12px;color:var(--muted);max-width:320px;margin-bottom:20px;line-height:1.6}
+.empty-actions{display:flex;gap:8px}
+
+/* Error */
+.err-bar{display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--radius-sm);padding:8px 14px;margin-bottom:14px;font-size:11px;color:#DC2626;font-weight:500;align-items:center;gap:6px}
+.err-bar.show{display:flex}
+
+/* Failures */
+.fail-box{background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;max-height:100px;overflow:auto}
+.fail-box .fail-title{font-size:10px;font-weight:700;color:#DC2626;margin-bottom:4px;display:flex;align-items:center;gap:4px}
+.fail-box .fail-row{font-size:9px;color:#B91C1C;padding:1px 0;font-family:'SF Mono',Consolas,monospace}
+
+/* Flash */
+.flashes{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.flash{pointer-events:auto;padding:10px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;box-shadow:var(--shadow-lg);max-width:360px;display:flex;align-items:center;gap:8px;animation:slideDown .25s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.flash-success{background:#ECFDF5;color:#065F46;border:1px solid #A7F3D0}
+.flash-error{background:#FEF2F2;color:#991B1B;border:1px solid #FECACA}
+
+/* Responsive */
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(3,1fr)}.panels-3{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){.kpi-strip{grid-template-columns:repeat(2,1fr);gap:8px}.ch-grid,.panels-2,.panels-3{grid-template-columns:1fr !important}.filter-bar{flex-direction:column;align-items:stretch}.filter-actions{margin-left:0;justify-content:flex-end}.ch-inner{height:150px}.hide-mobile{display:none !important}.pg-hd{flex-direction:column;align-items:flex-start;gap:10px}}
+@media(max-width:480px){.kpi-strip{grid-template-columns:1fr 1fr}.kpi-val{font-size:20px}.pg-hd h2{font-size:17px}body .content{padding:14px 12px 30px}}
 </style>
 {% endblock %}
 {% block body %}
 
-<div class="js-err" id="jsErr"><i class="fas fa-bug"></i> <span id="jsErrMsg"></span></div>
+<div class="err-bar" id="jsErr"><i class="fas fa-circle-exclamation"></i><span id="jsErrMsg"></span></div>
 
 {% if not date_list %}
-<div class="empty-state">
-    <i class="fas fa-cloud-arrow-up"></i>
-    <h4>No Data Uploaded Yet</h4>
-    <p>Upload your daily active summary Excel/CSV file to see charts, analytics, and growth reports here.</p>
-    <button class="btn btn-green" onclick="oU()"><i class="fas fa-upload"></i> Upload Now</button>
-    <a href="/daily-active/template" class="btn btn-outline" style="margin-left:8px"><i class="fas fa-file-arrow-down"></i> Get Template</a>
+<div class="empty-wrap">
+    <i class="fas fa-chart-line"></i>
+    <h4>No Data Available</h4>
+    <p>Upload your daily active summary to unlock analytics, growth tracking, and distributor insights.</p>
+    <div class="empty-actions">
+        <button class="btn btn-primary" onclick="oU()"><i class="fas fa-cloud-arrow-up"></i> Upload Data</button>
+        <a href="/daily-active/template" class="btn btn-ghost"><i class="fas fa-file-arrow-down"></i> Get Template</a>
+    </div>
 </div>
 {% endif %}
 
-<div class="kpi-r">
-    <div class="kpi k-ka"><div class="kl">KCCL Active</div><div class="kv" id="kKA">—</div></div>
-    <div class="kpi k-kd"><div class="kl">KCCL Deactive</div><div class="kv" id="kKD">—</div></div>
-    <div class="kpi k-aa"><div class="kl">AROHON Active</div><div class="kv" id="kAA">—</div></div>
-    <div class="kpi k-ad"><div class="kl">AROHON Deactive</div><div class="kv" id="kAD">—</div></div>
-    <div class="kpi k-rt"><div class="kl">Deact Rate</div><div class="kv" id="kR">—</div></div>
-    <div class="kpi k-nn"><div class="kl">Net Change</div><div class="kv" id="kN">—</div></div>
-</div>
-
-<div class="ch2">
-    <div class="ch-wrap" onclick="dlChartDate()">
-        <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--cy)"></i> KCCL</h3><div class="lg"><span><i style="background:var(--cy)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
-        <div class="ch-scroll"><div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg" class="ch-msg show"><p>No data</p></div></div></div>
-        <div class="ch-dl"><i class="fas fa-download"></i> Click to download</div>
+<!-- Page Header -->
+<div class="pg-hd">
+    <div class="pg-hd-left">
+        <div class="pg-icon"><i class="fas fa-chart-bar"></i></div>
+        <div><h2>Daily Active Analytics</h2><p>CAS-wise distributor performance tracking</p></div>
     </div>
-    <div class="ch-wrap" onclick="dlChartDate()">
-        <div class="ch-top"><h3><i class="fas fa-chart-bar" style="color:var(--gn)"></i> AROHON</h3><div class="lg"><span><i style="background:var(--gn)"></i>Active</span><span><i style="background:var(--rd)"></i>Deactive</span></div></div>
-        <div class="ch-scroll"><div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg" class="ch-msg show"><p>No data</p></div></div></div>
-        <div class="ch-dl"><i class="fas fa-download"></i> Click to download</div>
+    <div class="pg-hd-right">
+        <button class="btn-icon" title="Upload" onclick="oU()"><i class="fas fa-cloud-arrow-up"></i></button>
+        <button class="btn-icon" title="Template" onclick="location.href='/daily-active/template'"><i class="fas fa-file-arrow-down"></i></button>
+        <button class="btn-icon" title="Export All" onclick="location.href='/daily-active/export'"><i class="fas fa-download"></i></button>
     </div>
 </div>
 
-<div class="sel-c">
-    <div class="fg ff"><label class="fl">Distributor</label><select id="sD" class="fs" onchange="onDistChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
-    <div class="fg"><label class="fl">Area</label><select id="sA" class="fs" onchange="onAreaChange()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
-    <div class="fg"><label class="fl">Sub Dist</label><select id="sS" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
-    <div class="fg ff"><label class="fl">CAS</label><select id="sC" class="fs" onchange="onFilterChange()"><option value="">All</option>{% for c in cas_types %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
-    <div class="fg ff"><label class="fl">From</label><select id="dF" class="fs" onchange="onDateChange()"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
-    <div class="fg ff"><label class="fl">To</label><select id="dT" class="fs" onchange="onDateChange()"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
-    <div class="fg ff"><label class="fl">Type</label><select id="sM" class="fs" onchange="onFilterChange()"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
-    <div class="acts">
-        <button class="btn btn-blue" id="bG" onclick="gen()" style="height:32px;padding:6px 12px;font-size:11px;white-space:nowrap"><i class="fas fa-bolt"></i> GO</button>
-        <button class="btn btn-green" onclick="oU()" style="height:32px;padding:6px 10px" title="Upload"><i class="fas fa-upload"></i></button>
-        <button class="btn btn-outline" onclick="location.href='/daily-active/template'" style="height:32px;padding:6px 10px" title="Template"><i class="fas fa-file-arrow-down"></i></button>
-        <button class="btn btn-outline" onclick="location.href='/daily-active/export'" style="height:32px;padding:6px 10px" title="Export All"><i class="fas fa-download"></i></button>
-    </div>
+<!-- KPIs -->
+<div class="kpi-strip">
+    <div class="kpi-card kpi-kccl-a"><div class="kpi-label"><span class="dot" style="background:#3B82F6"></span>KCCL Active</div><div class="kpi-val" id="kKA">—</div></div>
+    <div class="kpi-card kpi-kccl-d"><div class="kpi-label"><span class="dot" style="background:#EF4444"></span>KCCL Deactive</div><div class="kpi-val" id="kKD">—</div></div>
+    <div class="kpi-card kpi-arohon-a"><div class="kpi-label"><span class="dot" style="background:#10B981"></span>AROHON Active</div><div class="kpi-val" id="kAA">—</div></div>
+    <div class="kpi-card kpi-arohon-d"><div class="kpi-label"><span class="dot" style="background:#F59E0B"></span>AROHON Deactive</div><div class="kpi-val" id="kAD">—</div></div>
+    <div class="kpi-card kpi-rate"><div class="kpi-label"><span class="dot" style="background:#8B5CF6"></span>Deact Rate</div><div class="kpi-val" id="kR">—</div></div>
+    <div class="kpi-card kpi-net"><div class="kpi-label"><span class="dot" style="background:#06B6D4"></span>Net Change</div><div class="kpi-val" id="kN">—</div></div>
 </div>
 
-<div class="t2">
-    <div class="tc tg">
-        <div class="thd"><h4 style="color:var(--gn)"><i class="fas fa-arrow-trend-up"></i> Growth <span id="gC" class="tb"></span></h4><button class="xs-btn" id="bEG" style="display:none" onclick="dG()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="gB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
-    </div>
-    <div class="tc tr">
-        <div class="thd"><h4 style="color:var(--rd)"><i class="fas fa-arrow-trend-down"></i> Churn <span id="cC" class="tb"></span></h4><button class="xs-btn" id="bEC" style="display:none" onclick="dC()"><i class="fas fa-download"></i></button></div>
-        <div class="tsc" id="cB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
-    </div>
-</div>
-
-<div class="t3" id="t3Wrap">
-    <div class="tc to" id="subWrap">
-        <div class="thd">
-            <h4 style="color:var(--og)"><i class="fas fa-truck"></i> Sub Dist <span id="subBadge" class="tb"></span></h4>
-            <button class="xs-btn" id="bESub" style="display:none" onclick="dSub()"><i class="fas fa-download"></i></button>
+<!-- Charts -->
+<div class="ch-grid">
+    <div class="ch-card ch-kccl" onclick="dlChartDate()" style="cursor:pointer">
+        <div class="ch-head">
+            <div class="ch-title"><h3>KCCL Overview</h3><span class="badge badge-kccl">DISTRIBUTOR</span></div>
+            <div class="ch-legend"><span><i style="background:#3B82F6"></i>Active</span><span><i style="background:#EF4444"></i>Deactive</span></div>
         </div>
-        <div class="tsc" id="subB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg" class="ch-msg show">No data</div></div></div>
     </div>
-    <div class="tc tc2" id="areaWrap">
-        <div class="thd">
-            <h4 style="color:var(--cy)"><i class="fas fa-map-marker-alt"></i> Area <span id="areaBadge" class="tb"></span></h4>
-            <button class="xs-btn" id="bEArea" style="display:none" onclick="dArea()"><i class="fas fa-download"></i></button>
+    <div class="ch-card ch-arohon" onclick="dlChartDate()" style="cursor:pointer">
+        <div class="ch-head">
+            <div class="ch-title"><h3>AROHON Overview</h3><span class="badge badge-arohon">DISTRIBUTOR</span></div>
+            <div class="ch-legend"><span><i style="background:#10B981"></i>Active</span><span><i style="background:#F59E0B"></i>Deactive</span></div>
         </div>
-        <div class="tsc" id="areaB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
-    </div>
-    <div class="tc tcas" id="casWrap">
-        <div class="thd">
-            <h4 style="color:#9C27B0"><i class="fas fa-layer-group"></i> CAS <span id="casBadge" class="tb"></span></h4>
-            <button class="xs-btn" id="bECas" style="display:none" onclick="dCas()"><i class="fas fa-download"></i></button>
-        </div>
-        <div class="tsc" id="casB"><div class="tem"><i class="fas fa-bolt"></i><p>Set dates & click GO</p></div></div>
+        <div class="ch-scroll"><div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg" class="ch-msg show">No data</div></div></div>
     </div>
 </div>
 
-<div class="uo" id="uM">
-    <div class="ub">
-        <h3><i class="fas fa-cloud-arrow-up" style="color:var(--cy);margin-right:6px"></i>Upload Report</h3>
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="fg compact"><label class="fg-label">Distributor</label><select id="sD" class="fg-select" onchange="onDistChange()"><option value="">All</option>{% for d in distributors %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+    <div class="fg fluid"><label class="fg-label">Area</label><select id="sA" class="fg-select" onchange="onAreaChange()"><option value="">All</option>{% for a in areas %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select></div>
+    <div class="fg fluid"><label class="fg-label">Sub Distributor</label><select id="sS" class="fg-select" onchange="onFilterChange()"><option value="">All</option>{% for s in sub_dists %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+    <div class="fg compact"><label class="fg-label">CAS Type</label><select id="sC" class="fg-select" onchange="onFilterChange()"><option value="">All</option>{% for c in cas_types %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+    <div class="fg compact"><label class="fg-label">From</label><select id="dF" class="fg-select" onchange="onDateChange()"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==2 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
+    <div class="fg compact"><label class="fg-label">To</label><select id="dT" class="fg-select" onchange="onDateChange()"><option value="">--</option>{% for d in date_list %}<option value="{{ d.strftime('%Y-%m-%d') }}" {% if loop.index==1 %}selected{% endif %}>{{ d.strftime('%d-%b') }}</option>{% endfor %}</select></div>
+    <div class="fg compact"><label class="fg-label">Type</label><select id="sM" class="fg-select" onchange="onFilterChange()"><option value="active">Active</option><option value="deactive">Deactive</option></select></div>
+    <div class="filter-actions">
+        <button class="btn btn-primary" id="bG" onclick="gen()"><i class="fas fa-bolt"></i> Generate</button>
+    </div>
+</div>
+
+<!-- Growth & Churn -->
+<div class="panels-2">
+    <div class="panel" style="border-top:2px solid var(--success)">
+        <div class="panel-head">
+            <div class="panel-title"><i class="fas fa-arrow-trend-up" style="color:var(--success);font-size:13px"></i><h4>Growth</h4><span class="count" id="gC"></span></div>
+            <button class="btn-icon" id="bEG" style="display:none" onclick="dG()" title="Download"><i class="fas fa-download"></i></button>
+        </div>
+        <div class="panel-body" id="gB"><div class="panel-grow"><i class="fas fa-bolt"></i><p>Select dates & generate</p></div></div>
+    </div>
+    <div class="panel" style="border-top:2px solid var(--danger)">
+        <div class="panel-head">
+            <div class="panel-title"><i class="fas fa-arrow-trend-down" style="color:var(--danger);font-size:13px"></i><h4>Churn</h4><span class="count" id="cC"></span></div>
+            <button class="btn-icon" id="bEC" style="display:none" onclick="dC()" title="Download"><i class="fas fa-download"></i></button>
+        </div>
+        <div class="panel-body" id="cB"><div class="panel-grow"><i class="fas fa-bolt"></i><p>Select dates & generate</p></div></div>
+    </div>
+</div>
+
+<!-- Sub Dist / Area / CAS -->
+<div class="panels-3" id="t3Wrap">
+    <div class="panel" id="subWrap" style="border-top:2px solid var(--warning)">
+        <div class="panel-head">
+            <div class="panel-title"><i class="fas fa-truck" style="color:var(--warning);font-size:13px"></i><h4>Sub Distributor</h4><span class="count" id="subBadge"></span></div>
+            <button class="btn-icon" id="bESub" style="display:none" onclick="dSub()" title="Download"><i class="fas fa-download"></i></button>
+        </div>
+        <div class="panel-body" id="subB"><div class="panel-grow"><i class="fas fa-bolt"></i><p>Select dates & generate</p></div></div>
+    </div>
+    <div class="panel" id="areaWrap" style="border-top:2px solid var(--accent)">
+        <div class="panel-head">
+            <div class="panel-title"><i class="fas fa-map-location-dot" style="color:var(--accent);font-size:13px"></i><h4>Area Wise</h4><span class="count" id="areaBadge"></span></div>
+            <button class="btn-icon" id="bEArea" style="display:none" onclick="dArea()" title="Download"><i class="fas fa-download"></i></button>
+        </div>
+        <div class="panel-body" id="areaB"><div class="panel-grow"><i class="fas fa-bolt"></i><p>Select dates & generate</p></div></div>
+    </div>
+    <div class="panel" id="casWrap" style="border-top:2px solid var(--purple)">
+        <div class="panel-head">
+            <div class="panel-title"><i class="fas fa-layer-group" style="color:var(--purple);font-size:13px"></i><h4>CAS Type</h4><span class="count" id="casBadge"></span></div>
+            <button class="btn-icon" id="bECas" style="display:none" onclick="dCas()" title="Download"><i class="fas fa-download"></i></button>
+        </div>
+        <div class="panel-body" id="casB"><div class="panel-grow"><i class="fas fa-bolt"></i><p>Select dates & generate</p></div></div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal-bg" id="uM">
+    <div class="modal">
+        <h3><i class="fas fa-cloud-arrow-up" style="color:var(--accent)"></i> Upload Report</h3>
         <form method="POST" enctype="multipart/form-data" id="uF"><input type="hidden" name="form_type" value="bulk">
-            <div class="ud" id="dZ" onclick="document.getElementById('fI').click()"><i class="fas fa-cloud-arrow-up"></i><p id="dL">Click or drag file</p><input type="file" id="fI" name="da_file" accept=".csv,.xlsx" style="display:none" required></div>
-            <p style="font-size:9px;color:var(--grey);margin-bottom:10px"><b>report_date, lco_name, active_count, deactive_count, distributor, cas_type</b></p>
-            <div class="ua"><button type="button" class="btn btn-outline" onclick="cU()" style="padding:6px 12px;font-size:11px">Cancel</button><button type="submit" class="btn btn-green" style="padding:6px 12px;font-size:11px"><i class="fas fa-check"></i> Upload</button></div>
+            <div class="upload-zone" id="dZ" onclick="document.getElementById('fI').click()"><i class="fas fa-cloud-arrow-up"></i><p id="dL">Click or drag file here</p><input type="file" id="fI" name="da_file" accept=".csv,.xlsx" style="display:none" required></div>
+            <div class="upload-hint">Required columns: <b>report_date</b>, <b>lco_name</b> or <b>lco_code</b>, <b>active_count</b>, <b>deactive_count</b>, <b>distributor</b>, <b>cas_type</b></div>
+            <div class="modal-actions"><button type="button" class="btn btn-ghost" onclick="cU()">Cancel</button><button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Upload</button></div>
         </form>
     </div>
 </div>
 
-{% if bulk_failures %}<div class="fb"><div class="ft"><i class="fas fa-triangle-exclamation"></i> {{ bulk_failures|length }} Failed</div>{% for f in bulk_failures %}<div class="fr">Row {{ f.row }}: {{ f.name or '—' }} — {{ f.error }}</div>{% endfor %}</div>{% endif %}
+{% if bulk_failures %}<div class="fail-box"><div class="fail-title"><i class="fas fa-triangle-exclamation"></i> {{ bulk_failures|length }} rows failed</div>{% for f in bulk_failures %}<div class="fail-row">Row {{ f.row }}: {{ f.name or '—' }} — {{ f.error }}</div>{% endfor %}</div>{% endif %}
 
 <script>
 window.onerror=function(msg,src,line){var el=document.getElementById('jsErr'),em=document.getElementById('jsErrMsg');if(el&&em){em.textContent='JS: '+(msg||'').substring(0,150)+' (L'+line+')';el.classList.add('show');}return true;};
@@ -197,39 +292,39 @@ function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Er
 
 function showHide(id,hasData){var el=document.getElementById(id);if(el)el.style.display=hasData?'':'none';}
 
-function makeChart(cid,mid,data,ak,dk,c1,c2){
+function makeChart(cid,mid,data,ak,dk,c1,c2,c3,c4){
     var msg=document.getElementById(mid);
     if(!data.dates||!data.dates.length){if(msg)msg.classList.add('show');return;}
     if(msg)msg.classList.remove('show');
-    if(!chartOK){if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart.js missing</p>';}return;}
+    if(!chartOK){if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--danger)">Chart.js missing</p>';}return;}
     try{
         var old=(cid==='kcChart')?kcChart:arChart;if(old){old.destroy();old=null;}
         var cv=document.getElementById(cid);if(!cv)return;
         var ctx=cv.getContext('2d');
-        var gA=ctx.createLinearGradient(0,0,0,170);gA.addColorStop(0,c1);gA.addColorStop(1,c2);
-        var gR=ctx.createLinearGradient(0,0,0,170);gR.addColorStop(0,'rgba(239,83,80,0.85)');gR.addColorStop(1,'rgba(239,83,80,0.4)');
+        var gA=ctx.createLinearGradient(0,0,0,180);gA.addColorStop(0,c1);gA.addColorStop(1,c2);
+        var gR=ctx.createLinearGradient(0,0,0,180);gR.addColorStop(0,c3);gR.addColorStop(1,c4);
         var ch=new Chart(ctx,{type:'bar',data:{labels:data.dates,datasets:[
-            {label:'Deactive',data:data[dk],backgroundColor:gR,borderWidth:0,borderRadius:6,borderSkipped:false,barPercentage:.55,categoryPercentage:.65,stack:'s'},
-            {label:'Active',data:data[ak],backgroundColor:gA,borderWidth:0,borderRadius:6,borderSkipped:false,barPercentage:.55,categoryPercentage:.65,stack:'s'}
+            {label:'Deactive',data:data[dk],backgroundColor:gR,borderWidth:0,borderRadius:5,borderSkipped:false,barPercentage:.5,categoryPercentage:.6,stack:'s'},
+            {label:'Active',data:data[ak],backgroundColor:gA,borderWidth:0,borderRadius:5,borderSkipped:false,barPercentage:.5,categoryPercentage:.6,stack:'s'}
         ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-            plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(15,20,35,0.95)',titleColor:'#fff',bodyColor:'#ccc',padding:10,cornerRadius:8,titleFont:{size:11,weight:'600'},bodyFont:{size:11},displayColors:false,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString();}}}},
-            scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#999',font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(0,0,0,0.04)',drawBorder:false},stacked:true,ticks:{color:'#999',font:{size:9}},beginAtZero:true}},
+            plugins:{legend:{display:false},tooltip:{backgroundColor:'#0F172A',titleColor:'#F8FAFC',bodyColor:'#CBD5E1',padding:12,cornerRadius:8,titleFont:{size:11,weight:'700'},bodyFont:{size:11},displayColors:false,callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString();}}}},
+            scales:{x:{grid:{display:false},stacked:true,ticks:{color:'#94A3B8',font:{size:9,weight:'500'},maxRotation:50,autoSkip:false}},y:{grid:{color:'rgba(226,232,240,.5)',drawBorder:false},stacked:true,ticks:{color:'#94A3B8',font:{size:10}},beginAtZero:true}},
             onClick:function(e,el){if(el.length>0&&fDates&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank');}
         }});
         if(cid==='kcChart')kcChart=ch;else arChart=ch;
-    }catch(e){console.error('[ChartErr]',e);if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--rd)">Chart error</p>';}}
+    }catch(e){console.error('[ChartErr]',e);if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--danger)">Chart error</p>';}}
 }
 
 function loadChartsOnce(){
     safeFetch('/daily-active/chart-data').then(function(d){
         fDates=d.full_dates||[];
         var n=fDates.length;
-        var pxPerBar=110,chartW=Math.max(n*pxPerBar,280);
+        var pxPerBar=120,chartW=Math.max(n*pxPerBar,300);
         var kcI=document.getElementById('kcInner'),arI=document.getElementById('arInner');
         if(kcI)kcI.style.width=chartW+'px';
         if(arI)arI.style.width=chartW+'px';
-        makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(0,188,212,0.95)','rgba(0,140,160,0.75)');
-        makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(47,163,96,0.95)','rgba(30,120,60,0.75)');
+        makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d','rgba(59,130,246,.95)','rgba(59,130,246,.5)','rgba(239,68,68,.9)','rgba(239,68,68,.4)');
+        makeChart('arChart','arMsg',d,'arohon_a','arohon_d','rgba(16,185,129,.95)','rgba(16,185,129,.5)','rgba(245,158,11,.9)','rgba(245,158,11,.4)');
         setTimeout(function(){
             var s1=document.getElementById('kcInner').parentElement;
             var s2=document.getElementById('arInner').parentElement;
@@ -277,46 +372,48 @@ function gen(){
     vFrom=dd.f;vTo=dd.t;vMode=document.getElementById('sM').value;
     if(!vFrom||!vTo){showFlash('Select both dates','error');return;}
     if(vFrom===vTo){showFlash('Select two different dates','error');return;}
-    var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.classList.add('gl');
+    var btn=document.getElementById('bG');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Loading';btn.classList.add('gl');btn.style.opacity='.5';
     var cmpUrl='/daily-active/compare?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;
     safeFetch(cmpUrl).then(function(d){
-        btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
+        btn.innerHTML='<i class="fas fa-bolt"></i> Generate';btn.classList.remove('gl');btn.style.opacity='';
         if(d.error){showFlash(d.error,'error');return;}
         setKPI(d.kccl_active||0,d.kccl_deactive||0,d.arohon_active||0,d.arohon_deactive||0);
         var tA=(d.kccl_active||0)+(d.arohon_active||0),tD=(d.kccl_deactive||0)+(d.arohon_deactive||0);
         document.getElementById('kR').textContent=(tA>0?((tD/tA)*100).toFixed(1):'0.0')+'%';
         var ne=document.getElementById('kN'),net=d.net||0;
         ne.textContent=(net>=0?'+':'')+net.toLocaleString();
-        ne.style.color=net>0?'var(--gn)':net<0?'var(--rd)':'#F9A825';
+        ne.style.color=net>0?'var(--success)':net<0?'var(--danger)':'var(--info)';
         growArr=d.growth||[];churnArr=d.churn||[];
         var col=vMode==='active'?'Active':'Deactive';
-        renderGC('gB','gC','bEG',growArr,'var(--gn)',col);
-        renderGC('cB','cC','bEC',churnArr,'var(--rd)',col);
+        renderGC('gB','gC','bEG',growArr,'var(--success)',col);
+        renderGC('cB','cC','bEC',churnArr,'var(--danger)',col);
         renderAgg('subB','subBadge','bESub','subWrap',d.subdistwise||[]);
         renderAgg('areaB','areaBadge','bEArea','areaWrap',d.areawise||[]);
         renderCasewise(d.casewise||[]);
-        showFlash('Report generated ('+col+')','success');
+        showFlash('Report generated — '+col,'success');
     }).catch(function(e){
-        btn.innerHTML='<i class="fas fa-bolt"></i> GO';btn.classList.remove('gl');
+        btn.innerHTML='<i class="fas fa-bolt"></i> Generate';btn.classList.remove('gl');btn.style.opacity='';
         console.error('[GenErr]',e);showFlash('Failed: '+e.message,'error');
     });
 }
 
 function distTag(dist){
     var d=(dist||'KCCL').toUpperCase();
-    if(d==='AROHON')return '<span class="dist-tag dist-arohon">AROHON</span>';
-    if(d==='KCCL')return '<span class="dist-tag dist-kccl">KCCL</span>';
-    return '<span class="dist-tag dist-other">'+(dist||'—')+'</span>';
+    if(d==='AROHON')return '<span class="tag tag-arohon">AROHON</span>';
+    if(d==='KCCL')return '<span class="tag tag-kccl">KCCL</span>';
+    return '<span class="tag tag-other">'+(dist||'—')+'</span>';
 }
 function renderGC(bid,cid,btid,data,color,colName){
     var el=document.getElementById(bid),ce=document.getElementById(cid),be=document.getElementById(btid);
     if(!el)return;
-    if(!data||!data.length){el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No change detected</p></div>';if(ce)ce.textContent='';if(be)be.style.display='none';return;}
-    if(ce)ce.textContent=data.length;if(be)be.style.display='';
-    var h='<table><thead><tr><th>#</th><th>LCO</th><th>Dist</th><th class="mh">Area</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
+    if(!data||!data.length){el.innerHTML='<div class="panel-grow"><i class="fas fa-check-circle"></i><p>No change detected</p></div>';if(ce)ce.textContent='';if(be)be.style.display='none';return;}
+    if(ce)ce.textContent=data.length+' entries';if(be)be.style.display='';
+    var h='<table class="dtable"><thead><tr><th>#</th><th>LCO Code</th><th>Distributor</th><th class="hide-mobile">Area</th><th>Prev</th><th>Now</th><th>'+colName+'</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
-        var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
-        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td><td class="nm">'+(r.lco||'')+'</td><td>'+distTag(r.dist)+'</td><td class="mh" style="font-size:9px;color:var(--grey)">'+(r.area||'—')+'</td><td>'+(r.prev||0)+'</td><td style="font-weight:600">'+(r.now||0)+'</td><td style="font-weight:700;color:'+color+'">'+(r.change>=0?'+':'')+(r.change||0)+'</td></tr>';
+        var r=data[i],bg=i%2!==0?'background:#FAFBFD':'';
+        var vc=r.change>0?'val-pos':r.change<0?'val-neg':'val-zero';
+        var vp=r.change>=0?'+':'';
+        h+='<tr style="'+bg+'"><td style="color:var(--muted);font-size:10px">'+(i+1)+'</td><td class="mono">'+(r.lco||'')+'</td><td>'+distTag(r.dist)+'</td><td class="hide-mobile" style="font-size:10px;color:var(--secondary)">'+(r.area||'—')+'</td><td class="mono">'+(r.prev||0)+'</td><td class="mono" style="font-weight:700">'+(r.now||0)+'</td><td class="mono '+vc+'">'+vp+(r.change||0)+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
@@ -325,24 +422,21 @@ function renderAgg(bid,badgeId,btnId,wrapId,data){
     var el=document.getElementById(bid),be=document.getElementById(badgeId),btn=document.getElementById(btnId),wrap=document.getElementById(wrapId);
     if(!el)return;
     if(!data||!data.length){
-        el.innerHTML='<div class="tem"><i class="fas fa-check-circle"></i><p>No data</p></div>';
-        if(be)be.textContent='';if(btn)btn.style.display='none';
-        if(wrap)wrap.style.display='none';
-        return;
+        el.innerHTML='<div class="panel-grow"><i class="fas fa-check-circle"></i><p>No data</p></div>';
+        if(be)be.textContent='';if(btn)btn.style.display='none';if(wrap)wrap.style.display='none';return;
     }
-    if(wrap)wrap.style.display='';
-    if(be)be.textContent=data.length;if(btn)btn.style.display='';
-    var h='<table><thead><tr><th>#</th><th>NAME</th><th class="mh">DIST</th><th>PREV</th><th>NOW</th><th>+/-</th></tr></thead><tbody>';
+    if(wrap)wrap.style.display='';if(be)be.textContent=data.length;if(btn)btn.style.display='';
+    var h='<table class="dtable"><thead><tr><th>#</th><th>Name</th><th class="hide-mobile">Dist</th><th>Prev</th><th>Now</th><th>+/-</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
-        var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
-        var dc=r.diff>0?'var(--gn)':r.diff<0?'var(--rd)':'var(--grey)';
-        var dp=r.diff>=0?'+':'';
-        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
+        var r=data[i],bg=i%2!==0?'background:#FAFBFD':'';
+        var vc=r.diff>0?'val-pos':r.diff<0?'val-neg':'val-zero';
+        var vp=r.diff>=0?'+':'';
+        h+='<tr style="'+bg+'"><td style="color:var(--muted);font-size:10px">'+(i+1)+'</td>';
         h+='<td style="font-weight:600">'+(r.name||'')+'</td>';
-        h+='<td class="mh">'+distTag(r.distributor)+'</td>';
-        h+='<td class="nm">'+(r.prev||0)+'</td>';
-        h+='<td class="nm" style="font-weight:600">'+(r.now||0)+'</td>';
-        h+='<td style="font-weight:700;color:'+dc+'">'+dp+(r.diff||0)+'</td></tr>';
+        h+='<td class="hide-mobile">'+distTag(r.distributor)+'</td>';
+        h+='<td class="mono">'+(r.prev||0)+'</td>';
+        h+='<td class="mono" style="font-weight:700">'+(r.now||0)+'</td>';
+        h+='<td class="mono '+vc+'">'+vp+(r.diff||0)+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
@@ -351,24 +445,21 @@ function renderCasewise(data){
     var el=document.getElementById('casB'),ce=document.getElementById('casBadge'),be=document.getElementById('bECas'),wrap=document.getElementById('casWrap');
     if(!el)return;
     if(!data||!data.length){
-        el.innerHTML='<div class="tem"><p>No data for selected filters</p></div>';
-        if(ce)ce.textContent='';if(be)be.style.display='none';
-        if(wrap)wrap.style.display='none';
-        return;
+        el.innerHTML='<div class="panel-grow"><p>No data for selected filters</p></div>';
+        if(ce)ce.textContent='';if(be)be.style.display='none';if(wrap)wrap.style.display='none';return;
     }
-    if(wrap)wrap.style.display='';
-    if(ce)ce.textContent=data.length;if(be)be.style.display='';
-    var h='<table><thead><tr><th>#</th><th>CAS TYPE</th><th class="mh">DIST</th><th>PREV</th><th>NOW</th><th>+/-</th></tr></thead><tbody>';
+    if(wrap)wrap.style.display='';if(ce)ce.textContent=data.length;if(be)be.style.display='';
+    var h='<table class="dtable"><thead><tr><th>#</th><th>CAS Type</th><th class="hide-mobile">Dist</th><th>Prev</th><th>Now</th><th>+/-</th></tr></thead><tbody>';
     for(var i=0;i<data.length;i++){
-        var r=data[i],bg=i%2!==0?'background:#FAFBFC':'';
-        var dc=r.diff>0?'var(--gn)':r.diff<0?'var(--rd)':'var(--grey)';
-        var dp=r.diff>=0?'+':'';
-        h+='<tr style="'+bg+'"><td style="color:var(--grey)">'+(i+1)+'</td>';
+        var r=data[i],bg=i%2!==0?'background:#FAFBFD':'';
+        var vc=r.diff>0?'val-pos':r.diff<0?'val-neg':'val-zero';
+        var vp=r.diff>=0?'+':'';
+        h+='<tr style="'+bg+'"><td style="color:var(--muted);font-size:10px">'+(i+1)+'</td>';
         h+='<td style="font-weight:600">'+(r.name||'')+'</td>';
-        h+='<td class="mh">'+distTag(r.distributor)+'</td>';
-        h+='<td class="nm">'+(r.prev||0)+'</td>';
-        h+='<td class="nm" style="font-weight:600">'+(r.now||0)+'</td>';
-        h+='<td style="font-weight:700;color:'+dc+'">'+dp+(r.diff||0)+'</td></tr>';
+        h+='<td class="hide-mobile">'+distTag(r.distributor)+'</td>';
+        h+='<td class="mono">'+(r.prev||0)+'</td>';
+        h+='<td class="mono" style="font-weight:700">'+(r.now||0)+'</td>';
+        h+='<td class="mono '+vc+'">'+vp+(r.diff||0)+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
 }
@@ -380,25 +471,22 @@ function dArea(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}loca
 function dCas(){if(!vFrom||!vTo){showFlash('Select dates','error');return;}location.href='/daily-active/export-casewise?from='+vFrom+'&to='+vTo+getParams()+'&mode='+vMode;}
 
 function oU(){document.getElementById('uM').classList.add('show');}
-function cU(){document.getElementById('uM').classList.remove('show');document.getElementById('uF').reset();document.getElementById('dL').textContent='Click or drag file';}
+function cU(){document.getElementById('uM').classList.remove('show');document.getElementById('uF').reset();document.getElementById('dL').textContent='Click or drag file here';}
 document.getElementById('uM').addEventListener('click',function(e){if(e.target===this)cU();});
 var dz=document.getElementById('dZ'),fi=document.getElementById('fI'),dlabel=document.getElementById('dL');
 if(dz){
-    dz.addEventListener('dragover',function(e){e.preventDefault();dz.style.borderColor='var(--cy)';});
-    dz.addEventListener('dragleave',function(){dz.style.borderColor='';});
-    dz.addEventListener('drop',function(e){e.preventDefault();dz.style.borderColor='';if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;dlabel.textContent=e.dataTransfer.files[0].name;}});
+    dz.addEventListener('dragover',function(e){e.preventDefault();dz.style.borderColor='var(--accent)';dz.style.background='rgba(59,130,246,.03)';});
+    dz.addEventListener('dragleave',function(){dz.style.borderColor='';dz.style.background='';});
+    dz.addEventListener('drop',function(e){e.preventDefault();dz.style.borderColor='';dz.style.background='';if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;dlabel.textContent=e.dataTransfer.files[0].name;}});
 }
 if(fi)fi.addEventListener('change',function(){if(fi.files.length)dlabel.textContent=fi.files[0].name;});
 
 function showFlash(msg,type){
     var c=document.querySelector('.flashes');
-    if(!c){c=document.createElement('div');c.className='flashes';c.style.cssText='position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none';document.body.appendChild(c);}
-    var d=document.createElement('div');d.className='flash '+type;
-    d.style.cssText='pointer-events:auto;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);max-width:320px;word-break:break-word;';
-    if(type==='success'){d.style.background='#E8F5E9';d.style.color='#2E7D32';d.style.border='1px solid #A5D6A7';}
-    else{d.style.background='#FFEBEE';d.style.color='#C62828';d.style.border='1px solid #EF9A9A';}
-    d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;
-    c.prepend(d);setTimeout(function(){if(d.parentNode)d.remove();},5000);
+    if(!c){c=document.createElement('div');c.className='flashes';document.body.appendChild(c);}
+    var d=document.createElement('div');d.className='flash flash-'+type;
+    d.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'circle-exclamation')+'"></i> '+msg;
+    c.prepend(d);setTimeout(function(){if(d.parentNode)d.remove();},4000);
 }
 
 try{loadChartsOnce();}catch(e){console.error('[InitCh]',e);}
