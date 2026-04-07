@@ -41,9 +41,16 @@ body .content{padding:14px 20px 36px;max-width:1480px;margin:0 auto}
 .ch-legend{display:flex;gap:14px}
 .ch-legend span{font-size:9px;color:var(--muted);display:flex;align-items:center;gap:4px;font-weight:500}
 .ch-legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
-.ch-scroll{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;scroll-behavior:smooth;-ms-overflow-style:none}
-.ch-scroll::-webkit-scrollbar{display:none}
-.ch-inner{height:165px;position:relative;min-width:300px}
+
+/* ===== SCROLLABLE CHART CONTAINER ===== */
+.ch-scroll{overflow-x:auto;overflow-y:auto;max-height:200px;scroll-behavior:smooth}
+.ch-scroll::-webkit-scrollbar{width:6px;height:6px}
+.ch-scroll::-webkit-scrollbar-track{background:#F1F5F9;border-radius:10px}
+.ch-scroll::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:10px;border:1px solid #F1F5F9}
+.ch-scroll::-webkit-scrollbar-thumb:hover{background:#94A3B8}
+.ch-scroll::-webkit-scrollbar-corner{background:#F1F5F9}
+.ch-inner{height:165px;position:relative;min-width:100%}
+
 .ch-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:12px;z-index:2;background:var(--card);border-radius:var(--radius-sm)}
 .ch-msg.show{display:flex}
 
@@ -153,14 +160,14 @@ body .content{padding:14px 20px 36px;max-width:1480px;margin:0 auto}
 <div class="ch-grid" id="chGrid">
     <div class="ch-card ch-kccl" onclick="dlChartDate()" style="cursor:pointer">
         <div class="ch-head">
-            <div class="ch-title"><h3>KCCL Overview</h3><span class="badge badge-kccl">DISTRIBUTOR</span></div>
+            <div class="ch-title"><h3>KCCL Overview</h3><span class="badge badge-kccl">RECENT 15</span></div>
             <div class="ch-legend"><span><i style="background:#06B6D4"></i>Active</span><span><i style="background:#F43F5E"></i>Deactive</span></div>
         </div>
         <div class="ch-scroll"><div class="ch-inner" id="kcInner"><canvas id="kcChart"></canvas><div id="kcMsg" class="ch-msg show">No data</div></div></div>
     </div>
     <div class="ch-card ch-arohon" onclick="dlChartDate()" style="cursor:pointer">
         <div class="ch-head">
-            <div class="ch-title"><h3>AROHON Overview</h3><span class="badge badge-arohon">DISTRIBUTOR</span></div>
+            <div class="ch-title"><h3>AROHON Overview</h3><span class="badge badge-arohon">RECENT 15</span></div>
             <div class="ch-legend"><span><i style="background:#10B981"></i>Active</span><span><i style="background:#F59E0B"></i>Deactive</span></div>
         </div>
         <div class="ch-scroll"><div class="ch-inner" id="arInner"><canvas id="arChart"></canvas><div id="arMsg" class="ch-msg show">No data</div></div></div>
@@ -238,8 +245,9 @@ body .content{padding:14px 20px 36px;max-width:1480px;margin:0 auto}
 <script>
 window.onerror=function(msg,src,line){var el=document.getElementById('jsErr'),em=document.getElementById('jsErrMsg');if(el&&em){em.textContent='JS: '+(msg||'').substring(0,150)+' (L'+line+')';el.classList.add('show');}return true;};
 
-var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],vFrom='',vTo='',vMode='active';
+var growArr=[],churnArr=[],kcChart=null,arChart=null,fDates=[],fRecentDates=[],vFrom='',vTo='',vMode='active';
 var chartOK=(typeof Chart!=='undefined');
+var RECENT_LIMIT=15;
 
 function getParams(){
     var d=document.getElementById('sD').value,a=document.getElementById('sA').value,s=document.getElementById('sS').value,c=document.getElementById('sC').value,p=[];
@@ -252,13 +260,13 @@ function getParams(){
 function safeFetch(url){return fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
 
 function resizeCharts(){
-    if(!fDates.length)return;
+    if(!fRecentDates.length)return;
     try{
         var grid=document.getElementById('chGrid');
         if(!grid)return;
         var cw=grid.clientWidth-38;
-        var barW=Math.max(56,Math.min(96,cw/fDates.length));
-        var totalW=Math.max(fDates.length*barW,200);
+        var barW=Math.max(48,Math.min(80,cw/fRecentDates.length));
+        var totalW=Math.max(fRecentDates.length*barW,300);
         var kcI=document.getElementById('kcInner'),arI=document.getElementById('arInner');
         if(kcI)kcI.style.width=totalW+'px';
         if(arI)arI.style.width=totalW+'px';
@@ -278,73 +286,28 @@ function makeChart(cid,mid,data,ak,dk,lineData,lineBorder,barColors){
         var gA=ctx.createLinearGradient(0,0,0,165);gA.addColorStop(0,bc.activeTop);gA.addColorStop(1,bc.activeBot);
         var gR=ctx.createLinearGradient(0,0,0,165);gR.addColorStop(0,bc.deactTop);gR.addColorStop(1,bc.deactBot);
         var datasets=[
-            {
-                type:'line',
-                label:'Active Trend',
-                data:lineData,
-                borderColor:lineBorder,
-                backgroundColor:'transparent',
-                borderWidth:2.5,
-                pointRadius:3,
-                pointBackgroundColor:'#fff',
-                pointBorderColor:lineBorder,
-                pointBorderWidth:2,
-                tension:.4,
-                fill:false,
-                order:0
-            },
-            {
-                type:'bar',
-                label:'Deactive',
-                data:data[dk],
-                backgroundColor:gR,
-                borderWidth:0,
-                borderRadius:3,
-                barPercentage:.85,
-                categoryPercentage:.9,
-                stack:'barStack',
-                order:1
-            },
-            {
-                type:'bar',
-                label:'Active',
-                data:data[ak],
-                backgroundColor:gA,
-                borderWidth:0,
-                borderRadius:3,
-                barPercentage:.85,
-                categoryPercentage:.9,
-                stack:'barStack',
-                order:2
-            }
+            {type:'line',label:'Active Trend',data:lineData,borderColor:lineBorder,backgroundColor:'transparent',borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#fff',pointBorderColor:lineBorder,pointBorderWidth:2,tension:.4,fill:false,order:0},
+            {type:'bar',label:'Deactive',data:data[dk],backgroundColor:gR,borderWidth:0,borderRadius:3,barPercentage:.8,categoryPercentage:.9,stack:'barStack',order:1},
+            {type:'bar',label:'Active',data:data[ak],backgroundColor:gA,borderWidth:0,borderRadius:3,barPercentage:.8,categoryPercentage:.9,stack:'barStack',order:2}
         ];
         var ch=new Chart(ctx,{
             type:'bar',
             data:{labels:data.dates,datasets:datasets},
             options:{
-                responsive:true,
-                maintainAspectRatio:false,
+                responsive:true,maintainAspectRatio:false,
                 interaction:{mode:'index',intersect:false},
                 plugins:{
                     legend:{display:false},
                     tooltip:{
-                        backgroundColor:'rgba(15,23,42,.94)',
-                        titleColor:'#F1F5F9',
-                        bodyColor:'#CBD5E1',
-                        padding:10,
-                        cornerRadius:8,
-                        titleFont:{size:11,weight:'700',family:'Inter'},
-                        bodyFont:{size:11,family:'Inter'},
-                        displayColors:true,
-                        boxWidth:8,
-                        boxHeight:8,
-                        boxPadding:4,
-                        usePointStyle:true,
+                        backgroundColor:'rgba(15,23,42,.94)',titleColor:'#F1F5F9',bodyColor:'#CBD5E1',
+                        padding:10,cornerRadius:8,
+                        titleFont:{size:11,weight:'700',family:'Inter'},bodyFont:{size:11,family:'Inter'},
+                        displayColors:true,boxWidth:8,boxHeight:8,boxPadding:4,usePointStyle:true,
                         filter:function(item){return item.dataset.type!=='line';},
                         callbacks:{
                             title:function(c){return c[0].label;},
                             label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString();},
-                            afterBody:function(c){var total=0;for(var i=0;i<c.length;i++){total+=c[i].parsed.y;}return['  Total: '+total.toLocaleString()];}
+                            afterBody:function(c){var total=0;for(var i=0;i<c.length;i++)total+=c[i].parsed.y;return['  Total: '+total.toLocaleString()];}
                         }
                     }
                 },
@@ -353,13 +316,13 @@ function makeChart(cid,mid,data,ak,dk,lineData,lineBorder,barColors){
                     y:{grid:{color:'rgba(226,232,240,.3)'},stacked:true,ticks:{color:'#94A3B8',font:{size:9,family:'Inter'},padding:8,callback:function(v){return v>=1000?(v/1000)+'K':v;}},border:{display:false},beginAtZero:true}
                 },
                 animation:{duration:700,easing:'easeOutQuart'},
-                onClick:function(e,el){if(el.length>0&&fDates&&fDates[el[0].index])window.open('/daily-active/date-summary?date='+fDates[el[0].index],'_blank');}
+                onClick:function(e,el){if(el.length>0&&fRecentDates&&fRecentDates[el[0].index])window.open('/daily-active/date-summary?date='+fRecentDates[el[0].index],'_blank');}
             }
         });
         if(cid==='kcChart')kcChart=ch;else arChart=ch;
     }catch(e){
         console.error('[ChartErr]',e);
-        if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--danger)">Chart error: '+e.message+'</p>';}
+        if(msg){msg.classList.add('show');msg.innerHTML='<p style="color:var(--danger)">Chart error</p>';}
     }
 }
 
@@ -368,12 +331,31 @@ var arColors={activeTop:'rgba(16,185,129,.92)',activeBot:'rgba(16,185,129,.3)',d
 
 function loadChartsOnce(){
     safeFetch('/daily-active/chart-data').then(function(d){
-        fDates=d.full_dates||[];
-        var n=fDates.length;
-        if(n>0){var li=n-1;setKPI(d.kccl_a[li]||0,d.kccl_d[li]||0,d.arohon_a[li]||0,d.arohon_d[li]||0);}
+        var allDates=d.full_dates||[];
+        var allShortDates=d.dates||[];
+        var allKa=d.kccl_a||[];
+        var allKd=d.kccl_d||[];
+        var allAa=d.arohon_a||[];
+        var allAd=d.arohon_d||[];
+        var n=allDates.length;
+        if(n>0){var li=n-1;setKPI(allKa[li]||0,allKd[li]||0,allAa[li]||0,allAd[li]||0);}
+        // === SLICE LAST 15 RECENT DATES ===
+        var start=Math.max(0,n-RECENT_LIMIT);
+        fRecentDates=allDates.slice(start);
+        var shortSlice=allShortDates.slice(start);
+        var kaSlice=allKa.slice(start);
+        var kdSlice=allKd.slice(start);
+        var aaSlice=allAa.slice(start);
+        var adSlice=allAd.slice(start);
+        var recentData={dates:shortSlice,kccl_a:kaSlice,kccl_d:kdSlice,arohon_a:aaSlice,arohon_d:adSlice};
         resizeCharts();
-        makeChart('kcChart','kcMsg',d,'kccl_a','kccl_d',d.kccl_a,kcColors.lineBorder,kcColors);
-        makeChart('arChart','arMsg',d,'arohon_a','arohon_d',d.arohon_a,arColors.lineBorder,arColors);
+        makeChart('kcChart','kcMsg',recentData,'kccl_a','kccl_d',kaSlice,kcColors.lineBorder,kcColors);
+        makeChart('arChart','arMsg',recentData,'arohon_a','arohon_d',aaSlice,arColors.lineBorder,arColors);
+        // auto-scroll to rightmost (newest)
+        setTimeout(function(){
+            var scrolls=document.querySelectorAll('.ch-scroll');
+            for(var i=0;i<scrolls.length;i++){scrolls[i].scrollLeft=scrolls[i].scrollWidth;}
+        },800);
         window.addEventListener('resize',resizeCharts);
     }).catch(function(e){
         console.error('[ChartDataErr]',e);
@@ -391,7 +373,7 @@ function setKPI(ka,kd,aa,ad){
     document.getElementById('kR').textContent=(tA>0?((tD/tA)*100).toFixed(1):'0.0')+'%';
 }
 
-function dlChartDate(){if(fDates&&fDates.length>0)window.open('/daily-active/date-summary?date='+fDates[fDates.length-1],'_blank');}
+function dlChartDate(){if(fRecentDates&&fRecentDates.length>0)window.open('/daily-active/date-summary?date='+fRecentDates[fRecentDates.length-1],'_blank');}
 function readDates(){return{f:document.getElementById('dF').value,t:document.getElementById('dT').value};}
 function datesOk(){var d=readDates();return d.f&&d.t&&d.f!==d.t;}
 function updateSubDists(){
